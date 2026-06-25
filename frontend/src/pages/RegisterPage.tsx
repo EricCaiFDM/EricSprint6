@@ -1,12 +1,12 @@
 import { FormEvent, useState } from "react";
-import { login, register } from "../services/api";
+import { register } from "../services/api";
 
-export function AuthPage() {
+export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [output, setOutput] = useState("No request yet.");
 
-  const onRegister = async (event: FormEvent) => {
+  const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     try {
       const data = await register({ email, password, passwordConfirmation: password });
@@ -16,19 +16,10 @@ export function AuthPage() {
     }
   };
 
-  const onLogin = async () => {
-    try {
-      const data = await login({ identity: email, password });
-      setOutput(`Login success: ${JSON.stringify(data)}`);
-    } catch (error) {
-      setOutput(`Login failed: ${(error as Error).message}`);
-    }
-  };
-
   return (
     <div>
-      <h2>Authentication</h2>
-      <form onSubmit={onRegister} className="form">
+      <h2>Register</h2>
+      <form onSubmit={onSubmit} className="form">
         <label>
           Email
           <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
@@ -37,10 +28,7 @@ export function AuthPage() {
           Password
           <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} required />
         </label>
-        <div className="actions">
-          <button type="submit">Register</button>
-          <button type="button" onClick={onLogin}>Login</button>
-        </div>
+        <button type="submit">Create Account</button>
       </form>
       <pre className="output">{output}</pre>
     </div>
