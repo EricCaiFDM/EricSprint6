@@ -1,0 +1,150 @@
+openapi: 3.0.3
+info:
+  title: Customer Management API
+  version: 1.0.0
+  description: Contract for customer create, update, get details, and delete operations.
+servers:
+  - url: https://api.example.com
+paths:
+  /customers:
+    post:
+      summary: Create customer profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Insufficient permission
+        '409':
+          description: Duplicate customer conflict
+  /customers/{customerId}:
+    get:
+      summary: Get customer details
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: Customer found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Customer not found
+    patch:
+      summary: Update customer profile
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCustomerRequest'
+      responses:
+        '200':
+          description: Customer updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Customer not found
+    delete:
+      summary: Delete customer profile
+      parameters:
+        - $ref: '#/components/parameters/CustomerId'
+      responses:
+        '200':
+          description: Deletion succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteCustomerResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Customer not found
+        '409':
+          description: Deletion blocked by dependency or retention policy
+components:
+  parameters:
+    CustomerId:
+      name: customerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    CreateCustomerRequest:
+      type: object
+      required: [externalCustomerKey, legalName, primaryEmail]
+      properties:
+        externalCustomerKey:
+          type: string
+        legalName:
+          type: string
+        primaryEmail:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+    UpdateCustomerRequest:
+      type: object
+      properties:
+        legalName:
+          type: string
+        primaryEmail:
+          type: string
+          format: email
+        phoneNumber:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+    CustomerResponse:
+      type: object
+      required: [customerId, externalCustomerKey, legalName, primaryEmail, status]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        externalCustomerKey:
+          type: string
+        legalName:
+          type: string
+        primaryEmail:
+          type: string
+        phoneNumber:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+    DeleteCustomerResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [DELETED]
+        message:
+          type: string

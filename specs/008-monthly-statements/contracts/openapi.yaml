@@ -1,0 +1,193 @@
+openapi: 3.0.3
+info:
+  title: Monthly Statements API
+  version: 1.0.0
+  description: Contract for monthly statement generation and authorized retrieval.
+servers:
+  - url: https://api.example.com
+paths:
+  /statements/generate:
+    post:
+      summary: Generate monthly statement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateStatementRequest'
+      responses:
+        '202':
+          description: Statement generation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateStatementAcceptedResponse'
+        '400':
+          description: Invalid period or validation failure
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Account not found
+        '500':
+          description: Generation dependency failure
+  /statements/{statementId}:
+    get:
+      summary: Retrieve statement artifact metadata and access link
+      parameters:
+        - $ref: '#/components/parameters/StatementId'
+      responses:
+        '200':
+          description: Statement retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Missing statement artifact
+  /statements:
+    get:
+      summary: List statements for account and period filters
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/PeriodYearMonth'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Statement list returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementListResponse'
+        '403':
+          description: Insufficient permission
+components:
+  parameters:
+    StatementId:
+      name: statementId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AccountId:
+      name: accountId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PeriodYearMonth:
+      name: periodYearMonth
+      in: query
+      required: false
+      schema:
+        type: string
+        pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    GenerateStatementRequest:
+      type: object
+      required: [accountId, periodYearMonth, generationMode]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        periodYearMonth:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+        generationMode:
+          type: string
+          enum: [STANDARD, CORRECTION]
+    GenerateStatementAcceptedResponse:
+      type: object
+      required: [statementId, generationStatus]
+      properties:
+        statementId:
+          type: string
+          format: uuid
+        generationStatus:
+          type: string
+          enum: [QUEUED, PROCESSING]
+    StatementResponse:
+      type: object
+      required: [statementId, accountId, periodYearMonth, artifactVersion, openingBalance, closingBalance, status]
+      properties:
+        statementId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        periodYearMonth:
+          type: string
+        artifactVersion:
+          type: integer
+        openingBalance:
+          type: string
+        closingBalance:
+          type: string
+        currencyCode:
+          type: string
+        status:
+          type: string
+          enum: [GENERATED, CORRECTED, FAILED]
+        artifactUri:
+          type: string
+        generatedAtUtc:
+          type: string
+          format: date-time
+    StatementListItem:
+      type: object
+      required: [statementId, accountId, periodYearMonth, artifactVersion, status]
+      properties:
+        statementId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        periodYearMonth:
+          type: string
+        artifactVersion:
+          type: integer
+        status:
+          type: string
+          enum: [GENERATED, CORRECTED, FAILED]
+        generatedAtUtc:
+          type: string
+          format: date-time
+    StatementListResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementListItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer

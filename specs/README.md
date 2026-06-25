@@ -2,6 +2,9 @@
 
 This workspace now contains a consolidated master spec plus feature-specific split specs.
 
+Canonical tool stack reference:
+- [Project Tool Stack](../TOOL-STACK.md)
+
 ## Master Spec
 - [001 User Auth Flows](001-user-auth-flows/spec.md)
 

@@ -1,0 +1,295 @@
+openapi: 3.0.3
+info:
+  title: Transaction Operations API
+  version: 1.0.0
+  description: Contract for deposit, withdrawal, transfer, and transaction history operations.
+servers:
+  - url: https://api.example.com
+paths:
+  /transactions/deposit:
+    post:
+      summary: Post a deposit
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DepositRequest'
+      responses:
+        '201':
+          description: Deposit posted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostingResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Account not found
+        '409':
+          description: Idempotency or concurrency conflict
+  /transactions/withdrawal:
+    post:
+      summary: Post a withdrawal
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WithdrawalRequest'
+      responses:
+        '201':
+          description: Withdrawal posted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostingResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Account not found
+        '409':
+          description: Idempotency or concurrency conflict
+        '422':
+          description: Insufficient funds
+  /transactions/transfer:
+    post:
+      summary: Post an atomic transfer
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferRequest'
+      responses:
+        '201':
+          description: Transfer posted atomically
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Account not found
+        '409':
+          description: Invalid source-destination or idempotency conflict
+        '422':
+          description: Insufficient funds
+  /transactions/history:
+    get:
+      summary: Retrieve transaction history
+      parameters:
+        - $ref: '#/components/parameters/ScopeType'
+        - $ref: '#/components/parameters/ScopeId'
+        - $ref: '#/components/parameters/StartDateUtc'
+        - $ref: '#/components/parameters/EndDateUtc'
+        - $ref: '#/components/parameters/TransactionTypeFilter'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Transaction history returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionHistoryResponse'
+        '400':
+          description: Validation error
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Scope not found
+components:
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+    ScopeType:
+      name: scopeType
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [ACCOUNT, CUSTOMER]
+    ScopeId:
+      name: scopeId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    StartDateUtc:
+      name: startDateUtc
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+    EndDateUtc:
+      name: endDateUtc
+      in: query
+      required: false
+      schema:
+        type: string
+        format: date-time
+    TransactionTypeFilter:
+      name: transactionType
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [DEPOSIT, WITHDRAWAL, TRANSFER_DEBIT, TRANSFER_CREDIT]
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    DepositRequest:
+      type: object
+      required: [accountId, amount]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          description: Decimal value with 2 fraction digits
+    WithdrawalRequest:
+      type: object
+      required: [accountId, amount]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          description: Decimal value with 2 fraction digits
+    TransferRequest:
+      type: object
+      required: [sourceAccountId, destinationAccountId, amount]
+      properties:
+        sourceAccountId:
+          type: string
+          format: uuid
+        destinationAccountId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          description: Decimal value with 2 fraction digits
+    PostingResponse:
+      type: object
+      required: [transactionId, transactionType, postedAmount, currencyCode, balanceAfter, postedAtUtc]
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        transactionType:
+          type: string
+          enum: [DEPOSIT, WITHDRAWAL]
+        postedAmount:
+          type: string
+        currencyCode:
+          type: string
+        balanceAfter:
+          type: string
+        postedAtUtc:
+          type: string
+          format: date-time
+    TransferResponse:
+      type: object
+      required: [transferId, debitTransactionId, creditTransactionId, postedAmount, currencyCode, sourceBalanceAfter, destinationBalanceAfter, postedAtUtc]
+      properties:
+        transferId:
+          type: string
+          format: uuid
+        debitTransactionId:
+          type: string
+          format: uuid
+        creditTransactionId:
+          type: string
+          format: uuid
+        postedAmount:
+          type: string
+        currencyCode:
+          type: string
+        sourceBalanceAfter:
+          type: string
+        destinationBalanceAfter:
+          type: string
+        postedAtUtc:
+          type: string
+          format: date-time
+    TransactionHistoryItem:
+      type: object
+      required: [transactionId, accountId, transactionType, amount, currencyCode, postedAtUtc, balanceAfter]
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        transactionType:
+          type: string
+          enum: [DEPOSIT, WITHDRAWAL, TRANSFER_DEBIT, TRANSFER_CREDIT]
+        amount:
+          type: string
+        currencyCode:
+          type: string
+        postedAtUtc:
+          type: string
+          format: date-time
+        balanceAfter:
+          type: string
+        correlationId:
+          type: string
+          format: uuid
+          nullable: true
+    TransactionHistoryResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionHistoryItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
