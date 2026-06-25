@@ -8,9 +8,9 @@
 
 **Purpose**: Initialize account-management module scaffolding and baseline configuration
 
-- [ ] T001 Create account API module entrypoint in backend/src/api/accounts/index.ts
-- [ ] T002 Add account module configuration schema in backend/src/lib/config/account-config.ts
-- [ ] T003 [P] Add account module dependency wiring in backend/src/lib/container.ts
+- [ ] T001 Create account API module entrypoint in backend/src/main/java/com/example/banking/api/accounts/index.java
+- [ ] T002 Add account module configuration schema in backend/src/main/java/com/example/banking/lib/config/account-config.java
+- [ ] T003 [P] Add account module dependency wiring in backend/src/main/java/com/example/banking/lib/container.java
 
 ---
 
@@ -20,15 +20,15 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [ ] T004 Define account entities and enums in backend/prisma/schema.prisma
-- [ ] T005 Create account-management migration in backend/prisma/migrations/20260625_account_mgmt_init/migration.sql
-- [ ] T006 [P] Implement hybrid RBAC scope policy utility in backend/src/lib/security/account-access-policy.ts
-- [ ] T007 [P] Implement account field-level masking utility in backend/src/lib/security/account-field-masker.ts
-- [ ] T008 Implement account eligibility check service in backend/src/services/account-eligibility-service.ts
-- [ ] T009 Implement account lifecycle audit service in backend/src/services/account-lifecycle-audit-service.ts
-- [ ] T010 Implement account-management error mapping utilities in backend/src/lib/errors/account-errors.ts
-- [ ] T011 Implement account repository abstractions in backend/src/services/account-repository.ts
-- [ ] T012 Implement account deletion policy-check service in backend/src/services/account-deletion-policy-service.ts
+- [ ] T004 Define account entities and enums in backend/src/main/resources/db/changelog/db.changelog-master.yaml
+- [ ] T005 Create account-management migration in backend/src/main/resources/db/changelog/changes/20260625_account_mgmt_init.xml
+- [ ] T006 [P] Implement hybrid RBAC scope policy utility in backend/src/main/java/com/example/banking/lib/security/account-access-policy.java
+- [ ] T007 [P] Implement account field-level masking utility in backend/src/main/java/com/example/banking/lib/security/account-field-masker.java
+- [ ] T008 Implement account eligibility check service in backend/src/main/java/com/example/banking/services/account-eligibility-service.java
+- [ ] T009 Implement account lifecycle audit service in backend/src/main/java/com/example/banking/services/account-lifecycle-audit-service.java
+- [ ] T010 Implement account-management error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/account-errors.java
+- [ ] T011 Implement account repository abstractions in backend/src/main/java/com/example/banking/services/account-repository.java
+- [ ] T012 Implement account deletion policy-check service in backend/src/main/java/com/example/banking/services/account-deletion-policy-service.java
 
 **Checkpoint**: Foundation complete - user story implementation can begin
 
@@ -42,14 +42,14 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Implement account domain model in backend/src/models/account.ts
-- [ ] T014 [P] [US1] Implement create-account request schema in backend/src/api/accounts/schemas/create-account-schema.ts
-- [ ] T015 [P] [US1] Implement get-account request schema in backend/src/api/accounts/schemas/get-account-schema.ts
-- [ ] T016 [US1] Implement create-account service workflow in backend/src/services/create-account-service.ts
-- [ ] T017 [US1] Implement get-account-details service workflow in backend/src/services/get-account-details-service.ts
-- [ ] T018 [US1] Implement POST /accounts route handler in backend/src/api/accounts/routes/create-account-route.ts
-- [ ] T019 [US1] Implement GET /accounts/{accountId} route handler in backend/src/api/accounts/routes/get-account-route.ts
-- [ ] T020 [US1] Register create/get routes in backend/src/api/accounts/index.ts
+- [ ] T013 [P] [US1] Implement account domain model in backend/src/main/java/com/example/banking/models/account.java
+- [ ] T014 [P] [US1] Implement create-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/create-account-schema.java
+- [ ] T015 [P] [US1] Implement get-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/get-account-schema.java
+- [ ] T016 [US1] Implement create-account service workflow in backend/src/main/java/com/example/banking/services/create-account-service.java
+- [ ] T017 [US1] Implement get-account-details service workflow in backend/src/main/java/com/example/banking/services/get-account-details-service.java
+- [ ] T018 [US1] Implement POST /accounts route handler in backend/src/main/java/com/example/banking/api/accounts/routes/create-account-route.java
+- [ ] T019 [US1] Implement GET /accounts/{accountId} route handler in backend/src/main/java/com/example/banking/api/accounts/routes/get-account-route.java
+- [ ] T020 [US1] Register create/get routes in backend/src/main/java/com/example/banking/api/accounts/index.java
 
 **Checkpoint**: User Story 1 is independently functional
 
@@ -63,14 +63,14 @@
 
 ### Implementation for User Story 2
 
-- [ ] T021 [P] [US2] Implement list-accounts request schema in backend/src/api/accounts/schemas/list-accounts-schema.ts
-- [ ] T022 [P] [US2] Implement update-account request schema in backend/src/api/accounts/schemas/update-account-schema.ts
-- [ ] T023 [US2] Implement list-accounts service workflow in backend/src/services/list-accounts-service.ts
-- [ ] T024 [US2] Implement update-account service workflow in backend/src/services/update-account-service.ts
-- [ ] T025 [US2] Implement GET /accounts route handler in backend/src/api/accounts/routes/list-accounts-route.ts
-- [ ] T026 [US2] Implement PATCH /accounts/{accountId} route handler in backend/src/api/accounts/routes/update-account-route.ts
-- [ ] T027 [US2] Apply account masking to list/retrieve responses in backend/src/services/account-response-policy-service.ts
-- [ ] T028 [US2] Register list/update routes in backend/src/api/accounts/index.ts
+- [ ] T021 [P] [US2] Implement list-accounts request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/list-accounts-schema.java
+- [ ] T022 [P] [US2] Implement update-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/update-account-schema.java
+- [ ] T023 [US2] Implement list-accounts service workflow in backend/src/main/java/com/example/banking/services/list-accounts-service.java
+- [ ] T024 [US2] Implement update-account service workflow in backend/src/main/java/com/example/banking/services/update-account-service.java
+- [ ] T025 [US2] Implement GET /accounts route handler in backend/src/main/java/com/example/banking/api/accounts/routes/list-accounts-route.java
+- [ ] T026 [US2] Implement PATCH /accounts/{accountId} route handler in backend/src/main/java/com/example/banking/api/accounts/routes/update-account-route.java
+- [ ] T027 [US2] Apply account masking to list/retrieve responses in backend/src/main/java/com/example/banking/services/account-response-policy-service.java
+- [ ] T028 [US2] Register list/update routes in backend/src/main/java/com/example/banking/api/accounts/index.java
 
 **Checkpoint**: User Story 2 is independently functional
 
@@ -84,11 +84,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T029 [P] [US3] Implement delete-account request schema in backend/src/api/accounts/schemas/delete-account-schema.ts
-- [ ] T030 [US3] Implement delete-account service workflow in backend/src/services/delete-account-service.ts
-- [ ] T031 [US3] Integrate dependency and retention policy checks in backend/src/services/delete-account-service.ts
-- [ ] T032 [US3] Implement DELETE /accounts/{accountId} route handler in backend/src/api/accounts/routes/delete-account-route.ts
-- [ ] T033 [US3] Register delete route in backend/src/api/accounts/index.ts
+- [ ] T029 [P] [US3] Implement delete-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/delete-account-schema.java
+- [ ] T030 [US3] Implement delete-account service workflow in backend/src/main/java/com/example/banking/services/delete-account-service.java
+- [ ] T031 [US3] Integrate dependency and retention policy checks in backend/src/main/java/com/example/banking/services/delete-account-service.java
+- [ ] T032 [US3] Implement DELETE /accounts/{accountId} route handler in backend/src/main/java/com/example/banking/api/accounts/routes/delete-account-route.java
+- [ ] T033 [US3] Register delete route in backend/src/main/java/com/example/banking/api/accounts/index.java
 
 **Checkpoint**: User Story 3 is independently functional
 
@@ -145,25 +145,25 @@
 
 ```bash
 # Parallelizable US1 work
-T013 [US1] Implement account domain model in backend/src/models/account.ts
-T014 [US1] Implement create-account request schema in backend/src/api/accounts/schemas/create-account-schema.ts
-T015 [US1] Implement get-account request schema in backend/src/api/accounts/schemas/get-account-schema.ts
+T013 [US1] Implement account domain model in backend/src/main/java/com/example/banking/models/account.java
+T014 [US1] Implement create-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/create-account-schema.java
+T015 [US1] Implement get-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/get-account-schema.java
 ```
 
 ## Parallel Example: User Story 2
 
 ```bash
 # Parallelizable US2 work
-T021 [US2] Implement list-accounts request schema in backend/src/api/accounts/schemas/list-accounts-schema.ts
-T022 [US2] Implement update-account request schema in backend/src/api/accounts/schemas/update-account-schema.ts
+T021 [US2] Implement list-accounts request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/list-accounts-schema.java
+T022 [US2] Implement update-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/update-account-schema.java
 ```
 
 ## Parallel Example: User Story 3
 
 ```bash
 # Parallelizable US3 work
-T029 [US3] Implement delete-account request schema in backend/src/api/accounts/schemas/delete-account-schema.ts
-T031 [US3] Integrate dependency and retention policy checks in backend/src/services/delete-account-service.ts
+T029 [US3] Implement delete-account request schema in backend/src/main/java/com/example/banking/api/accounts/schemas/delete-account-schema.java
+T031 [US3] Integrate dependency and retention policy checks in backend/src/main/java/com/example/banking/services/delete-account-service.java
 ```
 
 ---

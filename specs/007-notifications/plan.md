@@ -10,17 +10,21 @@ Deliver event-driven notification processing for financial events with consent-a
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x on Node.js 22 LTS
+**Language/Version**: Backend Java 17+; Frontend TypeScript (React 18)
 
-**Primary Dependencies**: Fastify (HTTP API), Zod (validation), Prisma (ORM/data access), pino (structured logging), queue worker library (for async dispatch)
+**Backend Stack**: Java 17+, Spring Boot (Web, Security, Validation), Maven/Gradle, JUnit + MockMvc, OpenAPI Generator, GitHub Spec Kit, Git, GitHub
+
+**Frontend Stack**: React 18, Vite / CRA, TypeScript, Axios, Jest / React Testing Library, Postman, Prism mock server
+
+**Cross-cutting Stack**: GitHub Copilot, ESLint / Checkstyle / SpotBugs / SonarQube, Dependency scanners (npm audit, OWASP), GitHub Actions, Swagger UI
 
 **Storage**: PostgreSQL for notification events, dispatch attempts, preference snapshots, and delivery outcomes
 
-**Testing**: Vitest for unit/integration tests, Supertest (or Fastify inject) for API contract/integration coverage
+**Testing**: JUnit + MockMvc for backend; Jest / React Testing Library for frontend
 
-**Target Platform**: Linux containerized backend API with asynchronous worker for notification dispatch
+**Target Platform**: Linux containerized Spring Boot backend + browser-based React frontend
 
-**Project Type**: Backend web-service
+**Project Type**: Full-stack web application
 
 **Performance Goals**: 95% of trigger events with recorded outcome in under 60 seconds
 

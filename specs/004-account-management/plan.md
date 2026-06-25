@@ -10,17 +10,21 @@ Deliver an account lifecycle management service for checking and savings account
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x on Node.js 22 LTS
+**Language/Version**: Backend Java 17+; Frontend TypeScript (React 18)
 
-**Primary Dependencies**: Fastify (HTTP API), Zod (validation), Prisma (ORM/data access), pino (structured logging)
+**Backend Stack**: Java 17+, Spring Boot (Web, Security, Validation), Maven/Gradle, JUnit + MockMvc, OpenAPI Generator, GitHub Spec Kit, Git, GitHub
+
+**Frontend Stack**: React 18, Vite / CRA, TypeScript, Axios, Jest / React Testing Library, Postman, Prism mock server
+
+**Cross-cutting Stack**: GitHub Copilot, ESLint / Checkstyle / SpotBugs / SonarQube, Dependency scanners (npm audit, OWASP), GitHub Actions, Swagger UI
 
 **Storage**: PostgreSQL for account records and account lifecycle audit events
 
-**Testing**: Vitest for unit/integration tests, Supertest (or Fastify inject) for API contract/integration coverage
+**Testing**: JUnit + MockMvc for backend; Jest / React Testing Library for frontend
 
-**Target Platform**: Linux containerized backend API
+**Target Platform**: Linux containerized Spring Boot backend + browser-based React frontend
 
-**Project Type**: Backend web-service
+**Project Type**: Full-stack web application
 
 **Performance Goals**: p95 create/update latency < 400ms; p95 retrieve latency < 200ms; p95 list-first-page latency < 300ms
 

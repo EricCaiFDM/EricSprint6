@@ -8,9 +8,9 @@
 
 **Purpose**: Initialize transaction-operations module scaffolding and baseline configuration
 
-- [ ] T001 Create transaction API module entrypoint in backend/src/api/transactions/index.ts
-- [ ] T002 Add transaction module configuration schema in backend/src/lib/config/transaction-config.ts
-- [ ] T003 [P] Add transaction module dependency wiring in backend/src/lib/container.ts
+- [ ] T001 Create transaction API module entrypoint in backend/src/main/java/com/example/banking/api/transactions/index.java
+- [ ] T002 Add transaction module configuration schema in backend/src/main/java/com/example/banking/lib/config/transaction-config.java
+- [ ] T003 [P] Add transaction module dependency wiring in backend/src/main/java/com/example/banking/lib/container.java
 
 ---
 
@@ -20,16 +20,16 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [ ] T004 Define transaction entities and enums in backend/prisma/schema.prisma
-- [ ] T005 Create transaction-operations migration in backend/prisma/migrations/20260625_transaction_ops_init/migration.sql
-- [ ] T006 [P] Implement transaction RBAC scope policy utility in backend/src/lib/security/transaction-access-policy.ts
-- [ ] T007 [P] Implement monetary precision and rounding utility in backend/src/lib/finance/money-policy.ts
-- [ ] T008 Implement balance consistency and locking utility in backend/src/services/balance-consistency-service.ts
-- [ ] T009 Implement idempotency record service in backend/src/services/idempotency-service.ts
-- [ ] T010 Implement immutable transaction repository abstractions in backend/src/services/transaction-repository.ts
-- [ ] T011 Implement transfer-link persistence service in backend/src/services/transfer-link-service.ts
-- [ ] T012 Implement transaction error mapping utilities in backend/src/lib/errors/transaction-errors.ts
-- [ ] T013 Implement transaction lifecycle audit service in backend/src/services/transaction-lifecycle-audit-service.ts
+- [ ] T004 Define transaction entities and enums in backend/src/main/resources/db/changelog/db.changelog-master.yaml
+- [ ] T005 Create transaction-operations migration in backend/src/main/resources/db/changelog/changes/20260625_transaction_ops_init.xml
+- [ ] T006 [P] Implement transaction RBAC scope policy utility in backend/src/main/java/com/example/banking/lib/security/transaction-access-policy.java
+- [ ] T007 [P] Implement monetary precision and rounding utility in backend/src/main/java/com/example/banking/lib/finance/money-policy.java
+- [ ] T008 Implement balance consistency and locking utility in backend/src/main/java/com/example/banking/services/balance-consistency-service.java
+- [ ] T009 Implement idempotency record service in backend/src/main/java/com/example/banking/services/idempotency-service.java
+- [ ] T010 Implement immutable transaction repository abstractions in backend/src/main/java/com/example/banking/services/transaction-repository.java
+- [ ] T011 Implement transfer-link persistence service in backend/src/main/java/com/example/banking/services/transfer-link-service.java
+- [ ] T012 Implement transaction error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/transaction-errors.java
+- [ ] T013 Implement transaction lifecycle audit service in backend/src/main/java/com/example/banking/services/transaction-lifecycle-audit-service.java
 
 **Checkpoint**: Foundation complete - user story implementation can begin
 
@@ -43,15 +43,15 @@
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Implement transaction domain model in backend/src/models/transaction.ts
-- [ ] T015 [P] [US1] Implement deposit request schema in backend/src/api/transactions/schemas/deposit-schema.ts
-- [ ] T016 [P] [US1] Implement withdrawal request schema in backend/src/api/transactions/schemas/withdrawal-schema.ts
-- [ ] T017 [US1] Implement deposit service workflow in backend/src/services/deposit-service.ts
-- [ ] T018 [US1] Implement withdrawal service workflow in backend/src/services/withdrawal-service.ts
-- [ ] T019 [US1] Integrate idempotency handling in backend/src/services/monetary-idempotency-orchestrator.ts
-- [ ] T020 [US1] Implement POST /transactions/deposit route handler in backend/src/api/transactions/routes/deposit-route.ts
-- [ ] T021 [US1] Implement POST /transactions/withdrawal route handler in backend/src/api/transactions/routes/withdrawal-route.ts
-- [ ] T022 [US1] Register deposit and withdrawal routes in backend/src/api/transactions/index.ts
+- [ ] T014 [P] [US1] Implement transaction domain model in backend/src/main/java/com/example/banking/models/transaction.java
+- [ ] T015 [P] [US1] Implement deposit request schema in backend/src/main/java/com/example/banking/api/transactions/schemas/deposit-schema.java
+- [ ] T016 [P] [US1] Implement withdrawal request schema in backend/src/main/java/com/example/banking/api/transactions/schemas/withdrawal-schema.java
+- [ ] T017 [US1] Implement deposit service workflow in backend/src/main/java/com/example/banking/services/deposit-service.java
+- [ ] T018 [US1] Implement withdrawal service workflow in backend/src/main/java/com/example/banking/services/withdrawal-service.java
+- [ ] T019 [US1] Integrate idempotency handling in backend/src/main/java/com/example/banking/services/monetary-idempotency-orchestrator.java
+- [ ] T020 [US1] Implement POST /transactions/deposit route handler in backend/src/main/java/com/example/banking/api/transactions/routes/deposit-route.java
+- [ ] T021 [US1] Implement POST /transactions/withdrawal route handler in backend/src/main/java/com/example/banking/api/transactions/routes/withdrawal-route.java
+- [ ] T022 [US1] Register deposit and withdrawal routes in backend/src/main/java/com/example/banking/api/transactions/index.java
 
 **Checkpoint**: User Story 1 is independently functional
 
@@ -65,13 +65,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T023 [P] [US2] Implement transfer request schema in backend/src/api/transactions/schemas/transfer-schema.ts
-- [ ] T024 [P] [US2] Implement transfer response mapper in backend/src/api/transactions/mappers/transfer-response-mapper.ts
-- [ ] T025 [US2] Implement atomic transfer orchestration service in backend/src/services/transfer-service.ts
-- [ ] T026 [US2] Integrate no-overdraft debit guardrails in backend/src/services/transfer-service.ts
-- [ ] T027 [US2] Persist transfer debit-credit linkage in backend/src/services/transfer-link-service.ts
-- [ ] T028 [US2] Implement POST /transactions/transfer route handler in backend/src/api/transactions/routes/transfer-route.ts
-- [ ] T029 [US2] Register transfer route in backend/src/api/transactions/index.ts
+- [ ] T023 [P] [US2] Implement transfer request schema in backend/src/main/java/com/example/banking/api/transactions/schemas/transfer-schema.java
+- [ ] T024 [P] [US2] Implement transfer response mapper in backend/src/main/java/com/example/banking/api/transactions/mappers/transfer-response-mapper.java
+- [ ] T025 [US2] Implement atomic transfer orchestration service in backend/src/main/java/com/example/banking/services/transfer-service.java
+- [ ] T026 [US2] Integrate no-overdraft debit guardrails in backend/src/main/java/com/example/banking/services/transfer-service.java
+- [ ] T027 [US2] Persist transfer debit-credit linkage in backend/src/main/java/com/example/banking/services/transfer-link-service.java
+- [ ] T028 [US2] Implement POST /transactions/transfer route handler in backend/src/main/java/com/example/banking/api/transactions/routes/transfer-route.java
+- [ ] T029 [US2] Register transfer route in backend/src/main/java/com/example/banking/api/transactions/index.java
 
 **Checkpoint**: User Story 2 is independently functional
 
@@ -85,12 +85,12 @@
 
 ### Implementation for User Story 3
 
-- [ ] T030 [P] [US3] Implement transaction history query schema in backend/src/api/transactions/schemas/history-schema.ts
-- [ ] T031 [P] [US3] Implement transaction history response mapper in backend/src/api/transactions/mappers/history-response-mapper.ts
-- [ ] T032 [US3] Implement transaction history query service in backend/src/services/transaction-history-service.ts
-- [ ] T033 [US3] Implement deterministic sort and paging policy in backend/src/services/transaction-history-query-policy.ts
-- [ ] T034 [US3] Implement GET /transactions/history route handler in backend/src/api/transactions/routes/history-route.ts
-- [ ] T035 [US3] Register history route in backend/src/api/transactions/index.ts
+- [ ] T030 [P] [US3] Implement transaction history query schema in backend/src/main/java/com/example/banking/api/transactions/schemas/history-schema.java
+- [ ] T031 [P] [US3] Implement transaction history response mapper in backend/src/main/java/com/example/banking/api/transactions/mappers/history-response-mapper.java
+- [ ] T032 [US3] Implement transaction history query service in backend/src/main/java/com/example/banking/services/transaction-history-service.java
+- [ ] T033 [US3] Implement deterministic sort and paging policy in backend/src/main/java/com/example/banking/services/transaction-history-query-policy.java
+- [ ] T034 [US3] Implement GET /transactions/history route handler in backend/src/main/java/com/example/banking/api/transactions/routes/history-route.java
+- [ ] T035 [US3] Register history route in backend/src/main/java/com/example/banking/api/transactions/index.java
 
 **Checkpoint**: User Story 3 is independently functional
 
@@ -101,7 +101,7 @@
 **Purpose**: Ensure contract, docs, observability, and validation scenarios are aligned across all transaction flows
 
 - [ ] T036 [P] Align transaction endpoint payloads with contract in specs/005-transaction-operations/contracts/openapi.yaml
-- [ ] T037 Add structured transaction telemetry fields in backend/src/lib/observability/transaction-log-fields.ts
+- [ ] T037 Add structured transaction telemetry fields in backend/src/main/java/com/example/banking/lib/observability/transaction-log-fields.java
 - [ ] T038 Update executable verification steps in specs/005-transaction-operations/quickstart.md
 - [ ] T039 Run quickstart scenario validation and record outcomes in specs/005-transaction-operations/quickstart.md
 
@@ -148,25 +148,25 @@
 
 ```bash
 # Parallelizable US1 work
-T014 [US1] Implement transaction domain model in backend/src/models/transaction.ts
-T015 [US1] Implement deposit request schema in backend/src/api/transactions/schemas/deposit-schema.ts
-T016 [US1] Implement withdrawal request schema in backend/src/api/transactions/schemas/withdrawal-schema.ts
+T014 [US1] Implement transaction domain model in backend/src/main/java/com/example/banking/models/transaction.java
+T015 [US1] Implement deposit request schema in backend/src/main/java/com/example/banking/api/transactions/schemas/deposit-schema.java
+T016 [US1] Implement withdrawal request schema in backend/src/main/java/com/example/banking/api/transactions/schemas/withdrawal-schema.java
 ```
 
 ## Parallel Example: User Story 2
 
 ```bash
 # Parallelizable US2 work
-T023 [US2] Implement transfer request schema in backend/src/api/transactions/schemas/transfer-schema.ts
-T024 [US2] Implement transfer response mapper in backend/src/api/transactions/mappers/transfer-response-mapper.ts
+T023 [US2] Implement transfer request schema in backend/src/main/java/com/example/banking/api/transactions/schemas/transfer-schema.java
+T024 [US2] Implement transfer response mapper in backend/src/main/java/com/example/banking/api/transactions/mappers/transfer-response-mapper.java
 ```
 
 ## Parallel Example: User Story 3
 
 ```bash
 # Parallelizable US3 work
-T030 [US3] Implement transaction history query schema in backend/src/api/transactions/schemas/history-schema.ts
-T031 [US3] Implement transaction history response mapper in backend/src/api/transactions/mappers/history-response-mapper.ts
+T030 [US3] Implement transaction history query schema in backend/src/main/java/com/example/banking/api/transactions/schemas/history-schema.java
+T031 [US3] Implement transaction history response mapper in backend/src/main/java/com/example/banking/api/transactions/mappers/history-response-mapper.java
 ```
 
 ---

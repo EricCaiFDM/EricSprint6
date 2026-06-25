@@ -1,9 +1,12 @@
 # Quickstart: Authentication Feature Validation
 
 ## Prerequisites
-- Node.js 22+
+- Java 17+
+- Maven or Gradle
+- React 18 toolchain (Vite or CRA) with TypeScript support
 - PostgreSQL 15+
-- Environment variables configured for DB connection, token secrets, and hash settings
+- Postman and Prism mock server available for API validation and mocking
+- Environment variables configured for Spring Boot backend DB connection, token secrets, and frontend API integration
 
 ## Setup
 1. Install dependencies.

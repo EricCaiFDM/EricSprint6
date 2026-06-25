@@ -8,9 +8,9 @@
 
 **Purpose**: Initialize customer-management module scaffolding and baseline configuration
 
-- [ ] T001 Create customer API module entrypoint in backend/src/api/customers/index.ts
-- [ ] T002 Add customer module configuration schema in backend/src/lib/config/customer-config.ts
-- [ ] T003 [P] Add customer module dependency wiring in backend/src/lib/container.ts
+- [ ] T001 Create customer API module entrypoint in backend/src/main/java/com/example/banking/api/customers/index.java
+- [ ] T002 Add customer module configuration schema in backend/src/main/java/com/example/banking/lib/config/customer-config.java
+- [ ] T003 [P] Add customer module dependency wiring in backend/src/main/java/com/example/banking/lib/container.java
 
 ---
 
@@ -20,14 +20,14 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [ ] T004 Define customer entities and enums in backend/prisma/schema.prisma
-- [ ] T005 Create customer-management migration in backend/prisma/migrations/20260625_customer_mgmt_init/migration.sql
-- [ ] T006 [P] Implement hybrid RBAC scope policy utility in backend/src/lib/security/customer-access-policy.ts
-- [ ] T007 [P] Implement customer payload masking utility in backend/src/lib/security/customer-field-masker.ts
-- [ ] T008 Implement customer lifecycle audit service in backend/src/services/customer-lifecycle-audit-service.ts
-- [ ] T009 Implement customer-management error mapping utilities in backend/src/lib/errors/customer-errors.ts
-- [ ] T010 Implement customer repository abstractions in backend/src/services/customer-repository.ts
-- [ ] T011 Implement deletion policy-check service in backend/src/services/customer-deletion-policy-service.ts
+- [ ] T004 Define customer entities and enums in backend/src/main/resources/db/changelog/db.changelog-master.yaml
+- [ ] T005 Create customer-management migration in backend/src/main/resources/db/changelog/changes/20260625_customer_mgmt_init.xml
+- [ ] T006 [P] Implement hybrid RBAC scope policy utility in backend/src/main/java/com/example/banking/lib/security/customer-access-policy.java
+- [ ] T007 [P] Implement customer payload masking utility in backend/src/main/java/com/example/banking/lib/security/customer-field-masker.java
+- [ ] T008 Implement customer lifecycle audit service in backend/src/main/java/com/example/banking/services/customer-lifecycle-audit-service.java
+- [ ] T009 Implement customer-management error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/customer-errors.java
+- [ ] T010 Implement customer repository abstractions in backend/src/main/java/com/example/banking/services/customer-repository.java
+- [ ] T011 Implement deletion policy-check service in backend/src/main/java/com/example/banking/services/customer-deletion-policy-service.java
 
 **Checkpoint**: Foundation complete - user story implementation can begin
 
@@ -41,12 +41,12 @@
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Implement customer domain model in backend/src/models/customer.ts
-- [ ] T013 [P] [US1] Implement create-customer request schema in backend/src/api/customers/schemas/create-customer-schema.ts
-- [ ] T014 [US1] Implement create-customer service workflow in backend/src/services/create-customer-service.ts
-- [ ] T015 [US1] Implement POST /customers route handler in backend/src/api/customers/routes/create-customer-route.ts
-- [ ] T016 [US1] Add uniqueness conflict handling and reason mapping in backend/src/services/create-customer-service.ts
-- [ ] T017 [US1] Register create-customer route in backend/src/api/customers/index.ts
+- [ ] T012 [P] [US1] Implement customer domain model in backend/src/main/java/com/example/banking/models/customer.java
+- [ ] T013 [P] [US1] Implement create-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/create-customer-schema.java
+- [ ] T014 [US1] Implement create-customer service workflow in backend/src/main/java/com/example/banking/services/create-customer-service.java
+- [ ] T015 [US1] Implement POST /customers route handler in backend/src/main/java/com/example/banking/api/customers/routes/create-customer-route.java
+- [ ] T016 [US1] Add uniqueness conflict handling and reason mapping in backend/src/main/java/com/example/banking/services/create-customer-service.java
+- [ ] T017 [US1] Register create-customer route in backend/src/main/java/com/example/banking/api/customers/index.java
 
 **Checkpoint**: User Story 1 is independently functional
 
@@ -60,14 +60,14 @@
 
 ### Implementation for User Story 2
 
-- [ ] T018 [P] [US2] Implement update-customer request schema in backend/src/api/customers/schemas/update-customer-schema.ts
-- [ ] T019 [P] [US2] Implement get-customer request schema in backend/src/api/customers/schemas/get-customer-schema.ts
-- [ ] T020 [US2] Implement update-customer service workflow in backend/src/services/update-customer-service.ts
-- [ ] T021 [US2] Implement get-customer-details service workflow in backend/src/services/get-customer-details-service.ts
-- [ ] T022 [US2] Implement PATCH /customers/{customerId} route handler in backend/src/api/customers/routes/update-customer-route.ts
-- [ ] T023 [US2] Implement GET /customers/{customerId} route handler in backend/src/api/customers/routes/get-customer-route.ts
-- [ ] T024 [US2] Apply field masking logic in backend/src/services/get-customer-details-service.ts
-- [ ] T025 [US2] Register update/get routes in backend/src/api/customers/index.ts
+- [ ] T018 [P] [US2] Implement update-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/update-customer-schema.java
+- [ ] T019 [P] [US2] Implement get-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/get-customer-schema.java
+- [ ] T020 [US2] Implement update-customer service workflow in backend/src/main/java/com/example/banking/services/update-customer-service.java
+- [ ] T021 [US2] Implement get-customer-details service workflow in backend/src/main/java/com/example/banking/services/get-customer-details-service.java
+- [ ] T022 [US2] Implement PATCH /customers/{customerId} route handler in backend/src/main/java/com/example/banking/api/customers/routes/update-customer-route.java
+- [ ] T023 [US2] Implement GET /customers/{customerId} route handler in backend/src/main/java/com/example/banking/api/customers/routes/get-customer-route.java
+- [ ] T024 [US2] Apply field masking logic in backend/src/main/java/com/example/banking/services/get-customer-details-service.java
+- [ ] T025 [US2] Register update/get routes in backend/src/main/java/com/example/banking/api/customers/index.java
 
 **Checkpoint**: User Story 2 is independently functional
 
@@ -81,11 +81,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T026 [P] [US3] Implement delete-customer request schema in backend/src/api/customers/schemas/delete-customer-schema.ts
-- [ ] T027 [US3] Implement delete-customer service workflow in backend/src/services/delete-customer-service.ts
-- [ ] T028 [US3] Integrate dependency/retention checks in backend/src/services/delete-customer-service.ts
-- [ ] T029 [US3] Implement DELETE /customers/{customerId} route handler in backend/src/api/customers/routes/delete-customer-route.ts
-- [ ] T030 [US3] Register delete route in backend/src/api/customers/index.ts
+- [ ] T026 [P] [US3] Implement delete-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/delete-customer-schema.java
+- [ ] T027 [US3] Implement delete-customer service workflow in backend/src/main/java/com/example/banking/services/delete-customer-service.java
+- [ ] T028 [US3] Integrate dependency/retention checks in backend/src/main/java/com/example/banking/services/delete-customer-service.java
+- [ ] T029 [US3] Implement DELETE /customers/{customerId} route handler in backend/src/main/java/com/example/banking/api/customers/routes/delete-customer-route.java
+- [ ] T030 [US3] Register delete route in backend/src/main/java/com/example/banking/api/customers/index.java
 
 **Checkpoint**: User Story 3 is independently functional
 
@@ -142,24 +142,24 @@
 
 ```bash
 # Parallelizable US1 work
-T012 [US1] Implement customer domain model in backend/src/models/customer.ts
-T013 [US1] Implement create-customer request schema in backend/src/api/customers/schemas/create-customer-schema.ts
+T012 [US1] Implement customer domain model in backend/src/main/java/com/example/banking/models/customer.java
+T013 [US1] Implement create-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/create-customer-schema.java
 ```
 
 ## Parallel Example: User Story 2
 
 ```bash
 # Parallelizable US2 work
-T018 [US2] Implement update-customer request schema in backend/src/api/customers/schemas/update-customer-schema.ts
-T019 [US2] Implement get-customer request schema in backend/src/api/customers/schemas/get-customer-schema.ts
+T018 [US2] Implement update-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/update-customer-schema.java
+T019 [US2] Implement get-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/get-customer-schema.java
 ```
 
 ## Parallel Example: User Story 3
 
 ```bash
 # Parallelizable US3 work
-T026 [US3] Implement delete-customer request schema in backend/src/api/customers/schemas/delete-customer-schema.ts
-T028 [US3] Integrate dependency/retention checks in backend/src/services/delete-customer-service.ts
+T026 [US3] Implement delete-customer request schema in backend/src/main/java/com/example/banking/api/customers/schemas/delete-customer-schema.java
+T028 [US3] Integrate dependency/retention checks in backend/src/main/java/com/example/banking/services/delete-customer-service.java
 ```
 
 ---

@@ -1,9 +1,12 @@
 # Quickstart: Transaction Operations Feature Validation
 
 ## Prerequisites
-- Node.js 22+
+- Java 17+
+- Maven or Gradle
+- React 18 toolchain (Vite or CRA) with TypeScript support
 - PostgreSQL 15+
-- Environment configured for API, DB connection, and RBAC seed data
+- Postman and Prism mock server available for API validation and mocking
+- Environment configured for Spring Boot backend, React frontend, DB connection, and RBAC seed data
 
 ## Setup
 1. Install dependencies.

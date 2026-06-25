@@ -8,9 +8,9 @@
 
 **Purpose**: Initialize authentication feature scaffolding and configuration surfaces
 
-- [ ] T001 Create authentication route module structure in backend/src/api/auth/index.ts
-- [ ] T002 Add authentication configuration schema in backend/src/lib/config/auth-config.ts
-- [ ] T003 [P] Add authentication dependency wiring entry points in backend/src/lib/container.ts
+- [ ] T001 Create authentication route module structure in backend/src/main/java/com/example/banking/api/auth/index.java
+- [ ] T002 Add authentication configuration schema in backend/src/main/java/com/example/banking/lib/config/auth-config.java
+- [ ] T003 [P] Add authentication dependency wiring entry points in backend/src/main/java/com/example/banking/lib/container.java
 
 ---
 
@@ -20,13 +20,13 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [ ] T004 Define authentication data models in backend/prisma/schema.prisma
-- [ ] T005 Create authentication database migration in backend/prisma/migrations/20260625_auth_init/migration.sql
-- [ ] T006 [P] Implement password hashing utility in backend/src/lib/security/password-hasher.ts
-- [ ] T007 [P] Implement access/refresh token utility in backend/src/lib/security/token-service.ts
-- [ ] T008 Implement authentication audit event service in backend/src/services/auth-audit-service.ts
-- [ ] T009 Implement authentication error mapping utilities in backend/src/lib/errors/auth-errors.ts
-- [ ] T010 Implement authentication repository abstractions in backend/src/services/auth-repository.ts
+- [ ] T004 Define authentication data models in backend/src/main/resources/db/changelog/db.changelog-master.yaml
+- [ ] T005 Create authentication database migration in backend/src/main/resources/db/changelog/changes/20260625_auth_init.xml
+- [ ] T006 [P] Implement password hashing utility in backend/src/main/java/com/example/banking/lib/security/password-hasher.java
+- [ ] T007 [P] Implement access/refresh token utility in backend/src/main/java/com/example/banking/lib/security/token-service.java
+- [ ] T008 Implement authentication audit event service in backend/src/main/java/com/example/banking/services/auth-audit-service.java
+- [ ] T009 Implement authentication error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/auth-errors.java
+- [ ] T010 Implement authentication repository abstractions in backend/src/main/java/com/example/banking/services/auth-repository.java
 
 **Checkpoint**: Foundation complete - user story work can begin
 
@@ -40,13 +40,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [P] [US1] Implement user account domain model in backend/src/models/user-account.ts
-- [ ] T012 [P] [US1] Implement registration and login request schemas in backend/src/api/auth/schemas/register-login-schemas.ts
-- [ ] T013 [US1] Implement registration service workflow in backend/src/services/register-service.ts
-- [ ] T014 [US1] Implement login service workflow in backend/src/services/login-service.ts
-- [ ] T015 [US1] Implement POST /auth/register route handler in backend/src/api/auth/routes/register-route.ts
-- [ ] T016 [US1] Implement POST /auth/login route handler in backend/src/api/auth/routes/login-route.ts
-- [ ] T017 [US1] Register auth login/registration routes in backend/src/api/auth/index.ts
+- [ ] T011 [P] [US1] Implement user account domain model in backend/src/main/java/com/example/banking/models/user-account.java
+- [ ] T012 [P] [US1] Implement registration and login request schemas in backend/src/main/java/com/example/banking/api/auth/schemas/register-login-schemas.java
+- [ ] T013 [US1] Implement registration service workflow in backend/src/main/java/com/example/banking/services/register-service.java
+- [ ] T014 [US1] Implement login service workflow in backend/src/main/java/com/example/banking/services/login-service.java
+- [ ] T015 [US1] Implement POST /auth/register route handler in backend/src/main/java/com/example/banking/api/auth/routes/register-route.java
+- [ ] T016 [US1] Implement POST /auth/login route handler in backend/src/main/java/com/example/banking/api/auth/routes/login-route.java
+- [ ] T017 [US1] Register auth login/registration routes in backend/src/main/java/com/example/banking/api/auth/index.java
 
 **Checkpoint**: User Story 1 is independently functional
 
@@ -60,11 +60,11 @@
 
 ### Implementation for User Story 2
 
-- [ ] T018 [P] [US2] Implement password reset request domain model in backend/src/models/password-reset-request.ts
-- [ ] T019 [P] [US2] Implement reset request schema validation in backend/src/api/auth/schemas/password-reset-schemas.ts
-- [ ] T020 [US2] Implement password reset request service in backend/src/services/password-reset-request-service.ts
-- [ ] T021 [US2] Implement POST /auth/password-reset/request route handler in backend/src/api/auth/routes/password-reset-request-route.ts
-- [ ] T022 [US2] Add generic acknowledgment and enumeration-safe audit behavior in backend/src/services/password-reset-request-service.ts
+- [ ] T018 [P] [US2] Implement password reset request domain model in backend/src/main/java/com/example/banking/models/password-reset-request.java
+- [ ] T019 [P] [US2] Implement reset request schema validation in backend/src/main/java/com/example/banking/api/auth/schemas/password-reset-schemas.java
+- [ ] T020 [US2] Implement password reset request service in backend/src/main/java/com/example/banking/services/password-reset-request-service.java
+- [ ] T021 [US2] Implement POST /auth/password-reset/request route handler in backend/src/main/java/com/example/banking/api/auth/routes/password-reset-request-route.java
+- [ ] T022 [US2] Add generic acknowledgment and enumeration-safe audit behavior in backend/src/main/java/com/example/banking/services/password-reset-request-service.java
 
 **Checkpoint**: User Story 2 is independently functional
 
@@ -78,11 +78,11 @@
 
 ### Implementation for User Story 3
 
-- [ ] T023 [P] [US3] Implement refresh session domain model in backend/src/models/refresh-session.ts
-- [ ] T024 [P] [US3] Implement token refresh request schema in backend/src/api/auth/schemas/token-refresh-schemas.ts
-- [ ] T025 [US3] Implement refresh token rotation service in backend/src/services/token-refresh-service.ts
-- [ ] T026 [US3] Implement POST /auth/token/refresh route handler in backend/src/api/auth/routes/token-refresh-route.ts
-- [ ] T027 [US3] Implement refresh replay detection and session revocation logic in backend/src/services/token-refresh-service.ts
+- [ ] T023 [P] [US3] Implement refresh session domain model in backend/src/main/java/com/example/banking/models/refresh-session.java
+- [ ] T024 [P] [US3] Implement token refresh request schema in backend/src/main/java/com/example/banking/api/auth/schemas/token-refresh-schemas.java
+- [ ] T025 [US3] Implement refresh token rotation service in backend/src/main/java/com/example/banking/services/token-refresh-service.java
+- [ ] T026 [US3] Implement POST /auth/token/refresh route handler in backend/src/main/java/com/example/banking/api/auth/routes/token-refresh-route.java
+- [ ] T027 [US3] Implement refresh replay detection and session revocation logic in backend/src/main/java/com/example/banking/services/token-refresh-service.java
 
 **Checkpoint**: User Story 3 is independently functional
 
@@ -139,24 +139,24 @@
 
 ```bash
 # Parallelizable US1 work
-T011 [US1] Implement user account domain model in backend/src/models/user-account.ts
-T012 [US1] Implement registration and login request schemas in backend/src/api/auth/schemas/register-login-schemas.ts
+T011 [US1] Implement user account domain model in backend/src/main/java/com/example/banking/models/user-account.java
+T012 [US1] Implement registration and login request schemas in backend/src/main/java/com/example/banking/api/auth/schemas/register-login-schemas.java
 ```
 
 ## Parallel Example: User Story 2
 
 ```bash
 # Parallelizable US2 work
-T018 [US2] Implement password reset request domain model in backend/src/models/password-reset-request.ts
-T019 [US2] Implement reset request schema validation in backend/src/api/auth/schemas/password-reset-schemas.ts
+T018 [US2] Implement password reset request domain model in backend/src/main/java/com/example/banking/models/password-reset-request.java
+T019 [US2] Implement reset request schema validation in backend/src/main/java/com/example/banking/api/auth/schemas/password-reset-schemas.java
 ```
 
 ## Parallel Example: User Story 3
 
 ```bash
 # Parallelizable US3 work
-T023 [US3] Implement refresh session domain model in backend/src/models/refresh-session.ts
-T024 [US3] Implement token refresh request schema in backend/src/api/auth/schemas/token-refresh-schemas.ts
+T023 [US3] Implement refresh session domain model in backend/src/main/java/com/example/banking/models/refresh-session.java
+T024 [US3] Implement token refresh request schema in backend/src/main/java/com/example/banking/api/auth/schemas/token-refresh-schemas.java
 ```
 
 ---

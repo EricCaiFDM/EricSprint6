@@ -10,17 +10,21 @@ Deliver an authentication service that supports registration, login, password-re
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x on Node.js 22 LTS
+**Language/Version**: Backend Java 17+; Frontend TypeScript (React 18)
 
-**Primary Dependencies**: Fastify (HTTP API), Zod (request validation), Prisma (data access), jsonwebtoken or jose (token handling), bcrypt/argon2 (password hashing)
+**Backend Stack**: Java 17+, Spring Boot (Web, Security, Validation), Maven/Gradle, JUnit + MockMvc, OpenAPI Generator, GitHub Spec Kit, Git, GitHub
+
+**Frontend Stack**: React 18, Vite / CRA, TypeScript, Axios, Jest / React Testing Library, Postman, Prism mock server
+
+**Cross-cutting Stack**: GitHub Copilot, ESLint / Checkstyle / SpotBugs / SonarQube, Dependency scanners (npm audit, OWASP), GitHub Actions, Swagger UI
 
 **Storage**: PostgreSQL for user accounts, refresh token state, and auth audit logs
 
-**Testing**: Vitest for unit/integration tests, Supertest (or Fastify inject) for HTTP contract tests
+**Testing**: JUnit + MockMvc for backend; Jest / React Testing Library for frontend
 
-**Target Platform**: Linux container deployment for backend API
+**Target Platform**: Linux containerized Spring Boot backend + browser-based React frontend
 
-**Project Type**: Backend web-service (authentication API)
+**Project Type**: Full-stack web application
 
 **Performance Goals**: p95 login/refresh latency < 300ms at standard load; p95 reset-request acknowledgment < 500ms
 
