@@ -1,22 +1,14 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: Monthly Statements
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Branch**: `[unassigned]` | **Date**: 2026-06-25 | **Spec**: [spec.md](./spec.md)
 
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Input**: Feature specification from `/specs/008-monthly-statements/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Deliver monthly statement generation and retrieval for eligible accounts with UTC month-boundary handling, immutable statement artifacts per version, auditable generation/retrieval events, and correction support for late-posted events tied to closed periods.
 
 ## Technical Context
-
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
 
 **Language/Version**: Backend Java 17+; Frontend TypeScript (React 18)
 
@@ -26,7 +18,7 @@
 
 **Cross-cutting Stack**: GitHub Copilot, ESLint / Checkstyle / SpotBugs / SonarQube, Dependency scanners (npm audit, OWASP), GitHub Actions, Swagger UI
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**Storage**: PostgreSQL for statement metadata, artifact version records, and statement audit events
 
 **Testing**: JUnit + MockMvc for backend; Jest / React Testing Library for frontend
 
@@ -34,84 +26,63 @@
 
 **Project Type**: Full-stack web application
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**Performance Goals**: 98% of standard-volume statement generations complete within 5 minutes; retrieval authorization checks complete within service SLAs
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+**Constraints**: UTC period boundaries, no real-time full recomputation, hybrid RBAC scope enforcement, immutable statement artifact versions
 
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Scale/Scope**: Initial release for monthly generation across all eligible active accounts with retained version history and correction outputs
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- Constitution file currently contains placeholders only and no enforceable project principles.
+- Gate result (pre-research): PASS.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+specs/008-monthly-statements/
+├── plan.md
+├── research.md
+├── data-model.md
+├── quickstart.md
+├── contracts/
+│   └── openapi.yaml
+└── tasks.md
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
-
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
 backend/
-├── src/
+├── src/main/java/com/example/banking/
+│   ├── api/statements/
 │   ├── models/
 │   ├── services/
-│   └── api/
-└── tests/
+│   ├── jobs/
+│   └── lib/
+└── src/test/
+    ├── contract/
+    ├── integration/
+    └── unit/
 
 frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+└── src/
+    ├── components/
+    ├── pages/
+    └── services/
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Use a statement module under `backend/src/main/java/com/example/banking/api/statements` for generation/retrieval endpoints, scheduled month-close generation services in backend jobs, and frontend retrieval surfaces in React for authorized statement access.
+
+## Post-Design Constitution Check
+
+- Phase 1 artifacts align with the current placeholder constitution and contain no explicit violations.
+- Gate result (post-design): PASS.
 
 ## Complexity Tracking
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+No constitution violations requiring justification.
