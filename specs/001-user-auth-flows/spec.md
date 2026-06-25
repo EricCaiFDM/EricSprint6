@@ -1,12 +1,22 @@
 # Feature Specification: User Authentication, Customer, Account, Transaction, and Financial Insights Flows
 
-**Feature Branch**: `001-user-auth-flows`
+**Feature Branch**: `Digital Banking Platform`
 
 **Created**: 2026-06-25
 
 **Status**: Draft
 
 **Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Add customer account lifecycle operations for Create Account (Checking/Savings), Retrieve Account Details, List Customer Accounts, Update Account, and Delete Account. Add transaction operations for Deposit, Withdraw, Transfer Funds, and Get Transaction History. Add features for Standing Order Setup, Trigger Notification, Generate Monthly Statement, and Spending Insights. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
+
+## Clarifications
+
+### Session 2026-06-25
+
+- Q: Which authorization role model should apply across all flows? -> A: Customer-only role model (all operations performed by authenticated customers).
+- Q: Should overdraft be allowed for withdrawals/transfers in this release? -> A: No overdraft allowed for any account (strict available-balance checks).
+- Q: Which time standard should govern scheduling and statement period processing? -> A: Store/process all times in UTC, convert only for user display.
+- Q: What customer access scope should apply to data and operations? -> A: Customers can access only resources they own (strict ownership scoping).
+- Q: How should late-posted transactions be included in monthly statements? -> A: Include by transaction event time, even if posted later.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -435,7 +445,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - **FR-058**: System MUST prevent standing-order execution when source funds, account state, or policy checks fail.
 - **FR-059**: System MUST trigger notifications for configured financial events including transaction success, transaction failure, and standing-order outcomes.
 - **FR-060**: System MUST honor notification preferences, permissions, and channel-availability policy when delivering notifications.
-- **FR-061**: System MUST generate monthly statements for eligible accounts with period boundaries, opening/closing balances, and posted-activity details.
+- **FR-061**: System MUST generate monthly statements for eligible accounts with period boundaries, opening/closing balances, and activity inclusion based on transaction event time.
 - **FR-062**: System MUST allow authorized users to retrieve generated statements for permitted account scope.
 - **FR-063**: System MUST generate spending insights from posted transaction history for authorized scope and requested period.
 - **FR-064**: System MUST provide category-level spending summaries and trend indicators using defined classification policy.
@@ -453,7 +463,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - **BR-005**: Abuse protection limits apply to login and password reset flows based on request frequency and risk signals.
 - **BR-006**: Every authentication flow event must be traceable for compliance and security review.
 - **BR-007**: Each customer record is uniquely identified and must enforce uniqueness on defined business identifiers.
-- **BR-008**: Only users with appropriate permissions can create, update, view, or delete customer records.
+- **BR-008**: Only authenticated customers can create, update, view, or delete records and resources within their ownership scope.
 - **BR-009**: Customer profile updates must preserve mandatory data integrity rules and required attributes.
 - **BR-010**: Customer deletion must honor retention, legal, and dependency constraints.
 - **BR-011**: Customer data access and lifecycle actions must be fully auditable.
@@ -465,16 +475,18 @@ An authorized user views categorized spending insights and trend summaries to un
 - **BR-017**: Account data visibility must be restricted to the minimum fields required for the requester role.
 - **BR-018**: Monetary amounts must be processed using approved precision and rounding rules defined by business policy.
 - **BR-019**: Deposits and withdrawals are permitted only for accounts in transaction-eligible lifecycle states.
-- **BR-020**: Withdrawal and transfer debits must not exceed available funds unless explicitly allowed by policy.
+- **BR-020**: Withdrawal and transfer debits must never exceed available funds; overdraft is not allowed in this release.
 - **BR-021**: A transfer must be treated as one logical operation linking source debit and destination credit.
 - **BR-022**: Transaction records must be immutable after posting and remain traceable for audit and compliance.
 - **BR-023**: Transaction history visibility is restricted by requester permissions and ownership/scope policy.
 - **BR-024**: Standing orders execute only while active and within allowed schedule windows defined by policy.
 - **BR-025**: Standing-order executions follow the same funds-availability and account-eligibility checks as transfer operations.
 - **BR-026**: Notification delivery must respect customer communication preferences, consent, and channel policy.
-- **BR-027**: Monthly statements are generated for complete statement periods and remain immutable once finalized.
+- **BR-027**: Monthly statements are generated for complete statement periods using transaction event time for inclusion; if late-posted transactions apply to a closed period, the platform must preserve auditability of prior output while providing corrected statement output.
 - **BR-028**: Spending insights are informational outputs and do not alter financial records.
 - **BR-029**: Insight calculations must use approved categorization and period-boundary policy.
+- **BR-030**: Canonical processing timestamps for scheduling, statement boundaries, and transaction ordering must use UTC; localization is display-only.
+- **BR-031**: Customers can access, retrieve, and operate only on customer, account, statement, notification, and insight resources they own.
 
 ### Inputs and Outputs
 
@@ -545,6 +557,8 @@ An authorized user views categorized spending insights and trend summaries to un
 - **C-020**: Monthly statements must be generated for discrete monthly periods and remain retrievable after generation.
 - **C-021**: Spending insights outputs must be restricted to authorized scope and cannot expose hidden underlying records.
 - **C-022**: Real-time personalized recommendations are out of scope for this release.
+- **C-023**: Standing-order execution windows, statement period boundaries, and persisted event timestamps must be processed in UTC.
+- **C-024**: Cross-customer delegated access and shared-resource authorization are out of scope for this release.
 
 ### Error Conditions
 
@@ -565,7 +579,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - **E-015**: Account update rejected due to validation failure, stale concurrency state, or lifecycle restriction.
 - **E-016**: Account deletion blocked by dependency, legal hold, retention, or lifecycle policy.
 - **E-017**: Deposit rejected due to invalid amount, account ineligibility, or policy threshold breach.
-- **E-018**: Withdrawal rejected due to insufficient funds, account ineligibility, or policy restriction.
+- **E-018**: Withdrawal rejected due to insufficient funds (including any request that would result in overdraft), account ineligibility, or policy restriction.
 - **E-019**: Transfer rejected due to invalid source/destination relationship, insufficient source funds, or account ineligibility.
 - **E-020**: Monetary operation rejected due to concurrency conflict or duplicate retry request context.
 - **E-021**: Transaction history retrieval rejected due to invalid filters, inaccessible scope, or excessive range constraints.
@@ -642,7 +656,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - Session token lifetimes and rotation policy are centrally defined and available to this feature.
 - Users access these flows through supported clients that can securely store session credentials.
 - Social login, multi-factor authentication, and password reset completion are intentionally excluded from this scope.
-- Customer authorization roles and permission policies are already defined by the business.
+- This release uses a customer-only role model; support-agent and admin action paths are out of scope.
 - Customer uniqueness rules and required profile fields are defined in existing business data standards.
 - Retention and legal hold policies exist and can be evaluated at delete-request time.
 - Account type definitions, eligibility rules, and editable field policies are already defined by the business.
@@ -650,9 +664,13 @@ An authorized user views categorized spending insights and trend summaries to un
 - Pagination defaults and maximum page sizes for account listing are defined in existing platform standards.
 - Monetary precision, rounding, and amount-threshold policies are already defined by business governance.
 - Available-balance calculation rules are centrally defined and can be evaluated at transaction-request time.
+- Overdraft is disallowed for all account types in this release.
 - Transaction ordering, retention, and audit-access policies are already defined by compliance requirements.
+- UTC is the canonical processing timezone; user-facing displays may be localized.
+- Customers may operate only on resources mapped to their ownership scope.
 - Idempotency key behavior for retried transaction requests is supported by existing platform standards.
 - Standing-order cadence options, retry rules, and holiday/non-business-day behavior are defined by business policy.
 - Notification templates, channels, and consent preferences are managed by an existing communication policy framework.
 - Monthly statement period definitions and retention expectations are already established by compliance and operations.
+- Monthly statement inclusion uses transaction event time, including late-posted transactions tied to the closed period.
 - Transaction categorization taxonomy for spending insights is defined and maintained by the business.
