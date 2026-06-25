@@ -1,0 +1,196 @@
+openapi: 3.0.3
+info:
+  title: Notifications API
+  version: 1.0.0
+  description: Contract for notification event triggering, dispatch attempts, and delivery outcome queries.
+servers:
+  - url: https://api.example.com
+paths:
+  /notifications/events:
+    post:
+      summary: Trigger notification event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerNotificationEventRequest'
+      responses:
+        '202':
+          description: Notification event accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationEventAcceptedResponse'
+        '400':
+          description: Validation failure
+        '403':
+          description: Insufficient permission
+  /notifications/events/{notificationEventId}:
+    get:
+      summary: Get notification event status and outcome
+      parameters:
+        - $ref: '#/components/parameters/NotificationEventId'
+      responses:
+        '200':
+          description: Notification event details returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationEventResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Notification event not found
+  /notifications/events/{notificationEventId}/attempts:
+    get:
+      summary: List dispatch attempts for notification event
+      parameters:
+        - $ref: '#/components/parameters/NotificationEventId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Dispatch attempts returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationAttemptListResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Notification event not found
+components:
+  parameters:
+    NotificationEventId:
+      name: notificationEventId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    TriggerNotificationEventRequest:
+      type: object
+      required: [eventType, recipientScopeType, recipientScopeId, templateCode, templateContext]
+      properties:
+        eventType:
+          type: string
+        recipientScopeType:
+          type: string
+          enum: [CUSTOMER, ACCOUNT, ADMIN]
+        recipientScopeId:
+          type: string
+          format: uuid
+        templateCode:
+          type: string
+        templateContext:
+          type: object
+          additionalProperties: true
+    NotificationEventAcceptedResponse:
+      type: object
+      required: [notificationEventId, status]
+      properties:
+        notificationEventId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, PROCESSING]
+    NotificationEventResponse:
+      type: object
+      required: [notificationEventId, eventType, status, triggeredAtUtc]
+      properties:
+        notificationEventId:
+          type: string
+          format: uuid
+        eventType:
+          type: string
+        recipientScopeType:
+          type: string
+          enum: [CUSTOMER, ACCOUNT, ADMIN]
+        recipientScopeId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [PENDING, PROCESSING, COMPLETED, BLOCKED, FAILED]
+        finalOutcome:
+          type: string
+          enum: [DELIVERED, BLOCKED_RESTRICTED, FAILED]
+          nullable: true
+        reasonCode:
+          type: string
+          nullable: true
+        triggeredAtUtc:
+          type: string
+          format: date-time
+        completedAtUtc:
+          type: string
+          format: date-time
+          nullable: true
+    NotificationAttemptItem:
+      type: object
+      required: [attemptId, channel, attemptNumber, status, queuedAtUtc]
+      properties:
+        attemptId:
+          type: string
+          format: uuid
+        channel:
+          type: string
+          enum: [EMAIL, SMS, PUSH, IN_APP]
+        attemptNumber:
+          type: integer
+        status:
+          type: string
+          enum: [SUCCEEDED, FAILED_CHANNEL_UNAVAILABLE, FAILED_TEMPLATE_RESOLUTION, FAILED_RESTRICTED, RETRY_SCHEDULED]
+        queuedAtUtc:
+          type: string
+          format: date-time
+        startedAtUtc:
+          type: string
+          format: date-time
+          nullable: true
+        completedAtUtc:
+          type: string
+          format: date-time
+          nullable: true
+        reasonCode:
+          type: string
+          nullable: true
+        providerReferenceId:
+          type: string
+          nullable: true
+    NotificationAttemptListResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/NotificationAttemptItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
