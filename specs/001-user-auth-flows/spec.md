@@ -1,4 +1,4 @@
-# Feature Specification: User Authentication, Customer, and Account Management Flows
+# Feature Specification: User Authentication, Customer, Account, and Transaction Management Flows
 
 **Feature Branch**: `001-user-auth-flows`
 
@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Add customer account lifecycle operations for Create Account (Checking/Savings), Retrieve Account Details, List Customer Accounts, Update Account, and Delete Account. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
+**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Add customer account lifecycle operations for Create Account (Checking/Savings), Retrieve Account Details, List Customer Accounts, Update Account, and Delete Account. Add transaction operations for Deposit, Withdraw, Transfer Funds, and Get Transaction History. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -217,6 +217,70 @@ An authorized user deletes an account according to account lifecycle, dependency
 
 ---
 
+### User Story 14 - Deposit Funds (Priority: P1)
+
+An authorized user deposits funds into an eligible customer account so the available balance increases with a recorded transaction trail.
+
+**Why this priority**: Deposits are a core monetary operation required for account usability and downstream financial activity.
+
+**Independent Test**: Can be fully tested by depositing valid amounts to eligible accounts and verifying balance updates, audit records, and rejection of invalid requests.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user submits a valid deposit amount for an eligible account, **When** deposit is requested, **Then** the account balance increases accordingly and a transaction record is created.
+2. **Given** a deposit amount is invalid (for example zero, negative, or over policy threshold), **When** deposit is requested, **Then** the request is rejected with actionable validation errors.
+3. **Given** the target account does not exist or is not eligible for deposits, **When** deposit is requested, **Then** the operation is denied with a policy-compliant error.
+
+---
+
+### User Story 15 - Withdraw Funds (Priority: P1)
+
+An authorized user withdraws funds from an eligible customer account so balance decreases while policy checks prevent invalid debits.
+
+**Why this priority**: Withdrawals are a core monetary operation and must be controlled for integrity and risk.
+
+**Independent Test**: Can be fully tested by processing valid withdrawals and verifying balance decreases, plus rejection for insufficient funds or restricted account states.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user submits a valid withdrawal amount on an eligible account with sufficient available funds, **When** withdraw is requested, **Then** the account balance decreases accordingly and a transaction record is created.
+2. **Given** a withdrawal request exceeds available funds or violates withdrawal policy, **When** withdraw is requested, **Then** the request is rejected with an insufficient-funds or policy-compliant error.
+3. **Given** the account is not eligible for withdrawals due to lifecycle or restriction state, **When** withdraw is requested, **Then** the operation is denied with a policy-compliant error.
+
+---
+
+### User Story 16 - Transfer Funds (Priority: P1)
+
+An authorized user transfers funds between eligible accounts so money moves from a source account to a destination account in one controlled operation.
+
+**Why this priority**: Transfers are a critical customer servicing operation and require atomic integrity to avoid partial financial updates.
+
+**Independent Test**: Can be fully tested by executing valid transfers and confirming synchronized debit/credit outcomes, plus rejection of invalid or blocked transfer conditions.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user submits a valid transfer with eligible source and destination accounts and sufficient source funds, **When** transfer funds is requested, **Then** source and destination balances are updated consistently and linked transaction records are created.
+2. **Given** source and destination accounts are identical or either account is invalid/ineligible, **When** transfer funds is requested, **Then** the request is rejected with a validation or policy-compliant error.
+3. **Given** the transfer cannot complete due to dependency or processing failure, **When** transfer funds is requested, **Then** no partial balance updates are committed and a failure response is returned.
+
+---
+
+### User Story 17 - Get Transaction History (Priority: P2)
+
+An authorized user retrieves transaction history for an account or customer scope to review financial activity over time.
+
+**Why this priority**: Transaction history provides traceability, customer support visibility, and operational transparency.
+
+**Independent Test**: Can be fully tested by retrieving history with date/type filters and pagination for accounts with varied transaction volumes while validating access control.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user requests transaction history for an eligible account or customer scope with valid filter criteria, **When** get transaction history is requested, **Then** the system returns matching authorized transactions with paging metadata.
+2. **Given** requested history scope does not exist or is not accessible to the user, **When** get transaction history is requested, **Then** the system returns not-found or access-denied without exposing restricted data.
+3. **Given** result volume exceeds single-response limits, **When** get transaction history is requested, **Then** the system returns paginated results with deterministic ordering.
+
+---
+
 ### Edge Cases
 
 - What happens when a registration request arrives while another request is creating the same account identity in parallel?
@@ -232,6 +296,11 @@ An authorized user deletes an account according to account lifecycle, dependency
 - How does the system handle concurrent updates to the same account from multiple authorized users?
 - What happens when account deletion is requested for an account with blocking dependencies or required closure workflow steps?
 - How does list customer accounts behave when the customer has a large number of accounts and pagination boundaries are reached?
+- How does the system handle near-simultaneous deposits and withdrawals against the same account to prevent balance inconsistencies?
+- What happens when a withdrawal or transfer request arrives while available funds are changing because of concurrent operations?
+- How does transfer processing handle partial failures so debit and credit changes remain consistent?
+- What happens when transaction history is requested for very large date ranges or high-volume accounts?
+- How does the system order transactions that share the same timestamp at high processing rates?
 
 ## Requirements *(mandatory)*
 
@@ -277,6 +346,20 @@ An authorized user deletes an account according to account lifecycle, dependency
 - **FR-038**: System MUST enforce field-level access controls for account retrieval and listing responses.
 - **FR-039**: System MUST record auditable events for account create, retrieve, list, update, and delete operations.
 - **FR-040**: System MUST provide clear, actionable, and non-sensitive error responses for all failed account-related operations.
+- **FR-041**: System MUST allow authorized users to deposit funds into eligible customer accounts.
+- **FR-042**: System MUST validate deposit requests for positive amount, supported precision, policy thresholds, and account eligibility.
+- **FR-043**: System MUST allow authorized users to withdraw funds from eligible accounts only when sufficient available funds and policy conditions are met.
+- **FR-044**: System MUST prevent withdrawal requests that would violate available-funds or risk-policy constraints.
+- **FR-045**: System MUST allow authorized users to transfer funds between eligible source and destination accounts.
+- **FR-046**: System MUST ensure transfer processing is atomic so partial debit/credit outcomes are not persisted.
+- **FR-047**: System MUST validate transfer requests for source/destination distinctness, account eligibility, amount validity, and sufficient source funds.
+- **FR-048**: System MUST create immutable transaction records for deposits, withdrawals, and transfers with traceable references.
+- **FR-049**: System MUST allow authorized users to retrieve transaction history by account and customer scope with filter and pagination support.
+- **FR-050**: System MUST enforce deterministic ordering for transaction history responses.
+- **FR-051**: System MUST enforce role-based and scope-based access control for all transaction operations and history retrieval.
+- **FR-052**: System MUST return not-found responses for transaction operations targeting non-existent accounts or scopes.
+- **FR-053**: System MUST record auditable events for all monetary operations and transaction-history access.
+- **FR-054**: System MUST provide clear, actionable, and non-sensitive error responses for failed transaction operations.
 
 ### Business Rules
 
@@ -297,6 +380,12 @@ An authorized user deletes an account according to account lifecycle, dependency
 - **BR-015**: Account updates are restricted to editable attributes and must preserve mandatory account integrity rules.
 - **BR-016**: Account deletion must satisfy dependency, lifecycle, and retention requirements before completion.
 - **BR-017**: Account data visibility must be restricted to the minimum fields required for the requester role.
+- **BR-018**: Monetary amounts must be processed using approved precision and rounding rules defined by business policy.
+- **BR-019**: Deposits and withdrawals are permitted only for accounts in transaction-eligible lifecycle states.
+- **BR-020**: Withdrawal and transfer debits must not exceed available funds unless explicitly allowed by policy.
+- **BR-021**: A transfer must be treated as one logical operation linking source debit and destination credit.
+- **BR-022**: Transaction records must be immutable after posting and remain traceable for audit and compliance.
+- **BR-023**: Transaction history visibility is restricted by requester permissions and ownership/scope policy.
 
 ### Inputs and Outputs
 
@@ -326,6 +415,14 @@ An authorized user deletes an account according to account lifecycle, dependency
 - **Update Account Output**: updated account profile summary and operation status.
 - **Delete Account Input**: account identifier and requester context.
 - **Delete Account Output**: deletion/closure status, effective lifecycle state, and policy guidance when blocked.
+- **Deposit Input**: account identifier, deposit amount, transaction reference/context, and requester context.
+- **Deposit Output**: transaction identifier, posted amount, updated available balance snapshot, and operation status.
+- **Withdraw Input**: account identifier, withdrawal amount, transaction reference/context, and requester context.
+- **Withdraw Output**: transaction identifier, posted amount, updated available balance snapshot, and operation status.
+- **Transfer Funds Input**: source account identifier, destination account identifier, transfer amount, transfer reference/context, and requester context.
+- **Transfer Funds Output**: linked debit/credit transaction identifiers, posted transfer amount, source/destination balance snapshots, and operation status.
+- **Get Transaction History Input**: account or customer scope identifier, date/type filters, pagination parameters, and requester context.
+- **Get Transaction History Output**: authorized transaction collection, ordering information, paging metadata, and total/result-count indicators.
 
 ### Constraints
 
@@ -342,6 +439,11 @@ An authorized user deletes an account according to account lifecycle, dependency
 - **C-011**: Only checking and savings account types are in scope for this release.
 - **C-012**: Account deletion must respect dependency checks and compliance retention obligations.
 - **C-013**: Account balance transfer, overdraft handling, and transaction processing are out of scope for this feature.
+- **C-013**: Overdraft product behavior and fee assessment logic are out of scope for this feature.
+- **C-014**: Transaction operations must enforce strong consistency for balance updates and linked transfer posting.
+- **C-015**: Monetary operations must be idempotent when retried with the same idempotency context.
+- **C-016**: Transaction history responses must support pagination for large datasets.
+- **C-017**: Cross-currency transfers are out of scope for this release.
 
 ### Error Conditions
 
@@ -361,6 +463,12 @@ An authorized user deletes an account according to account lifecycle, dependency
 - **E-014**: Account record not found for requested identifier.
 - **E-015**: Account update rejected due to validation failure, stale concurrency state, or lifecycle restriction.
 - **E-016**: Account deletion blocked by dependency, legal hold, retention, or lifecycle policy.
+- **E-017**: Deposit rejected due to invalid amount, account ineligibility, or policy threshold breach.
+- **E-018**: Withdrawal rejected due to insufficient funds, account ineligibility, or policy restriction.
+- **E-019**: Transfer rejected due to invalid source/destination relationship, insufficient source funds, or account ineligibility.
+- **E-020**: Monetary operation rejected due to concurrency conflict or duplicate retry request context.
+- **E-021**: Transaction history retrieval rejected due to invalid filters, inaccessible scope, or excessive range constraints.
+- **E-022**: Transaction processing unavailable due to dependency/service outage.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -376,6 +484,10 @@ An authorized user deletes an account according to account lifecycle, dependency
 - **Account**: Represents a customer-owned financial account with type, status, lifecycle, and controlled editable attributes.
 - **Account Identifier**: Represents a unique key used to reference and operate on an account record.
 - **Account Lifecycle Event**: Represents auditable actions performed on accounts (create, retrieve, list, update, delete).
+- **Transaction**: Represents an immutable monetary event (deposit, withdrawal, transfer debit, transfer credit) with amount, direction, scope, and posting metadata.
+- **Transaction Identifier**: Represents a unique key used to reference a posted transaction record.
+- **Transfer Link**: Represents a logical association between transfer debit and transfer credit transaction records.
+- **Balance Snapshot**: Represents the account balance state captured at the time of a posted monetary operation.
 
 ## Success Criteria *(mandatory)*
 
@@ -398,6 +510,12 @@ An authorized user deletes an account according to account lifecycle, dependency
 - **SC-015**: 95% of valid update account requests are applied and confirmed in under 4 seconds.
 - **SC-016**: 100% of unauthorized account operations are denied without exposing restricted account data.
 - **SC-017**: 100% of account deletions that violate dependency, lifecycle, or retention policies are blocked with policy-compliant responses.
+- **SC-018**: 95% of valid deposit requests complete successfully in under 3 seconds.
+- **SC-019**: 95% of valid withdrawal requests complete successfully in under 3 seconds.
+- **SC-020**: 95% of valid transfer requests complete with consistent debit/credit outcomes in under 5 seconds.
+- **SC-021**: 98% of transaction history requests return first-page results in under 3 seconds for standard workloads.
+- **SC-022**: 100% of withdrawal and transfer attempts that violate available-funds policy are blocked with policy-compliant responses.
+- **SC-023**: 100% of processed monetary operations produce traceable immutable transaction records.
 
 ## Assumptions
 
@@ -413,3 +531,7 @@ An authorized user deletes an account according to account lifecycle, dependency
 - Account type definitions, eligibility rules, and editable field policies are already defined by the business.
 - Customer-to-account relationship rules and account identifier standards are already established.
 - Pagination defaults and maximum page sizes for account listing are defined in existing platform standards.
+- Monetary precision, rounding, and amount-threshold policies are already defined by business governance.
+- Available-balance calculation rules are centrally defined and can be evaluated at transaction-request time.
+- Transaction ordering, retention, and audit-access policies are already defined by compliance requirements.
+- Idempotency key behavior for retried transaction requests is supported by existing platform standards.
