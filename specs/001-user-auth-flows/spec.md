@@ -1,6 +1,6 @@
 # Feature Specification: User Authentication, Customer, Account, Transaction, and Financial Insights Flows
 
-**Feature Branch**: `Digital Banking Platform`
+**Feature Branch**: `001-user-auth-flow`
 
 **Created**: 2026-06-25
 
@@ -12,7 +12,7 @@
 
 ### Session 2026-06-25
 
-- Q: Which authorization role model should apply across all flows? -> A: Customer-only role model (all operations performed by authenticated customers).
+- Q: Which authorization role model should apply across all flows? -> A: Hybrid RBAC with Customer and Admin roles.
 - Q: Should overdraft be allowed for withdrawals/transfers in this release? -> A: No overdraft allowed for any account (strict available-balance checks).
 - Q: Which time standard should govern scheduling and statement period processing? -> A: Store/process all times in UTC, convert only for user display.
 - Q: What customer access scope should apply to data and operations? -> A: Customers can access only resources they own (strict ownership scoping).
@@ -463,7 +463,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - **BR-005**: Abuse protection limits apply to login and password reset flows based on request frequency and risk signals.
 - **BR-006**: Every authentication flow event must be traceable for compliance and security review.
 - **BR-007**: Each customer record is uniquely identified and must enforce uniqueness on defined business identifiers.
-- **BR-008**: Only authenticated customers can create, update, view, or delete records and resources within their ownership scope.
+- **BR-008**: Access is controlled by hybrid RBAC: Customers are restricted to owned resources; Admins can manage all in-scope resources.
 - **BR-009**: Customer profile updates must preserve mandatory data integrity rules and required attributes.
 - **BR-010**: Customer deletion must honor retention, legal, and dependency constraints.
 - **BR-011**: Customer data access and lifecycle actions must be fully auditable.
@@ -486,7 +486,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - **BR-028**: Spending insights are informational outputs and do not alter financial records.
 - **BR-029**: Insight calculations must use approved categorization and period-boundary policy.
 - **BR-030**: Canonical processing timestamps for scheduling, statement boundaries, and transaction ordering must use UTC; localization is display-only.
-- **BR-031**: Customers can access, retrieve, and operate only on customer, account, statement, notification, and insight resources they own.
+- **BR-031**: Customers can access, retrieve, and operate only on customer, account, statement, notification, and insight resources they own; Admins can access and manage these resources across customers for operational governance.
 
 ### Inputs and Outputs
 
@@ -558,7 +558,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - **C-021**: Spending insights outputs must be restricted to authorized scope and cannot expose hidden underlying records.
 - **C-022**: Real-time personalized recommendations are out of scope for this release.
 - **C-023**: Standing-order execution windows, statement period boundaries, and persisted event timestamps must be processed in UTC.
-- **C-024**: Cross-customer delegated access and shared-resource authorization are out of scope for this release.
+- **C-024**: Customer-to-customer delegated access and shared-resource authorization are out of scope for this release; Admin cross-customer operational access is in scope.
 
 ### Error Conditions
 
@@ -656,7 +656,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - Session token lifetimes and rotation policy are centrally defined and available to this feature.
 - Users access these flows through supported clients that can securely store session credentials.
 - Social login, multi-factor authentication, and password reset completion are intentionally excluded from this scope.
-- This release uses a customer-only role model; support-agent and admin action paths are out of scope.
+- This release uses a hybrid RBAC model with Customer and Admin roles; support-agent role is out of scope.
 - Customer uniqueness rules and required profile fields are defined in existing business data standards.
 - Retention and legal hold policies exist and can be evaluated at delete-request time.
 - Account type definitions, eligibility rules, and editable field policies are already defined by the business.
@@ -667,7 +667,7 @@ An authorized user views categorized spending insights and trend summaries to un
 - Overdraft is disallowed for all account types in this release.
 - Transaction ordering, retention, and audit-access policies are already defined by compliance requirements.
 - UTC is the canonical processing timezone; user-facing displays may be localized.
-- Customers may operate only on resources mapped to their ownership scope.
+- Customers operate only on resources mapped to their ownership scope; Admins can operate across customer scopes based on RBAC policy.
 - Idempotency key behavior for retried transaction requests is supported by existing platform standards.
 - Standing-order cadence options, retry rules, and holiday/non-business-day behavior are defined by business policy.
 - Notification templates, channels, and consent preferences are managed by an existing communication policy framework.
