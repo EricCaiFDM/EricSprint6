@@ -1,7 +1,14 @@
+import axios, { AxiosError } from "axios";
+
 export type RegisterRequest = {
   email: string;
   password: string;
   passwordConfirmation: string;
+};
+
+export type RegisterResponse = {
+  status: "CREATED";
+  userId: string;
 };
 
 export type LoginRequest = {
@@ -17,54 +24,65 @@ export type RefreshRequest = {
   refreshToken: string;
 };
 
+export type LoginResponse = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+};
+
+export type GenericAcknowledgeResponse = {
+  status: "ACCEPTED";
+  message: string;
+};
+
+export type RefreshResponse = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+};
+
+export const apiClient = axios.create({
+  baseURL: "/api",
+  headers: {
+    "Content-Type": "application/json"
+  }
+});
+
 export async function checkHealth(): Promise<string> {
-  const response = await fetch("/api/health");
-  if (!response.ok) {
+  try {
+    const response = await apiClient.get<string>("/health", { responseType: "text" });
+    return response.data;
+  } catch {
     throw new Error("Health endpoint failed");
   }
-  return response.text();
 }
 
-export async function register(payload: RegisterRequest): Promise<unknown> {
-  const response = await fetch("/api/auth/register", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  return parseJson(response);
+export async function register(payload: RegisterRequest): Promise<RegisterResponse> {
+  return parseApiResponse(apiClient.post("/auth/register", payload));
 }
 
-export async function login(payload: LoginRequest): Promise<unknown> {
-  const response = await fetch("/api/auth/login", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  return parseJson(response);
+export async function login(payload: LoginRequest): Promise<LoginResponse> {
+  return parseApiResponse(apiClient.post("/auth/login", payload));
 }
 
-export async function requestPasswordReset(payload: PasswordResetRequest): Promise<unknown> {
-  const response = await fetch("/api/auth/password-reset/request", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  return parseJson(response);
+export async function requestPasswordReset(payload: PasswordResetRequest): Promise<GenericAcknowledgeResponse> {
+  return parseApiResponse(apiClient.post("/auth/password-reset/request", payload));
 }
 
-export async function refreshToken(payload: RefreshRequest): Promise<unknown> {
-  const response = await fetch("/api/auth/token/refresh", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  return parseJson(response);
+export async function refreshToken(payload: RefreshRequest): Promise<RefreshResponse> {
+  return parseApiResponse(apiClient.post("/auth/token/refresh", payload));
 }
 
-async function parseJson(response: Response): Promise<unknown> {
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(typeof body === "object" && body !== null && "message" in body ? String((body as { message: unknown }).message) : "Request failed");
+async function parseApiResponse<T>(request: Promise<{ data: T }>): Promise<T> {
+  try {
+    const response = await request;
+    return response.data;
+  } catch (error) {
+    const axiosError = error as AxiosError<{ message?: string }>;
+    const message =
+      axiosError.response?.data?.message && typeof axiosError.response.data.message === "string"
+        ? axiosError.response.data.message
+        : "Request failed";
+    throw new Error(message);
   }
-  return body;
 }

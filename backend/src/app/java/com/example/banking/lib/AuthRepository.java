@@ -3,41 +3,57 @@ package com.example.banking.lib;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+
+import com.example.banking.models.AuthUserEntity;
 
 @Repository
 public class AuthRepository {
-    private final JdbcTemplate jdbcTemplate;
+    private final AuthUserJpaRepository authUserJpaRepository;
 
-    public AuthRepository(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public AuthRepository(AuthUserJpaRepository authUserJpaRepository) {
+        this.authUserJpaRepository = authUserJpaRepository;
     }
 
     public boolean emailExists(String email) {
-        Integer count = jdbcTemplate.queryForObject(
-                "SELECT COUNT(1) FROM auth_users WHERE email = ?",
-                Integer.class,
-                normalizeEmail(email));
-        return count != null && count > 0;
+        return authUserJpaRepository.existsByEmail(normalizeEmail(email));
     }
 
     public void createUser(UUID userId, String email, String passwordHash) {
-        jdbcTemplate.update(
-                "INSERT INTO auth_users (id, email, password_hash) VALUES (?, ?, ?)",
+        AuthUserEntity authUserEntity = new AuthUserEntity(
                 userId.toString(),
                 normalizeEmail(email),
-                passwordHash);
+                passwordHash,
+                "CUSTOMER",
+                "ACTIVE");
+        authUserJpaRepository.save(authUserEntity);
     }
 
-    public Optional<String> findPasswordHashByEmail(String email) {
-        return jdbcTemplate.query(
-                "SELECT password_hash FROM auth_users WHERE email = ?",
-                (rs, rowNum) -> rs.getString("password_hash"),
-                normalizeEmail(email)).stream().findFirst();
+    public Optional<AuthUserCredentials> findCredentialsByEmail(String email) {
+        return authUserJpaRepository.findByEmail(normalizeEmail(email))
+                .map(entity -> new AuthUserCredentials(
+                        entity.getId(),
+                        entity.getEmail(),
+                        entity.getPasswordHash(),
+                        entity.getRole(),
+                        entity.getAccountStatus()));
+                }
+
+                public Optional<AuthUserCredentials> findCredentialsByUserId(String userId) {
+                return authUserJpaRepository.findById(userId)
+                    .map(entity -> new AuthUserCredentials(
+                        entity.getId(),
+                        entity.getEmail(),
+                        entity.getPasswordHash(),
+                        entity.getRole(),
+                        entity.getAccountStatus()));
     }
 
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase();
+    }
+
+    public record AuthUserCredentials(String userId, String email, String passwordHash, String role,
+            String accountStatus) {
     }
 }

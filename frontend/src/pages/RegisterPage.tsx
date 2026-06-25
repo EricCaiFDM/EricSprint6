@@ -1,15 +1,23 @@
 import { FormEvent, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { register } from "../services/api";
 
 export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [output, setOutput] = useState("No request yet.");
+  const registerMutation = useMutation({
+    mutationFn: register
+  });
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     try {
-      const data = await register({ email, password, passwordConfirmation: password });
+      const data = await registerMutation.mutateAsync({
+        email,
+        password,
+        passwordConfirmation: password
+      });
       setOutput(`Register success: ${JSON.stringify(data)}`);
     } catch (error) {
       setOutput(`Register failed: ${(error as Error).message}`);
@@ -17,20 +25,38 @@ export function RegisterPage() {
   };
 
   return (
-    <div>
-      <h2>Register</h2>
+    <article className="auth-card">
+      <h2>Open a digital access profile</h2>
+      <p>Create a secure profile to access customer services, account actions, and policy-controlled workflows.</p>
       <form onSubmit={onSubmit} className="form">
         <label>
-          Email
-          <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required />
+          Email address
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            placeholder="you@northbridgebank.com"
+            required
+          />
         </label>
         <label>
-          Password
-          <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" minLength={8} required />
+          Password (min 8 characters)
+          <input
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            type="password"
+            minLength={8}
+            placeholder="Create a strong password"
+            required
+          />
         </label>
-        <button type="submit">Create Account</button>
+        <div className="actions">
+          <button type="submit" disabled={registerMutation.isPending}>
+            {registerMutation.isPending ? "Creating..." : "Create Profile"}
+          </button>
+        </div>
       </form>
       <pre className="output">{output}</pre>
-    </div>
+    </article>
   );
 }

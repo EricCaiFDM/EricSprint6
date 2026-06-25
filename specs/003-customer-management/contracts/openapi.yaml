@@ -34,6 +34,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/CustomerId'
       responses:
+        '400':
+          description: Invalid customerId format
         '200':
           description: Customer found
           content:
@@ -72,6 +74,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/CustomerId'
       responses:
+        '400':
+          description: Invalid customerId format
         '200':
           description: Deletion succeeded
           content:

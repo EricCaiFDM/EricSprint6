@@ -10,27 +10,20 @@ Deliver categorized spending insights from posted transaction history with trend
 
 ## Technical Context
 
-**Language/Version**: Backend Java 17+; Frontend TypeScript (React 18)
-
-**Backend Stack**: Java 17+, Spring Boot (Web, Security, Validation), Maven/Gradle, JUnit + MockMvc, OpenAPI Generator, GitHub Spec Kit, Git, GitHub
-
-**Frontend Stack**: React 18, Vite / CRA, TypeScript, Axios, Jest / React Testing Library, Postman, Prism mock server
-
-**Cross-cutting Stack**: GitHub Copilot, ESLint / Checkstyle / SpotBugs / SonarQube, Dependency scanners (npm audit, OWASP), GitHub Actions, Swagger UI
-
-**Storage**: PostgreSQL for categorized insight snapshots, confidence metadata, taxonomy mappings, and retrieval audit events
-
-**Testing**: JUnit + MockMvc for backend; Jest / React Testing Library for frontend
-
-**Target Platform**: Linux containerized Spring Boot backend + browser-based React frontend
-
-**Project Type**: Full-stack web application
-
-**Performance Goals**: 95% of standard-volume insight requests return in under 5 seconds
-
-**Constraints**: Insight output is informational only, no personalized recommendation engine, hidden underlying records must not be exposed, hybrid RBAC scope required
-
-**Scale/Scope**: Initial release for customer/admin insight retrieval across approved taxonomy categories and policy-defined periods
+| Dimension | Decision |
+|---|---|
+| Language/Version | Java 21 (backend), JavaScript ES2022 (frontend) |
+| Backend Framework | Spring Boot 3.x (Web, Data JPA, Validation, Security) |
+| Frontend Framework | React 18 + React Query v5 + Axios + Vite |
+| Storage | Runtime: MySQL; local development and test execution: H2 |
+| Testing (backend) | JUnit 5, Mockito |
+| Testing (frontend) | Jest, React Testing Library |
+| Build (backend) | Maven (pom.xml) |
+| Build (frontend) | Vite + npm / package.json |
+| Target Platform | Linux server (backend), modern browser (frontend) |
+| Monetary Precision | BigDecimal scale=2, single system currency |
+| Security | JWT Bearer token on all endpoints, RBAC permission enforcement, ownership authorization per resource |
+| Project Type | Web service (backend) + Web application (frontend) |
 
 ## Constitution Check
 
