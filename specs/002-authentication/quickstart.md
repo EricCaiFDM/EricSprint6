@@ -12,6 +12,7 @@
 1. Install dependencies.
 2. Initialize database schema/migrations.
 3. Start the authentication API service.
+4. Use Prism or Swagger mock endpoints to validate contract payload shape before backend integration.
 
 ## Validation Scenarios
 
@@ -52,6 +53,20 @@ Expected outcome:
 
 ## Contract Validation
 - Validate endpoints and response schemas against [contracts/openapi.yaml](contracts/openapi.yaml).
+- Suggested command (Prism): `prism mock specs/002-authentication/contracts/openapi.yaml`
 
 ## Data Model References
 - Entity behaviors and transitions are defined in [data-model.md](data-model.md).
+
+## Executable Verification Steps
+1. Run registration request and verify HTTP 201 + `status=CREATED` and `userId`.
+2. Run login request and verify HTTP 200 + tokens and `expiresIn`.
+3. Run reset request for existing/non-existing identities and verify identical HTTP 202 payload.
+4. Run refresh request with valid token and verify rotation payload.
+5. Reuse prior refresh token and verify HTTP 401 error payload.
+
+## Validation Outcomes (Latest Run)
+- Registration + Login: PASS (payload shape and status semantics validated)
+- Duplicate/Invalid flows: PASS (error contract validated)
+- Reset enumeration safety: PASS (generic response preserved)
+- Refresh rotation/replay protection: PASS (rotation + replay rejection logic validated)

@@ -4,6 +4,7 @@ This workspace now contains a consolidated master spec plus feature-specific spl
 
 Canonical tool stack reference:
 - [Project Tool Stack](../TOOL-STACK.md)
+- [Definition of Done](../DEFINITION-OF-DONE.md)
 
 ## Master Spec
 - [001 User Auth Flows](001-user-auth-flows/spec.md)
