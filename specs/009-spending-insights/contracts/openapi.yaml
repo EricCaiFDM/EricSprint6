@@ -1,0 +1,152 @@
+openapi: 3.0.3
+info:
+  title: Spending Insights API
+  version: 1.0.0
+  description: Contract for categorized spending insight retrieval with trend and confidence metadata.
+servers:
+  - url: https://api.example.com
+paths:
+  /insights/spending:
+    get:
+      summary: Retrieve spending insights for scope and period
+      parameters:
+        - $ref: '#/components/parameters/ScopeType'
+        - $ref: '#/components/parameters/ScopeId'
+        - $ref: '#/components/parameters/PeriodStartUtc'
+        - $ref: '#/components/parameters/PeriodEndUtc'
+        - $ref: '#/components/parameters/CategoryFilters'
+      responses:
+        '200':
+          description: Spending insights returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpendingInsightResponse'
+        '400':
+          description: Invalid scope or period filters
+        '403':
+          description: Insufficient permission
+        '502':
+          description: Analytics dependency failure
+components:
+  parameters:
+    ScopeType:
+      name: scopeType
+      in: query
+      required: true
+      schema:
+        type: string
+        enum: [CUSTOMER, ACCOUNT, ADMIN]
+    ScopeId:
+      name: scopeId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PeriodStartUtc:
+      name: periodStartUtc
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date-time
+    PeriodEndUtc:
+      name: periodEndUtc
+      in: query
+      required: true
+      schema:
+        type: string
+        format: date-time
+    CategoryFilters:
+      name: categoryFilters
+      in: query
+      required: false
+      style: form
+      explode: false
+      schema:
+        type: array
+        items:
+          type: string
+  schemas:
+    SpendingInsightResponse:
+      type: object
+      required: [requestId, scopeType, scopeId, periodStartUtc, periodEndUtc, taxonomyVersion, status, categories, trend, confidence]
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        scopeType:
+          type: string
+          enum: [CUSTOMER, ACCOUNT, ADMIN]
+        scopeId:
+          type: string
+          format: uuid
+        periodStartUtc:
+          type: string
+          format: date-time
+        periodEndUtc:
+          type: string
+          format: date-time
+        taxonomyVersion:
+          type: string
+        status:
+          type: string
+          enum: [GENERATED, PARTIAL, FAILED]
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/InsightCategorySummary'
+        trend:
+          $ref: '#/components/schemas/InsightTrend'
+        confidence:
+          $ref: '#/components/schemas/InsightConfidence'
+    InsightCategorySummary:
+      type: object
+      required: [categoryCode, categoryLabel, amount, transactionCount, periodSharePercent]
+      properties:
+        categoryCode:
+          type: string
+        categoryLabel:
+          type: string
+        amount:
+          type: string
+        transactionCount:
+          type: integer
+        periodSharePercent:
+          type: number
+          format: float
+    InsightTrend:
+      type: object
+      required: [direction]
+      properties:
+        direction:
+          type: string
+          enum: [UP, DOWN, FLAT, INSUFFICIENT_DATA]
+        deltaPercent:
+          type: number
+          format: float
+          nullable: true
+        baselinePeriodStartUtc:
+          type: string
+          format: date-time
+          nullable: true
+        baselinePeriodEndUtc:
+          type: string
+          format: date-time
+          nullable: true
+    InsightConfidence:
+      type: object
+      required: [coverageRatio, confidenceLevel, minimumThresholdSatisfied]
+      properties:
+        coverageRatio:
+          type: number
+          format: float
+        confidenceLevel:
+          type: string
+          enum: [HIGH, MEDIUM, LOW]
+        minimumThresholdSatisfied:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
