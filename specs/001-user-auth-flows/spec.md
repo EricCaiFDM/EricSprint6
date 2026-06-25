@@ -1,4 +1,4 @@
-# Feature Specification: User Authentication, Customer, Account, and Transaction Management Flows
+# Feature Specification: User Authentication, Customer, Account, Transaction, and Financial Insights Flows
 
 **Feature Branch**: `001-user-auth-flows`
 
@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Add customer account lifecycle operations for Create Account (Checking/Savings), Retrieve Account Details, List Customer Accounts, Update Account, and Delete Account. Add transaction operations for Deposit, Withdraw, Transfer Funds, and Get Transaction History. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
+**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Add customer account lifecycle operations for Create Account (Checking/Savings), Retrieve Account Details, List Customer Accounts, Update Account, and Delete Account. Add transaction operations for Deposit, Withdraw, Transfer Funds, and Get Transaction History. Add features for Standing Order Setup, Trigger Notification, Generate Monthly Statement, and Spending Insights. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -281,6 +281,70 @@ An authorized user retrieves transaction history for an account or customer scop
 
 ---
 
+### User Story 18 - Standing Order Setup (Priority: P2)
+
+An authorized user creates and manages a recurring transfer instruction so scheduled payments execute automatically according to defined cadence and policy.
+
+**Why this priority**: Standing orders reduce manual effort and improve payment consistency for recurring obligations.
+
+**Independent Test**: Can be fully tested by creating valid recurring instructions, editing/canceling them, and validating scheduled execution eligibility checks.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user submits valid standing-order details with eligible source and destination accounts, **When** standing order setup is requested, **Then** a recurring instruction is created with schedule metadata and active state.
+2. **Given** standing-order details violate validation rules or account eligibility policy, **When** standing order setup is requested, **Then** setup is rejected with actionable validation errors.
+3. **Given** an active standing order reaches a scheduled execution time, **When** execution is processed, **Then** transfer is attempted according to transfer policy and execution outcome is recorded.
+
+---
+
+### User Story 19 - Trigger Notification (Priority: P2)
+
+The system sends user-facing notifications for important financial events so customers are informed of successful actions, failures, and required attention.
+
+**Why this priority**: Timely notifications improve trust, transparency, and customer response to critical account events.
+
+**Independent Test**: Can be fully tested by producing trigger events and verifying delivery attempt behavior, template selection, and fallback handling for unavailable channels.
+
+**Acceptance Scenarios**:
+
+1. **Given** a notification-triggering event occurs, **When** notification processing runs, **Then** a notification is generated and delivery is attempted using supported channels.
+2. **Given** a preferred channel is unavailable, **When** notification processing runs, **Then** fallback or retry policy is applied and delivery outcome is recorded.
+3. **Given** notification preferences or permissions restrict delivery, **When** notification processing runs, **Then** restricted messages are not delivered and a compliant outcome is logged.
+
+---
+
+### User Story 20 - Generate Monthly Statement (Priority: P2)
+
+An authorized user requests or receives a monthly account statement summarizing opening balance, closing balance, and posted activity for a statement period.
+
+**Why this priority**: Monthly statements provide formal account reporting, support customer reconciliation, and satisfy operational reporting expectations.
+
+**Independent Test**: Can be fully tested by generating statements for accounts with no activity, normal activity, and high activity volumes while validating period boundaries and totals.
+
+**Acceptance Scenarios**:
+
+1. **Given** an eligible account and a valid completed statement period, **When** monthly statement generation is requested, **Then** a statement artifact is generated with period summary and transaction details.
+2. **Given** the account has no posted transactions for the period, **When** monthly statement generation is requested, **Then** a valid zero-activity statement is still generated.
+3. **Given** statement generation fails due to processing or dependency issue, **When** generation is requested, **Then** a failure response is returned and failure is recorded for retry/visibility.
+
+---
+
+### User Story 21 - Spending Insights (Priority: P3)
+
+An authorized user views categorized spending insights and trend summaries to understand account behavior and make better financial decisions.
+
+**Why this priority**: Insights add analytical value beyond raw transactions and improve customer engagement with financial data.
+
+**Independent Test**: Can be fully tested by generating insights from transaction history with varying data completeness, and verifying category summaries and trend outputs.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user requests spending insights for an eligible scope and period, **When** insight generation is requested, **Then** categorized summaries and trend indicators are returned.
+2. **Given** insufficient or sparse transaction data for robust analysis, **When** insight generation is requested, **Then** the system returns limited insights with clear confidence or coverage indicators.
+3. **Given** requester access scope does not allow underlying transaction visibility, **When** insight generation is requested, **Then** access is denied without exposing restricted analytics data.
+
+---
+
 ### Edge Cases
 
 - What happens when a registration request arrives while another request is creating the same account identity in parallel?
@@ -301,6 +365,11 @@ An authorized user retrieves transaction history for an account or customer scop
 - How does transfer processing handle partial failures so debit and credit changes remain consistent?
 - What happens when transaction history is requested for very large date ranges or high-volume accounts?
 - How does the system order transactions that share the same timestamp at high processing rates?
+- What happens when a standing-order schedule lands on a non-business day or holiday?
+- How does standing-order execution behave when the source account has insufficient funds at trigger time?
+- What happens when notification delivery repeatedly fails across all channels?
+- How does monthly statement generation handle late-posted transactions near period close boundaries?
+- What happens when spending insights are requested for newly created accounts with minimal history?
 
 ## Requirements *(mandatory)*
 
@@ -360,6 +429,20 @@ An authorized user retrieves transaction history for an account or customer scop
 - **FR-052**: System MUST return not-found responses for transaction operations targeting non-existent accounts or scopes.
 - **FR-053**: System MUST record auditable events for all monetary operations and transaction-history access.
 - **FR-054**: System MUST provide clear, actionable, and non-sensitive error responses for failed transaction operations.
+- **FR-055**: System MUST allow authorized users to create, update, pause, resume, and cancel standing orders for eligible accounts.
+- **FR-056**: System MUST validate standing-order setup for schedule cadence, amount rules, account eligibility, and policy limits.
+- **FR-057**: System MUST execute active standing orders at scheduled times and record execution outcomes.
+- **FR-058**: System MUST prevent standing-order execution when source funds, account state, or policy checks fail.
+- **FR-059**: System MUST trigger notifications for configured financial events including transaction success, transaction failure, and standing-order outcomes.
+- **FR-060**: System MUST honor notification preferences, permissions, and channel-availability policy when delivering notifications.
+- **FR-061**: System MUST generate monthly statements for eligible accounts with period boundaries, opening/closing balances, and posted-activity details.
+- **FR-062**: System MUST allow authorized users to retrieve generated statements for permitted account scope.
+- **FR-063**: System MUST generate spending insights from posted transaction history for authorized scope and requested period.
+- **FR-064**: System MUST provide category-level spending summaries and trend indicators using defined classification policy.
+- **FR-065**: System MUST indicate limited-confidence or limited-coverage insight output when underlying data is insufficient.
+- **FR-066**: System MUST enforce scope-based access controls for standing orders, notifications, statements, and insights.
+- **FR-067**: System MUST record auditable events for standing-order lifecycle changes, notification dispatch outcomes, statement generation, and insight retrieval.
+- **FR-068**: System MUST provide clear, actionable, and non-sensitive error responses for standing-order, notification, statement, and insight operations.
 
 ### Business Rules
 
@@ -386,6 +469,12 @@ An authorized user retrieves transaction history for an account or customer scop
 - **BR-021**: A transfer must be treated as one logical operation linking source debit and destination credit.
 - **BR-022**: Transaction records must be immutable after posting and remain traceable for audit and compliance.
 - **BR-023**: Transaction history visibility is restricted by requester permissions and ownership/scope policy.
+- **BR-024**: Standing orders execute only while active and within allowed schedule windows defined by policy.
+- **BR-025**: Standing-order executions follow the same funds-availability and account-eligibility checks as transfer operations.
+- **BR-026**: Notification delivery must respect customer communication preferences, consent, and channel policy.
+- **BR-027**: Monthly statements are generated for complete statement periods and remain immutable once finalized.
+- **BR-028**: Spending insights are informational outputs and do not alter financial records.
+- **BR-029**: Insight calculations must use approved categorization and period-boundary policy.
 
 ### Inputs and Outputs
 
@@ -423,6 +512,14 @@ An authorized user retrieves transaction history for an account or customer scop
 - **Transfer Funds Output**: linked debit/credit transaction identifiers, posted transfer amount, source/destination balance snapshots, and operation status.
 - **Get Transaction History Input**: account or customer scope identifier, date/type filters, pagination parameters, and requester context.
 - **Get Transaction History Output**: authorized transaction collection, ordering information, paging metadata, and total/result-count indicators.
+- **Standing Order Setup Input**: source account identifier, destination account identifier, recurring amount, cadence/schedule, effective dates, and requester context.
+- **Standing Order Setup Output**: standing order identifier, schedule metadata, lifecycle state, and operation status.
+- **Trigger Notification Input**: trigger event context, target user/account scope, channel preferences, and notification template context.
+- **Trigger Notification Output**: notification identifier, selected channel(s), delivery attempt status, and dispatch metadata.
+- **Generate Monthly Statement Input**: account identifier, statement period, generation mode (scheduled/on-demand), and requester context.
+- **Generate Monthly Statement Output**: statement identifier, statement period summary, generation status, and retrieval reference.
+- **Spending Insights Input**: account or customer scope identifier, analysis period, category filters, and requester context.
+- **Spending Insights Output**: categorized spending summary, trend indicators, coverage/confidence metadata, and generation timestamp.
 
 ### Constraints
 
@@ -438,12 +535,16 @@ An authorized user retrieves transaction history for an account or customer scop
 - **C-010**: Account operations must enforce role-based authorization and field-level visibility controls.
 - **C-011**: Only checking and savings account types are in scope for this release.
 - **C-012**: Account deletion must respect dependency checks and compliance retention obligations.
-- **C-013**: Account balance transfer, overdraft handling, and transaction processing are out of scope for this feature.
 - **C-013**: Overdraft product behavior and fee assessment logic are out of scope for this feature.
 - **C-014**: Transaction operations must enforce strong consistency for balance updates and linked transfer posting.
 - **C-015**: Monetary operations must be idempotent when retried with the same idempotency context.
 - **C-016**: Transaction history responses must support pagination for large datasets.
 - **C-017**: Cross-currency transfers are out of scope for this release.
+- **C-018**: Standing-order execution must respect schedule windows, lifecycle state, and policy-defined retry behavior.
+- **C-019**: Notification dispatch must comply with communication consent policy and supported channels.
+- **C-020**: Monthly statements must be generated for discrete monthly periods and remain retrievable after generation.
+- **C-021**: Spending insights outputs must be restricted to authorized scope and cannot expose hidden underlying records.
+- **C-022**: Real-time personalized recommendations are out of scope for this release.
 
 ### Error Conditions
 
@@ -469,6 +570,12 @@ An authorized user retrieves transaction history for an account or customer scop
 - **E-020**: Monetary operation rejected due to concurrency conflict or duplicate retry request context.
 - **E-021**: Transaction history retrieval rejected due to invalid filters, inaccessible scope, or excessive range constraints.
 - **E-022**: Transaction processing unavailable due to dependency/service outage.
+- **E-023**: Standing-order setup rejected due to invalid schedule, amount rules, or account ineligibility.
+- **E-024**: Standing-order execution failed due to insufficient funds, lifecycle restriction, or dependency outage.
+- **E-025**: Notification dispatch failed due to channel unavailability, preference restrictions, or template resolution failure.
+- **E-026**: Monthly statement generation failed due to period validation error, processing failure, or dependency outage.
+- **E-027**: Statement retrieval denied due to missing statement artifact or access restrictions.
+- **E-028**: Spending insights generation failed due to invalid scope, insufficient input data, or analytics dependency failure.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -488,6 +595,10 @@ An authorized user retrieves transaction history for an account or customer scop
 - **Transaction Identifier**: Represents a unique key used to reference a posted transaction record.
 - **Transfer Link**: Represents a logical association between transfer debit and transfer credit transaction records.
 - **Balance Snapshot**: Represents the account balance state captured at the time of a posted monetary operation.
+- **Standing Order**: Represents a recurring transfer instruction with source/destination scope, amount, cadence, lifecycle state, and next execution schedule.
+- **Notification Event**: Represents a user-facing communication trigger with event type, channel policy, recipient scope, and delivery outcome.
+- **Monthly Statement**: Represents a period-bound account summary artifact containing opening balance, closing balance, and posted transaction details.
+- **Spending Insight**: Represents derived analytical output from transaction history including category summaries, trends, and coverage/confidence metadata.
 
 ## Success Criteria *(mandatory)*
 
@@ -516,6 +627,12 @@ An authorized user retrieves transaction history for an account or customer scop
 - **SC-021**: 98% of transaction history requests return first-page results in under 3 seconds for standard workloads.
 - **SC-022**: 100% of withdrawal and transfer attempts that violate available-funds policy are blocked with policy-compliant responses.
 - **SC-023**: 100% of processed monetary operations produce traceable immutable transaction records.
+- **SC-024**: 95% of valid standing-order setup requests are completed in under 4 seconds.
+- **SC-025**: 99% of eligible standing-order executions are processed within the configured execution window.
+- **SC-026**: 95% of notification-trigger events produce a recorded delivery outcome within 60 seconds of trigger.
+- **SC-027**: 98% of monthly statements for standard-volume accounts are generated within 5 minutes of scheduled or on-demand request.
+- **SC-028**: 95% of spending-insights requests for standard-volume scopes return results in under 5 seconds.
+- **SC-029**: 100% of standing-order, statement, and insight access attempts without authorization are denied without exposing restricted data.
 
 ## Assumptions
 
@@ -535,3 +652,7 @@ An authorized user retrieves transaction history for an account or customer scop
 - Available-balance calculation rules are centrally defined and can be evaluated at transaction-request time.
 - Transaction ordering, retention, and audit-access policies are already defined by compliance requirements.
 - Idempotency key behavior for retried transaction requests is supported by existing platform standards.
+- Standing-order cadence options, retry rules, and holiday/non-business-day behavior are defined by business policy.
+- Notification templates, channels, and consent preferences are managed by an existing communication policy framework.
+- Monthly statement period definitions and retention expectations are already established by compliance and operations.
+- Transaction categorization taxonomy for spending insights is defined and maintained by the business.
