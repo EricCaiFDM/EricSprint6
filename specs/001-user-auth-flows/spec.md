@@ -1,4 +1,4 @@
-# Feature Specification: User Authentication Flows
+# Feature Specification: User Authentication and Customer Management Flows
 
 **Feature Branch**: `001-user-auth-flows`
 
@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
+**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -73,6 +73,70 @@ A user who cannot log in can request a password reset link or code through their
 
 ---
 
+### User Story 5 - Create Customer Record (Priority: P1)
+
+An authorized user creates a new customer profile with required business and contact information so the customer can be managed in the system.
+
+**Why this priority**: Customer creation is the entry point for all downstream customer operations and core to business workflows.
+
+**Independent Test**: Can be fully tested by submitting valid and invalid create requests, verifying successful record creation, and duplicate prevention.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user provides required customer fields in valid format, **When** they submit create customer, **Then** a new customer record is created and returned with a unique identifier.
+2. **Given** the request conflicts with uniqueness rules (for example duplicate business key), **When** create customer is submitted, **Then** creation is rejected with a clear conflict error.
+3. **Given** required fields are missing or invalid, **When** create customer is submitted, **Then** validation errors are returned and no record is created.
+
+---
+
+### User Story 6 - Update Customer Profile (Priority: P1)
+
+An authorized user updates an existing customer profile so details remain accurate over time.
+
+**Why this priority**: Keeping customer information current is essential for operational accuracy and service quality.
+
+**Independent Test**: Can be fully tested by applying valid updates to existing records, submitting invalid updates, and attempting updates on non-existent or restricted records.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user targets an existing customer and submits valid profile updates, **When** update customer profile is requested, **Then** the customer record is updated and the latest profile is returned.
+2. **Given** the requested customer does not exist, **When** update customer profile is requested, **Then** the operation fails with a not-found error.
+3. **Given** submitted updates violate validation or business rules, **When** update customer profile is requested, **Then** the operation is rejected with actionable validation errors.
+
+---
+
+### User Story 7 - Get Customer Details (Priority: P2)
+
+An authorized user retrieves customer details by identifier to view current profile and status information.
+
+**Why this priority**: Retrieval supports day-to-day customer service, verification, and decision making.
+
+**Independent Test**: Can be fully tested by retrieving existing and non-existing customers and validating access controls and response payload completeness.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user requests details for an existing customer identifier, **When** get customer details is submitted, **Then** the system returns the customer profile and metadata allowed for that user.
+2. **Given** a customer identifier that does not exist, **When** get customer details is submitted, **Then** the system returns a not-found response.
+3. **Given** a user without required permissions requests customer details, **When** get customer details is submitted, **Then** access is denied without exposing restricted customer data.
+
+---
+
+### User Story 8 - Delete Customer (Priority: P2)
+
+An authorized user removes a customer record according to business retention and dependency rules.
+
+**Why this priority**: Controlled deletion supports data quality, lifecycle management, and compliance obligations.
+
+**Independent Test**: Can be fully tested by deleting eligible records, attempting deletion with dependency blockers, and confirming deleted records are no longer retrievable per policy.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user requests deletion for an eligible customer, **When** delete customer is submitted, **Then** the customer is removed or marked deleted according to policy and a success response is returned.
+2. **Given** a customer with blocking dependencies or legal holds, **When** delete customer is submitted, **Then** deletion is rejected with a policy-compliant error.
+3. **Given** a non-existent customer identifier, **When** delete customer is submitted, **Then** the system returns a not-found response.
+
+---
+
 ### Edge Cases
 
 - What happens when a registration request arrives while another request is creating the same account identity in parallel?
@@ -80,6 +144,10 @@ A user who cannot log in can request a password reset link or code through their
 - What happens when refresh is requested exactly at token-expiration boundary?
 - How does the system handle reset requests for accounts created through external identity providers that do not use local passwords?
 - What happens when a user requests password reset repeatedly within a short period from different devices?
+- What happens when create customer requests arrive concurrently for the same unique business key?
+- How does the system handle update requests based on stale customer data while another user has already changed the profile?
+- What happens when delete customer is requested for records linked to active contracts, invoices, or compliance retention obligations?
+- How does the system behave when customer retrieval is requested for a record that was just deleted or archived in a concurrent operation?
 
 ## Requirements *(mandatory)*
 
@@ -101,6 +169,16 @@ A user who cannot log in can request a password reset link or code through their
 - **FR-014**: System MUST throttle password reset requests according to abuse-prevention limits.
 - **FR-015**: System MUST record auditable authentication events for registration, login attempts, token refresh attempts, and password reset requests.
 - **FR-016**: System MUST provide clear, actionable, and non-sensitive error responses for all failed authentication-related operations.
+- **FR-017**: System MUST allow authorized users to create customer records with required profile attributes.
+- **FR-018**: System MUST validate customer create inputs for required fields, format rules, and uniqueness constraints before record creation.
+- **FR-019**: System MUST allow authorized users to update eligible customer profile attributes.
+- **FR-020**: System MUST reject customer profile updates that violate data validation, business rules, or edit permissions.
+- **FR-021**: System MUST allow authorized users to retrieve customer details by customer identifier.
+- **FR-022**: System MUST return only customer fields that the requesting user is permitted to access.
+- **FR-023**: System MUST allow authorized users to delete customer records according to retention and dependency policies.
+- **FR-024**: System MUST prevent customer deletion when blocking dependencies, legal holds, or mandatory retention conditions apply.
+- **FR-025**: System MUST return not-found responses for customer operations targeting non-existent customer identifiers.
+- **FR-026**: System MUST record auditable events for customer create, update, read access, and delete operations.
 
 ### Business Rules
 
@@ -110,6 +188,11 @@ A user who cannot log in can request a password reset link or code through their
 - **BR-004**: Password reset requests must not reveal whether an account exists.
 - **BR-005**: Abuse protection limits apply to login and password reset flows based on request frequency and risk signals.
 - **BR-006**: Every authentication flow event must be traceable for compliance and security review.
+- **BR-007**: Each customer record is uniquely identified and must enforce uniqueness on defined business identifiers.
+- **BR-008**: Only users with appropriate permissions can create, update, view, or delete customer records.
+- **BR-009**: Customer profile updates must preserve mandatory data integrity rules and required attributes.
+- **BR-010**: Customer deletion must honor retention, legal, and dependency constraints.
+- **BR-011**: Customer data access and lifecycle actions must be fully auditable.
 
 ### Inputs and Outputs
 
@@ -121,6 +204,14 @@ A user who cannot log in can request a password reset link or code through their
 - **Token Refresh Output**: new access token, updated expiry metadata, and refreshed token pair based on policy.
 - **Password Reset Request Input**: account identity (email).
 - **Password Reset Request Output**: generic acknowledgment and expected next-step guidance.
+- **Create Customer Input**: required customer profile attributes (for example legal name, contact channels, and business identifiers).
+- **Create Customer Output**: created customer identifier, persisted profile summary, and operation status.
+- **Update Customer Profile Input**: customer identifier plus modifiable profile fields.
+- **Update Customer Profile Output**: updated customer profile summary and operation status.
+- **Get Customer Details Input**: customer identifier and requester context.
+- **Get Customer Details Output**: authorized customer profile details and metadata.
+- **Delete Customer Input**: customer identifier and requester context.
+- **Delete Customer Output**: deletion status, effective lifecycle state, and any policy guidance if deletion is blocked.
 
 ### Constraints
 
@@ -129,6 +220,10 @@ A user who cannot log in can request a password reset link or code through their
 - **C-003**: Authentication endpoints must enforce request throttling and abuse prevention.
 - **C-004**: Feature scope excludes social login and multi-factor authentication for this release.
 - **C-005**: Password reset completion (setting new password) is out of scope; this feature includes request initiation only.
+- **C-006**: Customer operations must enforce role-based authorization before processing.
+- **C-007**: Customer data returned to users must be limited to minimum necessary fields based on access rights.
+- **C-008**: Customer deletion behavior must align with organizational retention and legal obligations.
+- **C-009**: Bulk customer import/export is out of scope for this release.
 
 ### Error Conditions
 
@@ -139,6 +234,10 @@ A user who cannot log in can request a password reset link or code through their
 - **E-005**: Token refresh denied due to expired, revoked, malformed, or reused refresh token.
 - **E-006**: Request throttled due to rate limits or abuse controls.
 - **E-007**: Dependency/service unavailable for identity, token, or notification operations.
+- **E-008**: Customer operation rejected due to insufficient permissions.
+- **E-009**: Customer create/update conflict caused by uniqueness violation or stale data concurrency.
+- **E-010**: Customer record not found for requested identifier.
+- **E-011**: Customer deletion blocked by dependency, legal hold, or retention policy.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -148,6 +247,9 @@ A user who cannot log in can request a password reset link or code through their
 - **Refresh Token**: Represents renewable session credential used to obtain new access tokens under policy.
 - **Password Reset Request**: Represents a time-bound reset initiation event tied to an account identity.
 - **Authentication Event**: Represents an auditable record of security-relevant actions and outcomes.
+- **Customer**: Represents a business/customer profile with identity, contact, status, and lifecycle attributes.
+- **Customer Identifier**: Represents a unique key used to reference and operate on a customer record.
+- **Customer Lifecycle Event**: Represents auditable actions performed on customer records (create, update, access, delete).
 
 ## Success Criteria *(mandatory)*
 
@@ -159,6 +261,11 @@ A user who cannot log in can request a password reset link or code through their
 - **SC-004**: 95% of password reset requests return user-facing acknowledgment in under 5 seconds.
 - **SC-005**: 100% of unauthenticated or invalid credential attempts are denied access to protected experiences.
 - **SC-006**: Authentication-related support tickets for account access recovery decrease by at least 30% within one release cycle after launch.
+- **SC-007**: 95% of valid create customer requests complete successfully in under 4 seconds.
+- **SC-008**: 95% of valid customer profile updates are applied and confirmed in under 4 seconds.
+- **SC-009**: 98% of get customer details requests for existing records return complete authorized data in under 2 seconds.
+- **SC-010**: 100% of unauthorized customer operations are denied without exposing restricted customer information.
+- **SC-011**: 100% of delete customer requests that violate retention or dependency rules are blocked with policy-compliant responses.
 
 ## Assumptions
 
@@ -168,3 +275,6 @@ A user who cannot log in can request a password reset link or code through their
 - Session token lifetimes and rotation policy are centrally defined and available to this feature.
 - Users access these flows through supported clients that can securely store session credentials.
 - Social login, multi-factor authentication, and password reset completion are intentionally excluded from this scope.
+- Customer authorization roles and permission policies are already defined by the business.
+- Customer uniqueness rules and required profile fields are defined in existing business data standards.
+- Retention and legal hold policies exist and can be evaluated at delete-request time.
