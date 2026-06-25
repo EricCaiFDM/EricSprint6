@@ -1,4 +1,4 @@
-# Feature Specification: User Authentication and Customer Management Flows
+# Feature Specification: User Authentication, Customer, and Account Management Flows
 
 **Feature Branch**: `001-user-auth-flows`
 
@@ -6,7 +6,7 @@
 
 **Status**: Draft
 
-**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
+**Input**: User description: "Create a feature that allows for User Login (Authentication), User Registration, Password Reset Request, and Token Refresh. Add customer lifecycle operations for Create Customer, Update Customer Profile, Get Customer Details, and Delete Customer. Add customer account lifecycle operations for Create Account (Checking/Savings), Retrieve Account Details, List Customer Accounts, Update Account, and Delete Account. Capture business rules, assumptions, flows, inputs/outputs, constraints, and error conditions."
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -137,6 +137,86 @@ An authorized user removes a customer record according to business retention and
 
 ---
 
+### User Story 9 - Create Customer Account (Priority: P1)
+
+An authorized user creates a checking or savings account for an eligible customer so the customer can hold and manage account-level information.
+
+**Why this priority**: Account creation is foundational for all account servicing capabilities and downstream lifecycle operations.
+
+**Independent Test**: Can be fully tested by creating checking and savings accounts for eligible customers, and by verifying rejection for invalid account type or ineligible customer state.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user submits valid account creation data for an eligible customer, **When** create account is requested, **Then** a new account is created with a unique account identifier and the requested type.
+2. **Given** an unsupported account type or invalid account setup data, **When** create account is requested, **Then** the request is rejected with actionable validation errors.
+3. **Given** a non-existent or ineligible customer, **When** create account is requested, **Then** account creation is denied with a policy-compliant error.
+
+---
+
+### User Story 10 - Retrieve Account Details (Priority: P1)
+
+An authorized user retrieves details for a specific customer account to view current account profile and lifecycle state.
+
+**Why this priority**: Targeted account retrieval is required for verification, servicing, and informed decision making.
+
+**Independent Test**: Can be fully tested by retrieving existing and non-existing accounts and verifying that response fields align with permission scope.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user requests details for an existing account identifier, **When** retrieve account details is requested, **Then** the system returns the authorized account profile and metadata.
+2. **Given** an account identifier that does not exist, **When** retrieve account details is requested, **Then** the system returns a not-found response.
+3. **Given** a user without required permissions, **When** retrieve account details is requested, **Then** access is denied without exposing restricted account data.
+
+---
+
+### User Story 11 - List Customer Accounts (Priority: P2)
+
+An authorized user lists all eligible accounts linked to a customer to understand the customer account portfolio.
+
+**Why this priority**: Listing improves servicing efficiency and is required to navigate between multiple accounts.
+
+**Independent Test**: Can be fully tested by listing accounts for customers with zero, one, and many accounts, while validating pagination and permission filtering.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user requests accounts for an existing customer with linked accounts, **When** list customer accounts is requested, **Then** the system returns the authorized account collection.
+2. **Given** an authorized user requests accounts for a customer with no linked accounts, **When** list customer accounts is requested, **Then** the system returns an empty result set.
+3. **Given** a user without required permissions requests the list, **When** list customer accounts is requested, **Then** access is denied and no account data is disclosed.
+
+---
+
+### User Story 12 - Update Account (Priority: P2)
+
+An authorized user updates editable account attributes so account data remains accurate and policy compliant.
+
+**Why this priority**: Account updates are necessary for lifecycle maintenance and operational correctness.
+
+**Independent Test**: Can be fully tested by applying valid updates, submitting invalid updates, and attempting updates on restricted or non-existent accounts.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user submits valid updates for an editable account, **When** update account is requested, **Then** account attributes are updated and the latest account profile is returned.
+2. **Given** update data violates validation or business rules, **When** update account is requested, **Then** the operation is rejected with actionable errors.
+3. **Given** the target account does not exist or is not editable due to lifecycle policy, **When** update account is requested, **Then** the request is denied with a policy-compliant error.
+
+---
+
+### User Story 13 - Delete Account (Priority: P2)
+
+An authorized user deletes an account according to account lifecycle, dependency, and retention rules.
+
+**Why this priority**: Controlled account deletion is needed for lifecycle closure while preserving compliance and data integrity.
+
+**Independent Test**: Can be fully tested by deleting eligible accounts, rejecting deletion for blocked conditions, and verifying post-delete access behavior.
+
+**Acceptance Scenarios**:
+
+1. **Given** an authorized user requests deletion for an eligible account, **When** delete account is requested, **Then** the account is deleted or lifecycle-closed according to policy and a success response is returned.
+2. **Given** an account with blocking dependencies, legal hold, or minimum lifecycle constraints, **When** delete account is requested, **Then** deletion is rejected with a policy-compliant error.
+3. **Given** a non-existent account identifier, **When** delete account is requested, **Then** the system returns a not-found response.
+
+---
+
 ### Edge Cases
 
 - What happens when a registration request arrives while another request is creating the same account identity in parallel?
@@ -148,6 +228,10 @@ An authorized user removes a customer record according to business retention and
 - How does the system handle update requests based on stale customer data while another user has already changed the profile?
 - What happens when delete customer is requested for records linked to active contracts, invoices, or compliance retention obligations?
 - How does the system behave when customer retrieval is requested for a record that was just deleted or archived in a concurrent operation?
+- What happens when account creation is requested for an unsupported type or for a customer whose status disallows new accounts?
+- How does the system handle concurrent updates to the same account from multiple authorized users?
+- What happens when account deletion is requested for an account with blocking dependencies or required closure workflow steps?
+- How does list customer accounts behave when the customer has a large number of accounts and pagination boundaries are reached?
 
 ## Requirements *(mandatory)*
 
@@ -179,6 +263,20 @@ An authorized user removes a customer record according to business retention and
 - **FR-024**: System MUST prevent customer deletion when blocking dependencies, legal holds, or mandatory retention conditions apply.
 - **FR-025**: System MUST return not-found responses for customer operations targeting non-existent customer identifiers.
 - **FR-026**: System MUST record auditable events for customer create, update, read access, and delete operations.
+- **FR-027**: System MUST allow authorized users to create customer accounts of supported types (checking or savings).
+- **FR-028**: System MUST validate account creation inputs for required fields, account type eligibility, and customer eligibility before account creation.
+- **FR-029**: System MUST assign a unique account identifier to every created account.
+- **FR-030**: System MUST allow authorized users to retrieve account details by account identifier.
+- **FR-031**: System MUST allow authorized users to list accounts associated with a customer identifier.
+- **FR-032**: System MUST support filtered and paginated listing for customer accounts where result sizes exceed default limits.
+- **FR-033**: System MUST allow authorized users to update editable account attributes according to account lifecycle policy.
+- **FR-034**: System MUST reject account updates that violate validation rules, permission scope, or lifecycle constraints.
+- **FR-035**: System MUST allow authorized users to delete eligible accounts according to dependency and retention policy.
+- **FR-036**: System MUST block account deletion when dependency, compliance, or lifecycle closure conditions are not satisfied.
+- **FR-037**: System MUST return not-found responses for account operations targeting non-existent account identifiers.
+- **FR-038**: System MUST enforce field-level access controls for account retrieval and listing responses.
+- **FR-039**: System MUST record auditable events for account create, retrieve, list, update, and delete operations.
+- **FR-040**: System MUST provide clear, actionable, and non-sensitive error responses for all failed account-related operations.
 
 ### Business Rules
 
@@ -193,6 +291,12 @@ An authorized user removes a customer record according to business retention and
 - **BR-009**: Customer profile updates must preserve mandatory data integrity rules and required attributes.
 - **BR-010**: Customer deletion must honor retention, legal, and dependency constraints.
 - **BR-011**: Customer data access and lifecycle actions must be fully auditable.
+- **BR-012**: An account must belong to exactly one customer.
+- **BR-013**: Only supported account types (checking and savings) are allowed in scope.
+- **BR-014**: Account creation is allowed only when the customer is in an eligible status defined by business policy.
+- **BR-015**: Account updates are restricted to editable attributes and must preserve mandatory account integrity rules.
+- **BR-016**: Account deletion must satisfy dependency, lifecycle, and retention requirements before completion.
+- **BR-017**: Account data visibility must be restricted to the minimum fields required for the requester role.
 
 ### Inputs and Outputs
 
@@ -212,6 +316,16 @@ An authorized user removes a customer record according to business retention and
 - **Get Customer Details Output**: authorized customer profile details and metadata.
 - **Delete Customer Input**: customer identifier and requester context.
 - **Delete Customer Output**: deletion status, effective lifecycle state, and any policy guidance if deletion is blocked.
+- **Create Account Input**: customer identifier, account type (checking or savings), and required account setup attributes.
+- **Create Account Output**: created account identifier, account type, initial lifecycle state, and operation status.
+- **Retrieve Account Details Input**: account identifier and requester context.
+- **Retrieve Account Details Output**: authorized account profile details, linked customer reference, and lifecycle metadata.
+- **List Customer Accounts Input**: customer identifier, pagination/filter parameters, and requester context.
+- **List Customer Accounts Output**: authorized account collection, paging metadata, and total/result-count indicators.
+- **Update Account Input**: account identifier plus editable account fields.
+- **Update Account Output**: updated account profile summary and operation status.
+- **Delete Account Input**: account identifier and requester context.
+- **Delete Account Output**: deletion/closure status, effective lifecycle state, and policy guidance when blocked.
 
 ### Constraints
 
@@ -224,6 +338,10 @@ An authorized user removes a customer record according to business retention and
 - **C-007**: Customer data returned to users must be limited to minimum necessary fields based on access rights.
 - **C-008**: Customer deletion behavior must align with organizational retention and legal obligations.
 - **C-009**: Bulk customer import/export is out of scope for this release.
+- **C-010**: Account operations must enforce role-based authorization and field-level visibility controls.
+- **C-011**: Only checking and savings account types are in scope for this release.
+- **C-012**: Account deletion must respect dependency checks and compliance retention obligations.
+- **C-013**: Account balance transfer, overdraft handling, and transaction processing are out of scope for this feature.
 
 ### Error Conditions
 
@@ -238,6 +356,11 @@ An authorized user removes a customer record according to business retention and
 - **E-009**: Customer create/update conflict caused by uniqueness violation or stale data concurrency.
 - **E-010**: Customer record not found for requested identifier.
 - **E-011**: Customer deletion blocked by dependency, legal hold, or retention policy.
+- **E-012**: Account operation rejected due to insufficient permissions.
+- **E-013**: Account creation rejected due to unsupported account type or ineligible customer state.
+- **E-014**: Account record not found for requested identifier.
+- **E-015**: Account update rejected due to validation failure, stale concurrency state, or lifecycle restriction.
+- **E-016**: Account deletion blocked by dependency, legal hold, retention, or lifecycle policy.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -250,6 +373,9 @@ An authorized user removes a customer record according to business retention and
 - **Customer**: Represents a business/customer profile with identity, contact, status, and lifecycle attributes.
 - **Customer Identifier**: Represents a unique key used to reference and operate on a customer record.
 - **Customer Lifecycle Event**: Represents auditable actions performed on customer records (create, update, access, delete).
+- **Account**: Represents a customer-owned financial account with type, status, lifecycle, and controlled editable attributes.
+- **Account Identifier**: Represents a unique key used to reference and operate on an account record.
+- **Account Lifecycle Event**: Represents auditable actions performed on accounts (create, retrieve, list, update, delete).
 
 ## Success Criteria *(mandatory)*
 
@@ -266,6 +392,12 @@ An authorized user removes a customer record according to business retention and
 - **SC-009**: 98% of get customer details requests for existing records return complete authorized data in under 2 seconds.
 - **SC-010**: 100% of unauthorized customer operations are denied without exposing restricted customer information.
 - **SC-011**: 100% of delete customer requests that violate retention or dependency rules are blocked with policy-compliant responses.
+- **SC-012**: 95% of valid create account requests complete successfully in under 4 seconds.
+- **SC-013**: 98% of retrieve account details requests for existing accounts return complete authorized data in under 2 seconds.
+- **SC-014**: 95% of list customer accounts requests return first-page results in under 3 seconds for standard workloads.
+- **SC-015**: 95% of valid update account requests are applied and confirmed in under 4 seconds.
+- **SC-016**: 100% of unauthorized account operations are denied without exposing restricted account data.
+- **SC-017**: 100% of account deletions that violate dependency, lifecycle, or retention policies are blocked with policy-compliant responses.
 
 ## Assumptions
 
@@ -278,3 +410,6 @@ An authorized user removes a customer record according to business retention and
 - Customer authorization roles and permission policies are already defined by the business.
 - Customer uniqueness rules and required profile fields are defined in existing business data standards.
 - Retention and legal hold policies exist and can be evaluated at delete-request time.
+- Account type definitions, eligibility rules, and editable field policies are already defined by the business.
+- Customer-to-account relationship rules and account identifier standards are already established.
+- Pagination defaults and maximum page sizes for account listing are defined in existing platform standards.

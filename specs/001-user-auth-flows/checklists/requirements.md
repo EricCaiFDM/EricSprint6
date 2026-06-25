@@ -1,4 +1,4 @@
-# Specification Quality Checklist: User Authentication and Customer Management Flows
+# Specification Quality Checklist: User Authentication, Customer, and Account Management Flows
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-06-25
@@ -31,4 +31,4 @@
 
 ## Notes
 
-- Validation completed for expanded authentication plus customer management scope with no unresolved quality issues.
+- Validation completed for expanded authentication, customer, and account management scope with no unresolved quality issues.
