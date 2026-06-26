@@ -1,4 +1,5 @@
-import { apiClient } from "./api";
+import { apiClient, getApiErrorDetails } from "./api";
+import { requireCustomerId } from "./session";
 
 export type BankAccount = {
   accountId: string;
@@ -11,78 +12,97 @@ export type BankAccount = {
   status: "Active" | "Paused";
 };
 
-const fallbackAccounts: BankAccount[] = [
-  {
-    accountId: "acc-main",
-    accountName: "Everyday Banking",
-    accountType: "Everyday",
-    accountNumberMasked: "**** 1894",
-    availableBalance: 6234.52,
-    currentBalance: 6234.52,
-    currency: "AUD",
-    status: "Active"
-  },
-  {
-    accountId: "acc-save",
-    accountName: "Rainy Day Saver",
-    accountType: "Savings",
-    accountNumberMasked: "**** 0216",
-    availableBalance: 15420.11,
-    currentBalance: 15420.11,
-    currency: "AUD",
-    status: "Active"
-  },
-  {
-    accountId: "acc-credit",
-    accountName: "Rewards Credit",
-    accountType: "Credit",
-    accountNumberMasked: "**** 9923",
-    availableBalance: 2410.8,
-    currentBalance: -589.2,
-    currency: "AUD",
-    status: "Active"
-  }
-];
+export type CreateCustomerAccountInput = {
+  accountType: "CHECKING" | "SAVINGS";
+  currencyCode: string;
+  nickname?: string;
+};
 
 export async function fetchAccounts(): Promise<BankAccount[]> {
+  const customerId = requireCustomerId();
+  const response = await apiClient.get("/accounts", {
+    params: {
+      customerId,
+      page: 1,
+      pageSize: 20
+    }
+  });
+  return mapAccounts(response.data);
+}
+
+export async function createCustomerAccount(input: CreateCustomerAccountInput): Promise<BankAccount> {
   try {
-    const response = await apiClient.get("/accounts");
-    const mapped = mapAccounts(response.data);
-    return mapped.length > 0 ? mapped : fallbackAccounts;
-  } catch {
-    return fallbackAccounts;
+    const customerId = requireCustomerId();
+    const response = await apiClient.post("/accounts", {
+      customerId,
+      accountType: input.accountType,
+      currencyCode: input.currencyCode.trim().toUpperCase(),
+      nickname: input.nickname?.trim() || undefined
+    });
+
+    const mapped = mapAccount(response.data);
+    if (!mapped) {
+      throw new Error("Account was created but response payload was invalid");
+    }
+
+    return mapped;
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.code === "CUSTOMER_NOT_FOUND") {
+      throw new Error("No customer profile found for this sign-in. Create customer profile first.");
+    }
+    if (details.status === 404) {
+      throw new Error("Account service could not find the requested resource. Verify customer profile setup and try again.");
+    }
+    throw new Error(details.message);
   }
 }
 
 function mapAccounts(payload: unknown): BankAccount[] {
-  if (!Array.isArray(payload)) {
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object" && Array.isArray((payload as { items?: unknown }).items)
+      ? ((payload as { items: unknown[] }).items ?? [])
+      : [];
+
+  if (!Array.isArray(rows)) {
     return [];
   }
 
-  return payload
-    .map((row) => {
-      if (!row || typeof row !== "object") {
-        return null;
-      }
-      const data = row as Record<string, unknown>;
-      const accountId = asString(data.accountId, "");
-      if (!accountId) {
-        return null;
-      }
-
-      const accountType = asType(data.accountType);
-      return {
-        accountId,
-        accountName: asString(data.accountName, `${accountType} Account`),
-        accountType,
-        accountNumberMasked: asString(data.accountNumberMasked, `**** ${accountId.slice(-4)}`),
-        availableBalance: asNumber(data.availableBalance, asNumber(data.balance, 0)),
-        currentBalance: asNumber(data.currentBalance, asNumber(data.balance, 0)),
-        currency: asString(data.currency, "AUD"),
-        status: asString(data.status, "Active") === "Paused" ? "Paused" : "Active"
-      } satisfies BankAccount;
-    })
+  return rows
+    .map((row) => mapAccount(row))
     .filter((account): account is BankAccount => account !== null);
+}
+
+function mapAccount(payload: unknown): BankAccount | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const data = payload as Record<string, unknown>;
+  const accountId = asString(data.accountId, "");
+  if (!accountId) {
+    return null;
+  }
+
+  const accountType = asType(data.accountType);
+  const accountNumber = asString(data.accountNumber, accountId);
+  const balance = asNumber(data.balance, 0);
+  return {
+    accountId,
+    accountName: asString(data.nickname, asString(data.accountName, `${accountType} Account`)),
+    accountType,
+    accountNumberMasked: asString(data.accountNumberMasked, maskAccountNumber(accountNumber)),
+    availableBalance: asNumber(data.availableBalance, balance),
+    currentBalance: asNumber(data.currentBalance, balance),
+    currency: asString(data.currencyCode, asString(data.currency, "USD")),
+    status: asStatus(data.status)
+  } satisfies BankAccount;
+}
+
+function maskAccountNumber(value: string): string {
+  const visible = value.slice(-4);
+  return `**** ${visible}`;
 }
 
 function asString(value: unknown, fallback: string): string {
@@ -107,5 +127,18 @@ function asType(value: unknown): BankAccount["accountType"] {
   if (value === "CHECKING") {
     return "Everyday";
   }
-  return "Savings";
+  if (value === "SAVINGS") {
+    return "Savings";
+  }
+  return "Everyday";
+}
+
+function asStatus(value: unknown): BankAccount["status"] {
+  if (value === "ACTIVE") {
+    return "Active";
+  }
+  if (value === "SUSPENDED" || value === "CLOSED") {
+    return "Paused";
+  }
+  return value === "Paused" ? "Paused" : "Active";
 }

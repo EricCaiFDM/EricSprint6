@@ -15,71 +15,27 @@ export type NotificationItem = {
   level: "Info" | "Warning";
 };
 
-const fallbackPreferences: NotificationPreferences = {
-  pushEnabled: true,
-  emailEnabled: true,
-  smsEnabled: false,
-  marketingEnabled: false
-};
-
-const fallbackNotifications: NotificationItem[] = [
-  {
-    notificationId: "n-201",
-    title: "Card transaction approved",
-    message: "Your card payment of AUD 64.50 at Osteria Lane was approved.",
-    occurredAt: "2026-06-23T15:45:00Z",
-    level: "Info"
-  },
-  {
-    notificationId: "n-202",
-    title: "Upcoming scheduled payment",
-    message: "A recurring payment of AUD 1,950.00 is due on 01 Jul 2026.",
-    occurredAt: "2026-06-25T08:20:00Z",
-    level: "Info"
-  },
-  {
-    notificationId: "n-203",
-    title: "Low balance alert",
-    message: "Your available balance fell below your selected threshold.",
-    occurredAt: "2026-06-22T07:18:00Z",
-    level: "Warning"
-  }
-];
-
 export async function fetchNotificationPreferences(): Promise<NotificationPreferences> {
-  try {
-    const response = await apiClient.get("/notifications/preferences");
-    const data = response.data as Record<string, unknown>;
-    return {
-      pushEnabled: asBoolean(data.pushEnabled, fallbackPreferences.pushEnabled),
-      emailEnabled: asBoolean(data.emailEnabled, fallbackPreferences.emailEnabled),
-      smsEnabled: asBoolean(data.smsEnabled, fallbackPreferences.smsEnabled),
-      marketingEnabled: asBoolean(data.marketingEnabled, fallbackPreferences.marketingEnabled)
-    };
-  } catch {
-    return fallbackPreferences;
-  }
+  const response = await apiClient.get("/notifications/preferences");
+  const data = response.data as Record<string, unknown>;
+  return {
+    pushEnabled: asBoolean(data.pushEnabled, false),
+    emailEnabled: asBoolean(data.emailEnabled, false),
+    smsEnabled: asBoolean(data.smsEnabled, false),
+    marketingEnabled: asBoolean(data.marketingEnabled, false)
+  };
 }
 
 export async function updateNotificationPreferences(
   preferences: NotificationPreferences
 ): Promise<NotificationPreferences> {
-  try {
-    await apiClient.patch("/notifications/preferences", preferences);
-    return preferences;
-  } catch {
-    return preferences;
-  }
+  await apiClient.patch("/notifications/preferences", preferences);
+  return preferences;
 }
 
 export async function fetchRecentNotifications(): Promise<NotificationItem[]> {
-  try {
-    const response = await apiClient.get("/notifications/events?size=6");
-    const mapped = mapNotifications(response.data);
-    return mapped.length > 0 ? mapped : fallbackNotifications;
-  } catch {
-    return fallbackNotifications;
-  }
+  const response = await apiClient.get("/notifications/events?size=6");
+  return mapNotifications(response.data);
 }
 
 function mapNotifications(payload: unknown): NotificationItem[] {

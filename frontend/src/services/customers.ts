@@ -1,73 +1,75 @@
 import { apiClient } from "./api";
+import { requireCustomerId, setActiveCustomerId } from "./session";
 
 export type CustomerProfile = {
-  firstName: string;
-  lastName: string;
+  customerId: string;
+  fullName: string;
   email: string;
   mobile: string;
-  addressLine1: string;
-  city: string;
-  postalCode: string;
-  loyaltyTier: "Standard" | "Premium" | "Private";
+  status: "ACTIVE" | "SUSPENDED" | "CLOSED";
   joinedAt: string;
 };
 
 export type CustomerContactUpdate = {
-  mobile: string;
-  addressLine1: string;
-  city: string;
-  postalCode: string;
+  phoneNumber: string;
 };
 
-const fallbackProfile: CustomerProfile = {
-  firstName: "Jordan",
-  lastName: "Patel",
-  email: "jordan.patel@example.com",
-  mobile: "+61 412 345 678",
-  addressLine1: "84 Harbour View Road",
-  city: "Sydney",
-  postalCode: "2000",
-  loyaltyTier: "Premium",
-  joinedAt: "2024-03-12T00:00:00Z"
+export type CreateCustomerProfileInput = {
+  externalCustomerKey: string;
+  legalName: string;
+  primaryEmail: string;
+  phoneNumber: string;
 };
+
+export async function createCustomerProfile(input: CreateCustomerProfileInput): Promise<CustomerProfile> {
+  const response = await apiClient.post("/customers", {
+    externalCustomerKey: input.externalCustomerKey,
+    legalName: input.legalName,
+    primaryEmail: input.primaryEmail,
+    phoneNumber: input.phoneNumber
+  });
+
+  const profile = mapCustomerProfile(response.data);
+  setActiveCustomerId(profile.customerId);
+  return profile;
+}
 
 export async function fetchCustomerProfile(): Promise<CustomerProfile> {
-  try {
-    const response = await apiClient.get("/customers/me");
-    return mapCustomerProfile(response.data);
-  } catch {
-    return fallbackProfile;
-  }
+  const customerId = requireCustomerId();
+  const response = await apiClient.get(`/customers/${encodeURIComponent(customerId)}`);
+  const profile = mapCustomerProfile(response.data);
+  setActiveCustomerId(profile.customerId);
+  return profile;
 }
 
 export async function updateCustomerContact(update: CustomerContactUpdate): Promise<CustomerProfile> {
-  try {
-    const response = await apiClient.patch("/customers/me", update);
-    return mapCustomerProfile(response.data);
-  } catch {
-    return {
-      ...fallbackProfile,
-      ...update
-    };
-  }
+  const customerId = requireCustomerId();
+  const response = await apiClient.patch(`/customers/${encodeURIComponent(customerId)}`, {
+    phoneNumber: update.phoneNumber
+  });
+  const profile = mapCustomerProfile(response.data);
+  setActiveCustomerId(profile.customerId);
+  return profile;
 }
 
 function mapCustomerProfile(data: unknown): CustomerProfile {
   if (!data || typeof data !== "object") {
-    return fallbackProfile;
+    throw new Error("Customer profile payload is invalid");
   }
 
   const row = data as Record<string, unknown>;
+  const customerId = asString(row.customerId, "");
+  if (!customerId) {
+    throw new Error("Customer profile is missing customerId");
+  }
+
   return {
-    firstName: asString(row.firstName, fallbackProfile.firstName),
-    lastName: asString(row.lastName, fallbackProfile.lastName),
-    email: asString(row.email, fallbackProfile.email),
-    mobile: asString(row.mobile, fallbackProfile.mobile),
-    addressLine1: asString(row.addressLine1, fallbackProfile.addressLine1),
-    city: asString(row.city, fallbackProfile.city),
-    postalCode: asString(row.postalCode, fallbackProfile.postalCode),
-    loyaltyTier: asTier(row.loyaltyTier, fallbackProfile.loyaltyTier),
-    joinedAt: asString(row.joinedAt, fallbackProfile.joinedAt)
+    customerId,
+    fullName: asString(row.legalName, "Customer"),
+    email: asString(row.primaryEmail, ""),
+    mobile: asString(row.phoneNumber, ""),
+    status: asStatus(row.status),
+    joinedAt: asString(row.createdAtUtc, new Date().toISOString())
   };
 }
 
@@ -75,6 +77,12 @@ function asString(value: unknown, fallback: string): string {
   return typeof value === "string" && value.trim().length > 0 ? value : fallback;
 }
 
-function asTier(value: unknown, fallback: CustomerProfile["loyaltyTier"]): CustomerProfile["loyaltyTier"] {
-  return value === "Standard" || value === "Premium" || value === "Private" ? value : fallback;
+function asStatus(value: unknown): CustomerProfile["status"] {
+  if (value === "SUSPENDED") {
+    return "SUSPENDED";
+  }
+  if (value === "CLOSED") {
+    return "CLOSED";
+  }
+  return "ACTIVE";
 }

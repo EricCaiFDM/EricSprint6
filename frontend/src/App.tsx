@@ -1,8 +1,11 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, NavLink, Route, Routes } from "react-router-dom";
 import { checkHealth } from "./services/api";
+import { getAccessToken } from "./services/session";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
+import { CreateCustomerPage } from "./pages/CreateCustomerPage";
 import { ResetRequestPage } from "./pages/ResetRequestPage";
 import { TokenRefreshPage } from "./pages/TokenRefreshPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -15,6 +18,23 @@ import { StatementsPage } from "./pages/StatementsPage";
 import { SpendingInsightsPage } from "./pages/SpendingInsightsPage";
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAccessToken()));
+
+  useEffect(() => {
+    const syncAuthState = () => {
+      setIsAuthenticated(Boolean(getAccessToken()));
+    };
+
+    syncAuthState();
+    window.addEventListener("storage", syncAuthState);
+    window.addEventListener("nb-auth-changed", syncAuthState as EventListener);
+
+    return () => {
+      window.removeEventListener("storage", syncAuthState);
+      window.removeEventListener("nb-auth-changed", syncAuthState as EventListener);
+    };
+  }, []);
+
   const healthQuery = useQuery({
     queryKey: ["health"],
     queryFn: checkHealth,
@@ -32,6 +52,9 @@ export default function App() {
     : healthQuery.isError
       ? "Some banking services are unavailable"
       : "All banking services are available";
+
+  const withAuth = (element: JSX.Element) =>
+    isAuthenticated ? element : <Navigate to="/security/login" replace />;
 
   return (
     <main className="bank-app">
@@ -73,27 +96,29 @@ export default function App() {
       <section className="content-layout">
         <section className="content-surface">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/accounts" element={<AccountManagementPage />} />
-            <Route path="/payments" element={<PaymentsPage />} />
-            <Route path="/scheduled" element={<StandingOrdersPage />} />
-            <Route path="/notifications" element={<NotificationsPage />} />
-            <Route path="/statements" element={<StatementsPage />} />
-            <Route path="/insights" element={<SpendingInsightsPage />} />
-            <Route path="/profile" element={<CustomerManagementPage />} />
+            <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/security/login"} replace />} />
+            <Route path="/dashboard" element={withAuth(<DashboardPage />)} />
+            <Route path="/accounts" element={withAuth(<AccountManagementPage />)} />
+            <Route path="/payments" element={withAuth(<PaymentsPage />)} />
+            <Route path="/scheduled" element={withAuth(<StandingOrdersPage />)} />
+            <Route path="/notifications" element={withAuth(<NotificationsPage />)} />
+            <Route path="/statements" element={withAuth(<StatementsPage />)} />
+            <Route path="/insights" element={withAuth(<SpendingInsightsPage />)} />
+            <Route path="/profile" element={withAuth(<CustomerManagementPage />)} />
 
             <Route path="/security/login" element={<LoginPage />} />
             <Route path="/security/register" element={<RegisterPage />} />
+            <Route path="/security/create-customer" element={<CreateCustomerPage />} />
             <Route path="/security/reset" element={<ResetRequestPage />} />
             <Route path="/security/refresh" element={<TokenRefreshPage />} />
 
             <Route path="/login" element={<Navigate to="/security/login" replace />} />
             <Route path="/register" element={<Navigate to="/security/register" replace />} />
+            <Route path="/create-customer" element={<Navigate to="/security/create-customer" replace />} />
             <Route path="/reset" element={<Navigate to="/security/reset" replace />} />
             <Route path="/refresh" element={<Navigate to="/security/refresh" replace />} />
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/security/login"} replace />} />
           </Routes>
         </section>
 
@@ -108,10 +133,11 @@ export default function App() {
           </article>
 
           <article className="rail-card">
-            <h2>Security actions</h2>
+            <h2>Onboarding & security</h2>
             <ul className="quick-links">
+              <li><NavLink to="/security/register">Create access profile</NavLink></li>
               <li><NavLink to="/security/login">Sign in</NavLink></li>
-              <li><NavLink to="/security/register">Create profile</NavLink></li>
+              <li><NavLink to="/security/create-customer">Create customer profile</NavLink></li>
               <li><NavLink to="/security/reset">Recover account</NavLink></li>
               <li><NavLink to="/security/refresh">Refresh session</NavLink></li>
             </ul>

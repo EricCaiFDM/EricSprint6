@@ -63,6 +63,12 @@ export function DashboardPage() {
         </article>
       </section>
 
+      {!accountsQuery.isPending && !accountsQuery.isError && accounts.length === 0 ? (
+        <article className="surface-card">
+          <p className="hint-text">No accounts found for customer. Open your first account from the Accounts page.</p>
+        </article>
+      ) : null}
+
       <section className="two-column-grid">
         <article className="surface-card">
           <h3>Recent activity</h3>

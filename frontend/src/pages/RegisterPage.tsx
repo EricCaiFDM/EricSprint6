@@ -1,5 +1,6 @@
 import { FormEvent, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { register } from "../services/api";
 
 export function RegisterPage() {
@@ -27,7 +28,9 @@ export function RegisterPage() {
   return (
     <article className="auth-card">
       <h2>Open a digital access profile</h2>
-      <p>Create a secure profile to access customer services, account actions, and policy-controlled workflows.</p>
+      <p>
+        Dedicated access-profile page. Register here first, then sign in, then create your customer profile.
+      </p>
       <form onSubmit={onSubmit} className="form">
         <label>
           Email address
@@ -56,6 +59,11 @@ export function RegisterPage() {
           </button>
         </div>
       </form>
+      <div className="auth-links">
+        <strong>Next steps</strong>
+        <Link to="/security/login">Sign in</Link>
+        <Link to="/security/create-customer">Create customer profile</Link>
+      </div>
       <pre className="output">{output}</pre>
     </article>
   );

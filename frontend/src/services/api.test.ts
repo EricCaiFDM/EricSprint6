@@ -11,6 +11,7 @@ import {
 describe("api service", () => {
   beforeEach(() => {
     jest.restoreAllMocks();
+    window.localStorage.clear();
   });
 
   it("checkHealth returns endpoint text when successful", async () => {
@@ -74,12 +75,27 @@ describe("api service", () => {
   it("refreshToken posts token payload", async () => {
     const postMock = jest
       .spyOn(apiClient, "post")
-      .mockResolvedValue({ data: { accessToken: "newAccess" } } as never);
+      .mockResolvedValue({
+        data: { accessToken: "newAccess", refreshToken: "newRefresh", expiresIn: 3600 }
+      } as never);
 
     await refreshToken({ refreshToken: "oldRefresh" });
 
     expect(postMock).toHaveBeenCalledWith("/auth/token/refresh", {
       refreshToken: "oldRefresh"
     });
+    expect(window.localStorage.getItem("nb_access_token")).toBe("newAccess");
+    expect(window.localStorage.getItem("nb_refresh_token")).toBe("newRefresh");
+  });
+
+  it("login stores access and refresh tokens", async () => {
+    jest.spyOn(apiClient, "post").mockResolvedValue({
+      data: { accessToken: "access-1", refreshToken: "refresh-1", expiresIn: 3600 }
+    } as never);
+
+    await login({ identity: "jane@example.com", password: "secret123" });
+
+    expect(window.localStorage.getItem("nb_access_token")).toBe("access-1");
+    expect(window.localStorage.getItem("nb_refresh_token")).toBe("refresh-1");
   });
 });

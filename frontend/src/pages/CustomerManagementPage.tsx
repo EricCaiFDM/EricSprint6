@@ -14,10 +14,7 @@ export function CustomerManagementPage() {
   });
 
   const [contactForm, setContactForm] = useState<CustomerContactUpdate>({
-    mobile: "",
-    addressLine1: "",
-    city: "",
-    postalCode: ""
+    phoneNumber: ""
   });
   const [feedback, setFeedback] = useState("Update your contact details when anything changes.");
 
@@ -26,10 +23,7 @@ export function CustomerManagementPage() {
       return;
     }
     setContactForm({
-      mobile: profileQuery.data.mobile,
-      addressLine1: profileQuery.data.addressLine1,
-      city: profileQuery.data.city,
-      postalCode: profileQuery.data.postalCode
+      phoneNumber: profileQuery.data.mobile
     });
   }, [profileQuery.data]);
 
@@ -65,15 +59,15 @@ export function CustomerManagementPage() {
             <dl className="profile-grid">
               <div>
                 <dt>Full name</dt>
-                <dd>{profile.firstName} {profile.lastName}</dd>
+                <dd>{profile.fullName}</dd>
               </div>
               <div>
                 <dt>Email</dt>
                 <dd>{profile.email}</dd>
               </div>
               <div>
-                <dt>Membership</dt>
-                <dd>{profile.loyaltyTier}</dd>
+                <dt>Status</dt>
+                <dd>{profile.status}</dd>
               </div>
               <div>
                 <dt>Customer since</dt>
@@ -88,37 +82,11 @@ export function CustomerManagementPage() {
               <label>
                 Mobile number
                 <input
-                  value={contactForm.mobile}
-                  onChange={(event) => setContactForm({ ...contactForm, mobile: event.target.value })}
+                  value={contactForm.phoneNumber}
+                  onChange={(event) => setContactForm({ phoneNumber: event.target.value })}
                   required
                 />
               </label>
-              <label>
-                Street address
-                <input
-                  value={contactForm.addressLine1}
-                  onChange={(event) => setContactForm({ ...contactForm, addressLine1: event.target.value })}
-                  required
-                />
-              </label>
-              <div className="inline-fields">
-                <label>
-                  City
-                  <input
-                    value={contactForm.city}
-                    onChange={(event) => setContactForm({ ...contactForm, city: event.target.value })}
-                    required
-                  />
-                </label>
-                <label>
-                  Postcode
-                  <input
-                    value={contactForm.postalCode}
-                    onChange={(event) => setContactForm({ ...contactForm, postalCode: event.target.value })}
-                    required
-                  />
-                </label>
-              </div>
               <div className="actions">
                 <button type="submit" disabled={updateMutation.isPending}>
                   {updateMutation.isPending ? "Saving..." : "Save changes"}
@@ -130,7 +98,11 @@ export function CustomerManagementPage() {
         </section>
       ) : (
         <article className="surface-card">
-          <p className="hint-text">Loading profile information...</p>
+          <p className="hint-text">
+            {profileQuery.isError
+              ? `Unable to load profile: ${(profileQuery.error as Error).message}`
+              : "Loading profile information..."}
+          </p>
         </article>
       )}
     </section>

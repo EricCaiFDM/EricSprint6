@@ -491,6 +491,33 @@ button:disabled {
   line-height: 1.42;
 }
 
+.auth-links {
+  margin-top: 0.88rem;
+  border: 1px solid var(--line-200);
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 0.68rem 0.74rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.auth-links strong {
+  color: var(--ink-900);
+  font-family: var(--font-display);
+  font-size: 0.87rem;
+}
+
+.auth-links a {
+  color: var(--brand-700);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-links a:hover {
+  text-decoration: underline;
+}
+
 .profile-grid {
   margin: 0;
   display: grid;

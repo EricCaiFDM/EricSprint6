@@ -25,91 +25,26 @@ export type TransferReceipt = {
   submittedAt: string;
 };
 
-const fallbackTransactions: TransactionItem[] = [
-  {
-    transactionId: "txn-401",
-    bookedAt: "2026-06-24T09:18:00Z",
-    description: "Salary - Blue Horizon Pty",
-    category: "Income",
-    amount: 4300,
-    currency: "AUD",
-    direction: "CREDIT",
-    status: "Completed"
-  },
-  {
-    transactionId: "txn-402",
-    bookedAt: "2026-06-24T12:30:00Z",
-    description: "Northline Grocers",
-    category: "Groceries",
-    amount: 124.9,
-    currency: "AUD",
-    direction: "DEBIT",
-    status: "Completed"
-  },
-  {
-    transactionId: "txn-403",
-    bookedAt: "2026-06-23T15:44:00Z",
-    description: "Metro Energy",
-    category: "Utilities",
-    amount: 88.3,
-    currency: "AUD",
-    direction: "DEBIT",
-    status: "Completed"
-  },
-  {
-    transactionId: "txn-404",
-    bookedAt: "2026-06-23T01:20:00Z",
-    description: "Dining - Osteria Lane",
-    category: "Dining",
-    amount: 64.5,
-    currency: "AUD",
-    direction: "DEBIT",
-    status: "Completed"
-  },
-  {
-    transactionId: "txn-405",
-    bookedAt: "2026-06-22T03:55:00Z",
-    description: "Savings Transfer",
-    category: "Transfer",
-    amount: 250,
-    currency: "AUD",
-    direction: "DEBIT",
-    status: "Pending"
-  }
-];
-
 export async function fetchRecentTransactions(): Promise<TransactionItem[]> {
-  try {
-    const response = await apiClient.get("/transactions/history?size=8");
-    const mapped = mapTransactions(response.data);
-    return mapped.length > 0 ? mapped : fallbackTransactions;
-  } catch {
-    return fallbackTransactions;
-  }
+  const response = await apiClient.get("/transactions/history?size=8");
+  return mapTransactions(response.data);
 }
 
 export async function submitTransfer(input: TransferInput): Promise<TransferReceipt> {
-  try {
-    const response = await apiClient.post("/transactions/transfer", {
-      sourceAccountId: input.sourceAccountId,
-      destinationAccountId: input.destinationAccountId,
-      amount: input.amount,
-      currency: "AUD",
-      note: input.note,
-      recipientName: input.recipientName
-    });
-    return {
-      reference: asString(response.data?.reference, `NB-${Date.now()}`),
-      status: "Submitted",
-      submittedAt: new Date().toISOString()
-    };
-  } catch {
-    return {
-      reference: `NB-${Date.now()}`,
-      status: "Submitted",
-      submittedAt: new Date().toISOString()
-    };
-  }
+  const response = await apiClient.post("/transactions/transfer", {
+    sourceAccountId: input.sourceAccountId,
+    destinationAccountId: input.destinationAccountId,
+    amount: input.amount,
+    currency: "AUD",
+    note: input.note,
+    recipientName: input.recipientName
+  });
+
+  return {
+    reference: asString(response.data?.reference, `NB-${Date.now()}`),
+    status: "Submitted",
+    submittedAt: new Date().toISOString()
+  };
 }
 
 function mapTransactions(payload: unknown): TransactionItem[] {
