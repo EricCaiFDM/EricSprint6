@@ -1,4 +1,4 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "../services/accounts";
 import {
@@ -21,11 +21,10 @@ export function PaymentsPage() {
 
   const accounts = accountsQuery.data ?? [];
   const hasAccounts = accounts.length > 0;
-  const sourceAccountId = accounts[0]?.accountId ?? "";
+  const primaryAccountId = accounts[0]?.accountId ?? "";
 
   const [paymentForm, setPaymentForm] = useState<TransferInput>({
-    sourceAccountId,
-    recipientName: "",
+    sourceAccountId: "",
     destinationAccountId: "",
     amount: 0,
     note: ""
@@ -43,11 +42,43 @@ export function PaymentsPage() {
     [transactionsQuery.data]
   );
 
+  useEffect(() => {
+    if (!hasAccounts) {
+      return;
+    }
+
+    setPaymentForm((previous) => {
+      const nextSource = previous.sourceAccountId && accounts.some((account) => account.accountId === previous.sourceAccountId)
+        ? previous.sourceAccountId
+        : primaryAccountId;
+
+      const eligibleDestinations = accounts.filter((account) => account.accountId !== nextSource);
+      const nextDestination = previous.destinationAccountId
+        && eligibleDestinations.some((account) => account.accountId === previous.destinationAccountId)
+        ? previous.destinationAccountId
+        : (eligibleDestinations[0]?.accountId ?? "");
+
+      if (nextSource === previous.sourceAccountId && nextDestination === previous.destinationAccountId) {
+        return previous;
+      }
+
+      return {
+        ...previous,
+        sourceAccountId: nextSource,
+        destinationAccountId: nextDestination
+      };
+    });
+  }, [accounts, hasAccounts, primaryAccountId]);
+
+  const destinationOptions = accounts.filter((account) => account.accountId !== paymentForm.sourceAccountId);
+  const canTransfer = hasAccounts && destinationOptions.length > 0;
+  const transactionsCurrency = accounts[0]?.currency ?? "USD";
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!hasAccounts) {
-      setFeedback("No accounts found for customer. Open an account before submitting a payment.");
+    if (!canTransfer) {
+      setFeedback("At least two active accounts are required to transfer funds.");
       return;
     }
 
@@ -60,11 +91,10 @@ export function PaymentsPage() {
     try {
       const receipt = await transferMutation.mutateAsync({
         ...paymentForm,
-        amount,
-        sourceAccountId: paymentForm.sourceAccountId || sourceAccountId
+        amount
       });
-      setFeedback(`Payment submitted. Reference ${receipt.reference}.`);
-      setPaymentForm((previous) => ({ ...previous, amount: 0, destinationAccountId: "", note: "" }));
+      setFeedback(`Payment completed. Reference ${receipt.reference}.`);
+      setPaymentForm((previous) => ({ ...previous, amount: 0, note: "" }));
     } catch (error) {
       setFeedback(`Payment failed: ${(error as Error).message}`);
     }
@@ -86,39 +116,36 @@ export function PaymentsPage() {
             <label>
               From account
               <select
-                value={paymentForm.sourceAccountId || sourceAccountId}
+                value={paymentForm.sourceAccountId}
                 onChange={(event) => setPaymentForm({ ...paymentForm, sourceAccountId: event.target.value })}
                 disabled={!hasAccounts || accountsQuery.isPending || accountsQuery.isError}
               >
                 {!hasAccounts && <option value="">No accounts available</option>}
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
-                    {account.accountName}
+                    {account.accountName} ({account.accountNumberMasked})
                   </option>
                 ))}
               </select>
             </label>
 
             <label>
-              Recipient name
-              <input
-                value={paymentForm.recipientName}
-                onChange={(event) => setPaymentForm({ ...paymentForm, recipientName: event.target.value })}
-                placeholder="e.g. Alex Morgan"
-                required
-              />
-            </label>
-
-            <label>
-              Recipient account reference
-              <input
+              To account
+              <select
                 value={paymentForm.destinationAccountId}
                 onChange={(event) =>
                   setPaymentForm({ ...paymentForm, destinationAccountId: event.target.value })
                 }
-                placeholder="Account or PayID"
+                disabled={!canTransfer || accountsQuery.isPending || accountsQuery.isError}
                 required
-              />
+              >
+                {!canTransfer && <option value="">No destination accounts available</option>}
+                {destinationOptions.map((account) => (
+                  <option key={account.accountId} value={account.accountId}>
+                    {account.accountName} ({account.accountNumberMasked})
+                  </option>
+                ))}
+              </select>
             </label>
 
             <div className="inline-fields">
@@ -138,7 +165,7 @@ export function PaymentsPage() {
               <label>
                 Note
                 <input
-                  value={paymentForm.note}
+                  value={paymentForm.note ?? ""}
                   onChange={(event) => setPaymentForm({ ...paymentForm, note: event.target.value })}
                   placeholder="Optional"
                 />
@@ -146,7 +173,7 @@ export function PaymentsPage() {
             </div>
 
             <div className="actions">
-              <button type="submit" disabled={transferMutation.isPending || !hasAccounts || accountsQuery.isPending || accountsQuery.isError}>
+              <button type="submit" disabled={transferMutation.isPending || !canTransfer || accountsQuery.isPending || accountsQuery.isError}>
                 {transferMutation.isPending ? "Submitting..." : "Confirm payment"}
               </button>
             </div>
@@ -155,13 +182,15 @@ export function PaymentsPage() {
             <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
           ) : !hasAccounts ? (
             <p className="hint-text">No accounts found for customer. Open an account from Accounts first.</p>
+          ) : !canTransfer ? (
+            <p className="hint-text">Open another account before creating transfers.</p>
           ) : null}
           <p className="hint-text">{feedback}</p>
         </article>
 
         <article className="surface-card">
           <h3>Recent transactions</h3>
-          <p className="hint-text">Outgoing this period: {formatCurrency(totalOutgoing, "AUD")}</p>
+          <p className="hint-text">Outgoing this period: {formatCurrency(totalOutgoing, transactionsCurrency)}</p>
           <ul className="activity-list">
             {(transactionsQuery.data ?? []).slice(0, 6).map((item) => (
               <li key={item.transactionId} className="activity-item">

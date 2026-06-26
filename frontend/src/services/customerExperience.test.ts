@@ -332,15 +332,59 @@ describe("customer experience services", () => {
   });
 
   it("maps transaction signs into customer debit and credit directions", async () => {
-    jest.spyOn(apiClient, "get").mockResolvedValue({
-      data: [
-        { transactionId: "txn-1", amount: -19.2, description: "Coffee" },
-        { transactionId: "txn-2", amount: 80, description: "Refund" }
-      ]
-    } as never);
+    window.localStorage.setItem("nb_customer_id", "cust-105");
+    const getMock = jest.spyOn(apiClient, "get").mockImplementation((url: string, config?: unknown) => {
+      if (url === "/customers/cust-105") {
+        return Promise.resolve({
+          data: {
+            customerId: "cust-105",
+            legalName: "Jordan Patel",
+            primaryEmail: "jordan.patel@example.com",
+            phoneNumber: "+61 412 345 678",
+            status: "ACTIVE",
+            createdAtUtc: "2024-03-12T00:00:00Z"
+          }
+        } as never);
+      }
+
+      if (url === "/transactions/history") {
+        expect(config).toEqual({
+          params: {
+            scopeType: "CUSTOMER",
+            scopeId: "cust-105",
+            page: 1,
+            pageSize: 8
+          }
+        });
+
+        return Promise.resolve({
+          data: {
+            items: [
+              {
+                transactionId: "txn-1",
+                postedAtUtc: "2026-06-26T08:00:00Z",
+                transactionType: "WITHDRAWAL",
+                amount: "19.20",
+                currencyCode: "USD"
+              },
+              {
+                transactionId: "txn-2",
+                postedAtUtc: "2026-06-26T09:00:00Z",
+                transactionType: "DEPOSIT",
+                amount: "80.00",
+                currencyCode: "USD"
+              }
+            ]
+          }
+        } as never);
+      }
+
+      return Promise.reject(new Error(`Unexpected GET route: ${url}`));
+    });
 
     const transactions = await fetchRecentTransactions();
 
+    expect(getMock).toHaveBeenCalledWith("/customers/cust-105");
     expect(transactions).toHaveLength(2);
     expect(transactions[0].direction).toBe("DEBIT");
     expect(transactions[0].amount).toBe(19.2);
@@ -349,27 +393,34 @@ describe("customer experience services", () => {
 
   it("submits transfer and returns backend payment reference", async () => {
     const postMock = jest.spyOn(apiClient, "post").mockResolvedValue({
-      data: { reference: "NB-REF-1001" }
+      data: {
+        transferId: "tr-1001",
+        postedAtUtc: "2026-06-26T10:00:00Z"
+      }
     } as never);
 
     const receipt = await submitTransfer({
       sourceAccountId: "acc-main",
       destinationAccountId: "dest-1",
-      recipientName: "Alex Morgan",
       amount: 12.4,
       note: "Lunch"
     });
 
-    expect(postMock).toHaveBeenCalledWith("/transactions/transfer", {
-      sourceAccountId: "acc-main",
-      destinationAccountId: "dest-1",
-      amount: 12.4,
-      currency: "AUD",
-      note: "Lunch",
-      recipientName: "Alex Morgan"
-    });
-    expect(receipt.reference).toBe("NB-REF-1001");
-    expect(receipt.status).toBe("Submitted");
+    expect(postMock).toHaveBeenCalledWith(
+      "/transactions/transfer",
+      {
+        sourceAccountId: "acc-main",
+        destinationAccountId: "dest-1",
+        amount: "12.40"
+      },
+      {
+        headers: {
+          "Idempotency-Key": expect.stringMatching(/^transfer-/)
+        }
+      }
+    );
+    expect(receipt.reference).toBe("tr-1001");
+    expect(receipt.status).toBe("Completed");
   });
 
   it("creates recurring payment and maps response id", async () => {
