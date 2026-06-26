@@ -37,6 +37,16 @@ describe("customer experience services", () => {
 
   it("updates customer contact through customer patch route", async () => {
     window.localStorage.setItem("nb_customer_id", "cust-101");
+    jest.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        customerId: "cust-101",
+        legalName: "Jordan Patel",
+        primaryEmail: "jordan.patel@example.com",
+        phoneNumber: "+61 412 345 678",
+        status: "ACTIVE",
+        createdAtUtc: "2024-03-12T00:00:00Z"
+      }
+    } as never);
     const patchMock = jest.spyOn(apiClient, "patch").mockResolvedValue({
       data: {
         customerId: "cust-101",
@@ -60,14 +70,41 @@ describe("customer experience services", () => {
 
   it("maps account payload into customer account cards", async () => {
     window.localStorage.setItem("nb_customer_id", "cust-102");
-    const getMock = jest.spyOn(apiClient, "get").mockResolvedValue({
-      data: {
-        items: [{ accountId: "acc-1", accountType: "CHECKING", balance: "42.50", status: "ACTIVE" }]
+    const getMock = jest.spyOn(apiClient, "get").mockImplementation((url: string, config?: unknown) => {
+      if (url === "/customers/cust-102") {
+        return Promise.resolve({
+          data: {
+            customerId: "cust-102",
+            legalName: "Jordan Patel",
+            primaryEmail: "jordan.patel@example.com",
+            phoneNumber: "+61 412 345 678",
+            status: "ACTIVE",
+            createdAtUtc: "2024-03-12T00:00:00Z"
+          }
+        } as never);
       }
-    } as never);
+
+      if (url === "/accounts") {
+        expect(config).toEqual({
+          params: {
+            customerId: "cust-102",
+            page: 1,
+            pageSize: 20
+          }
+        });
+        return Promise.resolve({
+          data: {
+            items: [{ accountId: "acc-1", accountType: "CHECKING", balance: "42.50", status: "ACTIVE" }]
+          }
+        } as never);
+      }
+
+      return Promise.reject(new Error(`Unexpected GET route: ${url}`));
+    });
 
     const accounts = await fetchAccounts();
 
+    expect(getMock).toHaveBeenCalledWith("/customers/cust-102");
     expect(getMock).toHaveBeenCalledWith("/accounts", {
       params: {
         customerId: "cust-102",
@@ -81,8 +118,161 @@ describe("customer experience services", () => {
     expect(accounts[0].status).toBe("Active");
   });
 
+  it("recovers from stale cached customer id before loading accounts", async () => {
+    window.localStorage.setItem("nb_customer_id", "cust-stale-1");
+    const getMock = jest.spyOn(apiClient, "get").mockImplementation((url: string, config?: unknown) => {
+      if (url === "/customers/cust-stale-1") {
+        return Promise.reject({
+          response: {
+            status: 403,
+            data: {
+              code: "CUSTOMER_FORBIDDEN",
+              message: "Insufficient privileges to read customer"
+            }
+          }
+        });
+      }
+
+      if (url === "/customers/me") {
+        return Promise.resolve({
+          data: {
+            customerId: "cust-live-1",
+            legalName: "Jordan Patel",
+            primaryEmail: "jordan.patel@example.com",
+            phoneNumber: "+61 412 345 678",
+            status: "ACTIVE",
+            createdAtUtc: "2024-03-12T00:00:00Z"
+          }
+        } as never);
+      }
+
+      if (url === "/accounts") {
+        expect(config).toEqual({
+          params: {
+            customerId: "cust-live-1",
+            page: 1,
+            pageSize: 20
+          }
+        });
+        return Promise.resolve({
+          data: {
+            items: []
+          }
+        } as never);
+      }
+
+      return Promise.reject(new Error(`Unexpected GET route: ${url}`));
+    });
+
+    const accounts = await fetchAccounts();
+
+    expect(accounts).toHaveLength(0);
+    expect(window.localStorage.getItem("nb_customer_id")).toBe("cust-live-1");
+    expect(getMock).toHaveBeenCalledWith("/customers/cust-stale-1");
+    expect(getMock).toHaveBeenCalledWith("/customers/me");
+  });
+
+  it("resolves active customer id via current profile when local customer context is missing", async () => {
+    const getMock = jest.spyOn(apiClient, "get").mockImplementation((url: string, config?: unknown) => {
+      if (url === "/customers/me") {
+        return Promise.resolve({
+          data: {
+            customerId: "cust-me-200",
+            legalName: "Jordan Patel",
+            primaryEmail: "jordan.patel@example.com",
+            phoneNumber: "+61 412 345 678",
+            status: "ACTIVE",
+            createdAtUtc: "2024-03-12T00:00:00Z"
+          }
+        } as never);
+      }
+
+      if (url === "/accounts") {
+        expect(config).toEqual({
+          params: {
+            customerId: "cust-me-200",
+            page: 1,
+            pageSize: 20
+          }
+        });
+
+        return Promise.resolve({
+          data: {
+            items: []
+          }
+        } as never);
+      }
+
+      return Promise.reject(new Error(`Unexpected GET route: ${url}`));
+    });
+
+    const accounts = await fetchAccounts();
+
+    expect(accounts).toHaveLength(0);
+    expect(window.localStorage.getItem("nb_customer_id")).toBe("cust-me-200");
+    expect(getMock).toHaveBeenCalledWith("/customers/me");
+  });
+
+  it("shows actionable message when account list fails due scope mismatch", async () => {
+    window.localStorage.setItem("nb_customer_id", "cust-102");
+    jest.spyOn(apiClient, "get").mockImplementation((url: string) => {
+      if (url === "/customers/cust-102") {
+        return Promise.resolve({
+          data: {
+            customerId: "cust-102",
+            legalName: "Jordan Patel",
+            primaryEmail: "jordan.patel@example.com",
+            phoneNumber: "+61 412 345 678",
+            status: "ACTIVE",
+            createdAtUtc: "2024-03-12T00:00:00Z"
+          }
+        } as never);
+      }
+
+      return Promise.reject({
+        response: {
+          status: 403,
+          data: {
+            code: "ACCOUNT_FORBIDDEN",
+            message: "Insufficient privileges to list account"
+          }
+        }
+      });
+    });
+
+    await expect(fetchAccounts()).rejects.toThrow(
+      "This signed-in account is not authorized for the selected customer accounts. Sign out and sign in with the correct account, then retry."
+    );
+  });
+
+  it("shows setup guidance when signed-in account has no linked customer profile", async () => {
+    jest.spyOn(apiClient, "get").mockRejectedValue({
+      response: {
+        status: 404,
+        data: {
+          code: "CUSTOMER_NOT_FOUND",
+          message: "No customer account record found for this sign-in. Complete account setup first."
+        }
+      }
+    });
+
+    await expect(fetchAccounts()).rejects.toThrow(
+      "No customer account record found for this sign-in. Complete account setup first."
+    );
+  });
+
   it("creates customer account using account route payload", async () => {
     window.localStorage.setItem("nb_customer_id", "cust-103");
+    jest.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        customerId: "cust-103",
+        legalName: "Jordan Patel",
+        primaryEmail: "jordan.patel@example.com",
+        phoneNumber: "+61 412 345 678",
+        status: "ACTIVE",
+        createdAtUtc: "2024-03-12T00:00:00Z"
+      }
+    } as never);
     const postMock = jest.spyOn(apiClient, "post").mockResolvedValue({
       data: {
         accountId: "acc-101",
@@ -113,6 +303,16 @@ describe("customer experience services", () => {
 
   it("shows actionable message when account creation fails due missing customer profile", async () => {
     window.localStorage.setItem("nb_customer_id", "cust-104");
+    jest.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        customerId: "cust-104",
+        legalName: "Jordan Patel",
+        primaryEmail: "jordan.patel@example.com",
+        phoneNumber: "+61 412 345 678",
+        status: "ACTIVE",
+        createdAtUtc: "2024-03-12T00:00:00Z"
+      }
+    } as never);
     jest.spyOn(apiClient, "post").mockRejectedValue({
       response: {
         status: 404,
@@ -128,7 +328,7 @@ describe("customer experience services", () => {
         accountType: "CHECKING",
         currencyCode: "USD"
       })
-    ).rejects.toThrow("No customer profile found for this sign-in. Create customer profile first.");
+    ).rejects.toThrow("No customer account record found for this sign-in. Complete account setup first.");
   });
 
   it("maps transaction signs into customer debit and credit directions", async () => {

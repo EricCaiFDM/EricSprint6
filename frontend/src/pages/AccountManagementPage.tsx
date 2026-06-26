@@ -44,7 +44,10 @@ export function AccountManagementPage() {
     },
     onError: (error) => {
       const message = (error as Error).message;
-      setNeedsCustomerProfile(message.toLowerCase().includes("customer profile"));
+      const normalized = message.toLowerCase();
+      setNeedsCustomerProfile(
+        normalized.includes("customer profile") || normalized.includes("customer account record")
+      );
       setFeedback(`Unable to open account: ${message}`);
     }
   });
@@ -165,7 +168,8 @@ export function AccountManagementPage() {
             <p className="hint-text">Checking current customer accounts...</p>
           ) : accountsQuery.isError ? (
             <p className="hint-text">
-              {accountsLoadError.includes("No customer context found")
+              {accountsLoadError.includes("No customer context found") ||
+              accountsLoadError.includes("No customer account record found")
                 ? "No customer context found. Sign in and try again."
                 : `Unable to read customer accounts: ${accountsLoadError}`}
             </p>
@@ -180,9 +184,9 @@ export function AccountManagementPage() {
       {needsCustomerProfile ? (
         <article className="surface-card">
           <p className="hint-text">
-            No customer profile is linked to this signed-in identity. Continue with
+            No customer account record is linked to this signed-in identity. Continue with
             {" "}
-            <Link to="/security/create-customer">Create customer profile</Link>
+            <Link to="/security/register">Account setup</Link>
             {" "}
             and then try opening the account again.
           </p>
@@ -196,7 +200,8 @@ export function AccountManagementPage() {
       ) : accountsQuery.isError ? (
         <article className="surface-card">
           <p className="hint-text">
-            {accountsLoadError.includes("No customer context found")
+            {accountsLoadError.includes("No customer context found") ||
+            accountsLoadError.includes("No customer account record found")
               ? "No customer context found. Sign in and open this page again."
               : `Unable to load accounts: ${accountsLoadError}`}
           </p>

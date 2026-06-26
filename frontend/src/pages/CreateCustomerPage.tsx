@@ -111,7 +111,7 @@ export function CreateCustomerPage() {
         <strong>Onboarding steps</strong>
         <Link to="/security/register">1. Create access profile</Link>
         <Link to="/security/login">2. Sign in</Link>
-        <Link to="/accounts">3. Open account</Link>
+        <Link to="/customer/accounts">3. Open account</Link>
       </div>
       <pre className="output">{output}</pre>
     </article>

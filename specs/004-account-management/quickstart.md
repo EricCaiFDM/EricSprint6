@@ -61,7 +61,16 @@ Expected outcome:
 - Operation is denied with permission error.
 - Restricted fields are not disclosed.
 
-### Scenario 4: Delete with Policy Checks
+### Scenario 4: Owned Scope with Distinct Identity Keys
+1. Authenticate as a customer user where JWT `sub` differs from `customerId`.
+2. List accounts for the owned customer profile id.
+3. Retrieve one listed account.
+
+Expected outcome:
+- List and retrieve succeed when `customers.owner_user_id` matches JWT `sub`.
+- No false 403 occurs solely because `customerId` differs from JWT `sub`.
+
+### Scenario 5: Delete with Policy Checks
 1. Attempt delete/closure for account with no blockers.
 2. Attempt delete/closure for account with dependency/retention blocker.
 
@@ -129,6 +138,6 @@ curl -X DELETE http://localhost:8080/accounts/<ACCOUNT_ID> \
 | Check | Command | Result |
 |---|---|---|
 | Backend test suite | `cd backend && mvn test` | Not executed: `mvn` not available in environment |
-| Frontend tests | `cd frontend && npm test -- --runInBand` | Pass (3 suites, 16 tests) |
+| Frontend tests | `cd frontend && npm test -- --runInBand` | Pass (4 suites, 26 tests) |
 | Frontend build | `cd frontend && npm run build` | Pass |
 | Backend static diagnostics | VS Code Java diagnostics | Pass (no errors in account/customer/auth modules) |

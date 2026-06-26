@@ -8,6 +8,8 @@ type JwtClaims = {
   role?: string;
 };
 
+export type UserRole = "ADMIN" | "CUSTOMER";
+
 function hasStorage(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
@@ -34,6 +36,9 @@ function notifyAuthChanged(): void {
 }
 
 export function saveAuthSession(accessToken: string, refreshToken: string): void {
+  if (hasStorage()) {
+    window.localStorage.removeItem(CUSTOMER_ID_KEY);
+  }
   writeStorage(ACCESS_TOKEN_KEY, accessToken);
   writeStorage(REFRESH_TOKEN_KEY, refreshToken);
   notifyAuthChanged();
@@ -70,8 +75,7 @@ export function getActiveCustomerId(): string | null {
     return saved;
   }
 
-  const subject = getTokenSubject();
-  return subject && subject.trim().length > 0 ? subject : null;
+  return null;
 }
 
 export function requireCustomerId(): string {
@@ -92,6 +96,20 @@ export function getTokenEmail(): string | null {
 
 export function getTokenRole(): string | null {
   return getTokenClaims()?.role ?? null;
+}
+
+export function getNormalizedTokenRole(): UserRole | null {
+  const role = getTokenRole();
+  if (!role) {
+    return null;
+  }
+
+  const normalized = role.trim().toUpperCase();
+  if (normalized === "ADMIN" || normalized === "CUSTOMER") {
+    return normalized;
+  }
+
+  return null;
 }
 
 function getTokenClaims(): JwtClaims | null {

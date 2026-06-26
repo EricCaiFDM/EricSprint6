@@ -54,6 +54,13 @@ public class CustomerController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<CustomerResponse> getCurrentCustomer(Authentication authentication) {
+        CustomerPrincipal principal = principalResolver.resolve(authentication);
+        CustomerResponse response = customerService.getCurrentCustomer(principal.userId(), principal.role());
+        return ResponseEntity.ok(response);
+    }
+
     @PatchMapping("/{customerId}")
     public ResponseEntity<CustomerResponse> updateCustomer(
             @PathVariable String customerId,

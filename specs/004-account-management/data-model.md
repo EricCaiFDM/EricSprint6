@@ -13,10 +13,12 @@
   - closedAtUtc (timestamp, nullable)
   - nickname (string, nullable)
   - createdByUserId (UUID)
+  - ownerUserId (UUID auth user id that owns account scope)
   - updatedAtUtc (timestamp)
 - Validation Rules:
   - accountType must be CHECKING or SAVINGS.
   - customerId must reference an existing eligible customer.
+  - ownerUserId must resolve from the linked customer's ownerUserId at create time.
   - accountNumber must be unique and immutable after creation.
 - State Transitions:
   - ACTIVE -> SUSPENDED
@@ -81,6 +83,7 @@
 
 ## Relationships
 - Customer 1..* Account
+- Customer.ownerUserId 1..* Account.ownerUserId
 - Account 1..* AccountLifecycleEvent
 - Account 1..* AccountDeletionPolicyCheck
 - AccountEligibilityCheck references customer and requested account type for create-time policy decisions

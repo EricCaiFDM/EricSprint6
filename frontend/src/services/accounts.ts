@@ -1,5 +1,5 @@
 import { apiClient, getApiErrorDetails } from "./api";
-import { requireCustomerId } from "./session";
+import { resolveCurrentCustomerProfile } from "./customers";
 
 export type BankAccount = {
   accountId: string;
@@ -19,20 +19,31 @@ export type CreateCustomerAccountInput = {
 };
 
 export async function fetchAccounts(): Promise<BankAccount[]> {
-  const customerId = requireCustomerId();
-  const response = await apiClient.get("/accounts", {
-    params: {
-      customerId,
-      page: 1,
-      pageSize: 20
+  try {
+    const customerId = await resolveCustomerIdForAccounts();
+    const response = await apiClient.get("/accounts", {
+      params: {
+        customerId,
+        page: 1,
+        pageSize: 20
+      }
+    });
+    return mapAccounts(response.data);
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.status === 403) {
+      throw new Error(
+        "This signed-in account is not authorized for the selected customer accounts. " +
+          "Sign out and sign in with the correct account, then retry."
+      );
     }
-  });
-  return mapAccounts(response.data);
+    throw new Error(details.message);
+  }
 }
 
 export async function createCustomerAccount(input: CreateCustomerAccountInput): Promise<BankAccount> {
   try {
-    const customerId = requireCustomerId();
+    const customerId = await resolveCustomerIdForAccounts();
     const response = await apiClient.post("/accounts", {
       customerId,
       accountType: input.accountType,
@@ -49,13 +60,24 @@ export async function createCustomerAccount(input: CreateCustomerAccountInput): 
   } catch (error) {
     const details = getApiErrorDetails(error);
     if (details.code === "CUSTOMER_NOT_FOUND") {
-      throw new Error("No customer profile found for this sign-in. Create customer profile first.");
+      throw new Error("No customer account record found for this sign-in. Complete account setup first.");
     }
     if (details.status === 404) {
       throw new Error("Account service could not find the requested resource. Verify customer profile setup and try again.");
     }
+    if (details.status === 403) {
+      throw new Error(
+        "This signed-in account is not authorized to open accounts for the selected customer. " +
+          "Sign out and sign in with the correct account, then retry."
+      );
+    }
     throw new Error(details.message);
   }
+}
+
+async function resolveCustomerIdForAccounts(): Promise<string> {
+  const profile = await resolveCurrentCustomerProfile();
+  return profile.customerId;
 }
 
 function mapAccounts(payload: unknown): BankAccount[] {

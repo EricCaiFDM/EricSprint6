@@ -9,6 +9,10 @@ public interface CustomerRepository {
 
     Optional<CustomerEntity> findActiveById(String customerId);
 
+    Optional<CustomerEntity> findLatestActiveByOwnerUserId(String ownerUserId);
+
+    Optional<CustomerEntity> findLatestActiveByCreatorUserId(String creatorUserId);
+
     boolean existsByExternalCustomerKey(String externalCustomerKey);
 
     boolean existsByPrimaryEmail(String primaryEmail);

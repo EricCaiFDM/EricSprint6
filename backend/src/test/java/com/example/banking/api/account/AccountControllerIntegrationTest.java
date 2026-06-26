@@ -82,7 +82,7 @@ class AccountControllerIntegrationTest {
         String accountId = createAccount("owner-400", "CUSTOMER", customerId, "CHECKING");
 
         mockMvc.perform(get("/accounts/{accountId}", accountId)
-                .with(jwt().jwt(jwt -> jwt.claim("sub", customerId).claim("role", "CUSTOMER"))))
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-400").claim("role", "CUSTOMER"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountId").value(accountId))
                 .andExpect(jsonPath("$.accountType").value("CHECKING"));
@@ -95,7 +95,7 @@ class AccountControllerIntegrationTest {
         createAccount("owner-401", "CUSTOMER", customerId, "SAVINGS");
 
         mockMvc.perform(get("/accounts")
-                .with(jwt().jwt(jwt -> jwt.claim("sub", customerId).claim("role", "CUSTOMER")))
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-401").claim("role", "CUSTOMER")))
                 .queryParam("customerId", customerId)
                 .queryParam("page", "1")
                 .queryParam("pageSize", "1")
@@ -112,7 +112,7 @@ class AccountControllerIntegrationTest {
         String accountId = createAccount("owner-402", "CUSTOMER", customerId, "CHECKING");
 
         mockMvc.perform(patch("/accounts/{accountId}", accountId)
-                .with(jwt().jwt(jwt -> jwt.claim("sub", customerId).claim("role", "CUSTOMER")))
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-402").claim("role", "CUSTOMER")))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"nickname\":\"Bills\",\"status\":\"SUSPENDED\"}"))
                 .andExpect(status().isOk())
@@ -132,6 +132,25 @@ class AccountControllerIntegrationTest {
     }
 
     @Test
+    void outOfScopeCustomerCannotCreateAccount() throws Exception {
+        String ownerCustomerId = createCustomer("owner-403b", "CUSTOMER", "403b");
+        createCustomer("other-user-403b", "CUSTOMER", "403c");
+
+        String payload = "{" +
+                "\"customerId\":\"" + ownerCustomerId + "\"," +
+                "\"accountType\":\"CHECKING\"," +
+                "\"currencyCode\":\"USD\"" +
+                "}";
+
+        mockMvc.perform(post("/accounts")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "other-user-403b").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCOUNT_FORBIDDEN"));
+    }
+
+    @Test
     void deleteAccountBlockedWhenBalanceNonZero() throws Exception {
         String customerId = createCustomer("owner-404", "CUSTOMER", "404");
         String accountId = createAccount("owner-404", "CUSTOMER", customerId, "CHECKING");
@@ -139,7 +158,7 @@ class AccountControllerIntegrationTest {
         jdbcTemplate.update("UPDATE accounts SET balance = ? WHERE account_id = ?", 10.00, accountId);
 
         mockMvc.perform(delete("/accounts/{accountId}", accountId)
-                .with(jwt().jwt(jwt -> jwt.claim("sub", customerId).claim("role", "CUSTOMER"))))
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-404").claim("role", "CUSTOMER"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_DELETE_BLOCKED"));
     }
@@ -150,12 +169,12 @@ class AccountControllerIntegrationTest {
         String accountId = createAccount("owner-405", "CUSTOMER", customerId, "SAVINGS");
 
         mockMvc.perform(delete("/accounts/{accountId}", accountId)
-                .with(jwt().jwt(jwt -> jwt.claim("sub", customerId).claim("role", "CUSTOMER"))))
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-405").claim("role", "CUSTOMER"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CLOSED"));
 
         mockMvc.perform(get("/accounts/{accountId}", accountId)
-                .with(jwt().jwt(jwt -> jwt.claim("sub", customerId).claim("role", "CUSTOMER"))))
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-405").claim("role", "CUSTOMER"))))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
     }
@@ -196,4 +215,23 @@ class AccountControllerIntegrationTest {
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_CONFLICT"));
     }
+
+        @Test
+        void listAccountsAllowsLegacyCreatorScopeWhenOwnerDrifts() throws Exception {
+                String customerId = createCustomer("owner-408", "CUSTOMER", "408");
+                createAccount("owner-408", "CUSTOMER", customerId, "CHECKING");
+
+                jdbcTemplate.update(
+                                "UPDATE customers SET owner_user_id = ? WHERE customer_id = ?",
+                                "owner-drift-408",
+                                customerId);
+
+                mockMvc.perform(get("/accounts")
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-408").claim("role", "CUSTOMER")))
+                                .queryParam("customerId", customerId)
+                                .queryParam("page", "1")
+                                .queryParam("pageSize", "20"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.items.length()").value(1));
+        }
 }

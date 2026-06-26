@@ -18,6 +18,7 @@ export type RegisterRequest = {
   email: string;
   password: string;
   passwordConfirmation: string;
+  role?: "CUSTOMER" | "ADMIN";
 };
 
 export type RegisterResponse = {

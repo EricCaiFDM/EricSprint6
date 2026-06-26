@@ -34,9 +34,14 @@ class AuthControllerIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
-    private static String registerPayload(String email, String password, String passwordConfirmation) {
-        return "{\"email\":\"" + email + "\",\"password\":\"" + password
-                + "\",\"passwordConfirmation\":\"" + passwordConfirmation + "\"}";
+        private static String registerPayload(String email, String password, String passwordConfirmation) {
+                return registerPayload(email, password, passwordConfirmation, null);
+        }
+
+        private static String registerPayload(String email, String password, String passwordConfirmation, String role) {
+                String roleSegment = role == null ? "" : ",\"role\":\"" + role + "\"";
+                return "{\"email\":\"" + email + "\",\"password\":\"" + password
+                                + "\",\"passwordConfirmation\":\"" + passwordConfirmation + "\"" + roleSegment + "}";
     }
 
     private static String loginPayload(String identity, String password) {
@@ -99,7 +104,44 @@ class AuthControllerIntegrationTest {
                 .content(registerPayload))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("DUPLICATE_IDENTITY"))
-                .andExpect(jsonPath("$.message").value("Email already registered"));
+                .andExpect(jsonPath("$.message").value("Email already registered with role CUSTOMER"));
+    }
+
+    @Test
+    void registerCreatesAdminAccountWhenRoleIsAdmin() throws Exception {
+        String payload = registerPayload("admin.new@example.com", "secret123", "secret123", "ADMIN");
+
+        mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("CREATED"));
+
+        String role = jdbcTemplate.queryForObject(
+                "SELECT role FROM auth_users WHERE email = ?",
+                String.class,
+                "admin.new@example.com");
+
+        org.junit.jupiter.api.Assertions.assertEquals("ADMIN", role);
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginPayload("admin.new@example.com", "secret123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString());
+    }
+
+    @Test
+    void registerRejectsUnsupportedRole() throws Exception {
+        String payload = registerPayload("invalid-role@example.com", "secret123", "secret123", "MANAGER");
+
+        mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("Unsupported role. Allowed values: CUSTOMER, ADMIN"));
     }
 
     @Test

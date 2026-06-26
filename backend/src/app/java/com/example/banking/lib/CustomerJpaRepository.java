@@ -9,6 +9,10 @@ import com.example.banking.models.CustomerEntity;
 public interface CustomerJpaRepository extends JpaRepository<CustomerEntity, String> {
     Optional<CustomerEntity> findByCustomerIdAndDeletedAtIsNull(String customerId);
 
+    Optional<CustomerEntity> findFirstByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc(String ownerUserId);
+
+    Optional<CustomerEntity> findFirstByCreatedByUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc(String createdByUserId);
+
     boolean existsByExternalCustomerKeyIgnoreCaseAndDeletedAtIsNull(String externalCustomerKey);
 
     boolean existsByPrimaryEmailIgnoreCaseAndDeletedAtIsNull(String primaryEmail);

@@ -16,6 +16,7 @@ import com.example.banking.api.account.dto.AccountResponse;
 import com.example.banking.api.account.dto.CreateAccountRequest;
 import com.example.banking.api.account.dto.UpdateAccountRequest;
 import com.example.banking.api.common.ApiErrorException;
+import com.example.banking.lib.CustomerJpaRepository;
 import com.example.banking.models.AccountEntity;
 
 @Service
@@ -26,6 +27,7 @@ public class AccountService {
     private final AccountLifecycleAuditService lifecycleAuditService;
     private final AccountEligibilityService eligibilityService;
     private final AccountDeletionPolicyService deletionPolicyService;
+    private final CustomerJpaRepository customerJpaRepository;
 
     public AccountService(
             AccountRepository accountRepository,
@@ -33,13 +35,15 @@ public class AccountService {
             AccountAccessPolicyService accessPolicyService,
             AccountLifecycleAuditService lifecycleAuditService,
             AccountEligibilityService eligibilityService,
-            AccountDeletionPolicyService deletionPolicyService) {
+            AccountDeletionPolicyService deletionPolicyService,
+            CustomerJpaRepository customerJpaRepository) {
         this.accountRepository = accountRepository;
         this.responsePolicyService = responsePolicyService;
         this.accessPolicyService = accessPolicyService;
         this.lifecycleAuditService = lifecycleAuditService;
         this.eligibilityService = eligibilityService;
         this.deletionPolicyService = deletionPolicyService;
+        this.customerJpaRepository = customerJpaRepository;
     }
 
     public AccountResponse createAccount(CreateAccountRequest request, String actorUserId, String role) {
@@ -49,6 +53,7 @@ public class AccountService {
             String customerId = normalizeUuid(request.customerId(), "customerId");
             String accountType = normalizeAccountType(request.accountType());
             eligibilityService.enforceEligibility(customerId, accountType);
+            accessPolicyService.enforceListScope(role, actorId, customerId);
 
             AccountEntity entity = new AccountEntity();
             entity.setAccountId(UUID.randomUUID().toString());
@@ -62,7 +67,7 @@ public class AccountService {
             entity.setOpenedAtUtc(Instant.now());
             entity.setClosedAtUtc(null);
             entity.setCreatedByUserId(actorId);
-            entity.setOwnerUserId(customerId);
+            entity.setOwnerUserId(resolveOwnerUserId(customerId, actorId));
             entity.setUpdatedAtUtc(Instant.now());
             entity.setDeletedAt(null);
 
@@ -251,6 +256,13 @@ public class AccountService {
             return "anonymous";
         }
         return actorUserId;
+    }
+
+    private String resolveOwnerUserId(String customerId, String fallbackOwnerUserId) {
+        return customerJpaRepository.findByCustomerIdAndDeletedAtIsNull(customerId)
+                .map(customer -> customer.getOwnerUserId())
+                .filter(owner -> owner != null && !owner.isBlank())
+                .orElse(fallbackOwnerUserId);
     }
 
     private String normalizeOptional(String value) {

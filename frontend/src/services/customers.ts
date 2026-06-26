@@ -1,5 +1,5 @@
-import { apiClient } from "./api";
-import { requireCustomerId, setActiveCustomerId } from "./session";
+import { apiClient, getApiErrorDetails } from "./api";
+import { getActiveCustomerId, setActiveCustomerId } from "./session";
 
 export type CustomerProfile = {
   customerId: string;
@@ -35,21 +35,49 @@ export async function createCustomerProfile(input: CreateCustomerProfileInput): 
 }
 
 export async function fetchCustomerProfile(): Promise<CustomerProfile> {
-  const customerId = requireCustomerId();
-  const response = await apiClient.get(`/customers/${encodeURIComponent(customerId)}`);
-  const profile = mapCustomerProfile(response.data);
-  setActiveCustomerId(profile.customerId);
-  return profile;
+  return resolveCurrentCustomerProfile();
 }
 
 export async function updateCustomerContact(update: CustomerContactUpdate): Promise<CustomerProfile> {
-  const customerId = requireCustomerId();
+  const customer = await resolveCurrentCustomerProfile();
+  const customerId = customer.customerId;
   const response = await apiClient.patch(`/customers/${encodeURIComponent(customerId)}`, {
     phoneNumber: update.phoneNumber
   });
   const profile = mapCustomerProfile(response.data);
   setActiveCustomerId(profile.customerId);
   return profile;
+}
+
+export async function resolveCurrentCustomerProfile(): Promise<CustomerProfile> {
+  const activeCustomerId = getActiveCustomerId();
+
+  if (activeCustomerId) {
+    try {
+      const response = await apiClient.get(`/customers/${encodeURIComponent(activeCustomerId)}`);
+      const profile = mapCustomerProfile(response.data);
+      setActiveCustomerId(profile.customerId);
+      return profile;
+    } catch (error) {
+      const details = getApiErrorDetails(error);
+      if (details.status !== 400 && details.status !== 403 && details.status !== 404) {
+        throw new Error(details.message);
+      }
+    }
+  }
+
+  try {
+    const response = await apiClient.get("/customers/me");
+    const profile = mapCustomerProfile(response.data);
+    setActiveCustomerId(profile.customerId);
+    return profile;
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.code === "CUSTOMER_NOT_FOUND" || details.status === 404) {
+      throw new Error("No customer account record found for this sign-in. Complete account setup first.");
+    }
+    throw new Error(details.message);
+  }
 }
 
 function mapCustomerProfile(data: unknown): CustomerProfile {

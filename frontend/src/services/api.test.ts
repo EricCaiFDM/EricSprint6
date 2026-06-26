@@ -29,7 +29,7 @@ describe("api service", () => {
     await expect(checkHealth()).rejects.toThrow("Health endpoint failed");
   });
 
-  it("register posts payload and returns parsed JSON", async () => {
+  it("register posts payload with role and returns parsed JSON", async () => {
     const postMock = jest
       .spyOn(apiClient, "post")
       .mockResolvedValue({ data: { status: "CREATED", userId: "abc" } } as never);
@@ -37,7 +37,8 @@ describe("api service", () => {
     const payload = {
       email: "jane@example.com",
       password: "secret123",
-      passwordConfirmation: "secret123"
+      passwordConfirmation: "secret123",
+      role: "ADMIN" as const
     };
 
     const result = await register(payload);

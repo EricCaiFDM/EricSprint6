@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { login } from "../services/api";
+import { getNormalizedTokenRole } from "../services/session";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -18,7 +19,8 @@ export function LoginPage() {
       const data = await loginMutation.mutateAsync({ identity, password });
       const minutes = Math.round(data.expiresIn / 60);
       setOutput(`Welcome back. Your secure session is active for approximately ${minutes} minutes.`);
-      navigate("/dashboard", { replace: true });
+      const role = getNormalizedTokenRole();
+      navigate(role === "ADMIN" ? "/admin/dashboard" : "/customer/dashboard", { replace: true });
     } catch (error) {
       setOutput(`Sign in failed: ${(error as Error).message}`);
     }
@@ -28,7 +30,7 @@ export function LoginPage() {
     <article className="auth-card">
       <h2>Sign in to your account</h2>
       <p>
-        Dedicated sign-in page. Use your registered credentials to unlock customer pages and account actions.
+        Use your registered Admin or Customer account credentials to continue.
       </p>
       <form onSubmit={onSubmit} className="form">
         <label>
@@ -58,9 +60,9 @@ export function LoginPage() {
         </div>
       </form>
       <div className="auth-links">
-        <strong>Need to complete onboarding?</strong>
-        <Link to="/security/register">Create access profile</Link>
-        <Link to="/security/create-customer">Create customer profile</Link>
+        <strong>Need an account?</strong>
+        <Link to="/security/register">Create account</Link>
+        <Link to="/security/reset">Recover account</Link>
       </div>
       <pre className="output">{output}</pre>
     </article>
