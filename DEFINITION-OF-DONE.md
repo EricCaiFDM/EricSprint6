@@ -16,6 +16,8 @@ A story is DONE only when all criteria below are satisfied.
 ## 2. Implementation Complete
 - Spring Boot: required libraries used and forbidden patterns avoided
 - React: spec-first client usage and proper error handling
+- Frontend implementation exists for every approved feature spec, not only backend endpoints
+- Frontend routes/pages are wired into the application shell for each delivered spec
 - Implementation matches OpenAPI exactly
 - No extra fields or deviations from spec
 
@@ -44,6 +46,11 @@ A story is DONE only when all criteria below are satisfied.
 - Swagger UI renders correctly
 - README updated
 - Request/response examples included
+- Frontend behavior and page-to-endpoint mapping documented for each feature
+
+## 8. UX Coherence
+- Shared design tokens, typography, spacing, and component patterns are reused across feature pages
+- New feature pages match existing navigation and interaction patterns unless an approved design change is documented
 
 ## 7. Demo Ready
 - API running

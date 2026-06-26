@@ -4,7 +4,7 @@ import { requestPasswordReset } from "../services/api";
 
 export function ResetRequestPage() {
   const [identity, setIdentity] = useState("");
-  const [output, setOutput] = useState("No request yet.");
+  const [output, setOutput] = useState("If your email is registered, we will send recovery guidance.");
   const resetMutation = useMutation({
     mutationFn: requestPasswordReset
   });
@@ -12,10 +12,10 @@ export function ResetRequestPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     try {
-      const data = await resetMutation.mutateAsync({ identity });
-      setOutput(`Reset request accepted: ${JSON.stringify(data)}`);
+      await resetMutation.mutateAsync({ identity });
+      setOutput("Request received. Check your inbox for next steps.");
     } catch (error) {
-      setOutput(`Reset request failed: ${(error as Error).message}`);
+      setOutput(`Recovery request failed: ${(error as Error).message}`);
     }
   };
 

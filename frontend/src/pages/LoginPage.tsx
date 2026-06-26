@@ -5,7 +5,7 @@ import { login } from "../services/api";
 export function LoginPage() {
   const [identity, setIdentity] = useState("");
   const [password, setPassword] = useState("");
-  const [output, setOutput] = useState("No request yet.");
+  const [output, setOutput] = useState("Sign in with your registered email and password.");
   const loginMutation = useMutation({
     mutationFn: login
   });
@@ -14,24 +14,25 @@ export function LoginPage() {
     event.preventDefault();
     try {
       const data = await loginMutation.mutateAsync({ identity, password });
-      setOutput(`Login success: ${JSON.stringify(data)}`);
+      const minutes = Math.round(data.expiresIn / 60);
+      setOutput(`Welcome back. Your secure session is active for approximately ${minutes} minutes.`);
     } catch (error) {
-      setOutput(`Login failed: ${(error as Error).message}`);
+      setOutput(`Sign in failed: ${(error as Error).message}`);
     }
   };
 
   return (
     <article className="auth-card">
       <h2>Sign in to your account</h2>
-      <p>Access customer profiles, account activity, and secured operations through the banking gateway.</p>
+      <p>Access your profile, accounts, payments, statements, and personalised insights securely.</p>
       <form onSubmit={onSubmit} className="form">
         <label>
-          Work email
+          Email address
           <input
             value={identity}
             onChange={(e) => setIdentity(e.target.value)}
             type="email"
-            placeholder="analyst@northbridgebank.com"
+            placeholder="you@northbridgebank.com"
             required
           />
         </label>

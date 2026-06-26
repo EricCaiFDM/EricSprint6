@@ -4,7 +4,7 @@ import { refreshToken } from "../services/api";
 
 export function TokenRefreshPage() {
   const [token, setToken] = useState("");
-  const [output, setOutput] = useState("No request yet.");
+  const [output, setOutput] = useState("Use this only if your session asks for manual refresh.");
   const refreshMutation = useMutation({
     mutationFn: refreshToken
   });
@@ -12,10 +12,10 @@ export function TokenRefreshPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     try {
-      const data = await refreshMutation.mutateAsync({ refreshToken: token });
-      setOutput(`Refresh success: ${JSON.stringify(data)}`);
+      await refreshMutation.mutateAsync({ refreshToken: token });
+      setOutput("Session refreshed successfully.");
     } catch (error) {
-      setOutput(`Refresh failed: ${(error as Error).message}`);
+      setOutput(`Unable to refresh session: ${(error as Error).message}`);
     }
   };
 

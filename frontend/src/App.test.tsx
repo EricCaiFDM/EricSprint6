@@ -7,7 +7,7 @@ import * as api from "./services/api";
 jest.mock("./services/api");
 
 describe("App", () => {
-  it("renders secure portal heading and health status", async () => {
+  it("renders customer banking heading and service status", async () => {
     const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
     mockedCheckHealth.mockResolvedValue("OK");
 
@@ -27,7 +27,9 @@ describe("App", () => {
       </QueryClientProvider>
     );
 
-    expect(screen.getByRole("heading", { name: /Secure Customer Access Portal/i })).toBeInTheDocument();
-    expect(await screen.findByText(/Core banking services: OK/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Everyday banking, designed for clarity/i })).toBeInTheDocument();
+    expect(await screen.findByText(/All banking services are available/i)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Profile$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Insights/i })).toBeInTheDocument();
   });
 });

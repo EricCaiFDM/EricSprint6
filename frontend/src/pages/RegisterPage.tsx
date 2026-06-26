@@ -5,7 +5,7 @@ import { register } from "../services/api";
 export function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [output, setOutput] = useState("No request yet.");
+  const [output, setOutput] = useState("Create your profile to start using digital banking.");
   const registerMutation = useMutation({
     mutationFn: register
   });
@@ -13,14 +13,14 @@ export function RegisterPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
     try {
-      const data = await registerMutation.mutateAsync({
+      await registerMutation.mutateAsync({
         email,
         password,
         passwordConfirmation: password
       });
-      setOutput(`Register success: ${JSON.stringify(data)}`);
+      setOutput("Profile created. You can now sign in securely.");
     } catch (error) {
-      setOutput(`Register failed: ${(error as Error).message}`);
+      setOutput(`Profile setup failed: ${(error as Error).message}`);
     }
   };
 
