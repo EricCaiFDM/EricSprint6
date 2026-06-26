@@ -14,6 +14,18 @@
 3. Seed role/scope fixtures and eligible account fixtures.
 4. Start backend API service and standing-order scheduler worker.
 
+## Executable Verification Steps
+1. Frontend tests:
+	- Command: `cd frontend && npm test -- --runInBand`
+	- Expected: all test suites pass.
+2. Frontend production build:
+	- Command: `cd frontend && npm run build`
+	- Expected: TypeScript and Vite build succeed.
+3. Backend tests:
+	- Command: `cd backend && mvn test`
+	- Expected: integration tests include standing-order lifecycle and execution outcomes.
+	- Note: this repository currently depends on Maven being installed in PATH.
+
 ## Validation Scenarios
 
 ### Scenario 1: Configure Standing Order
@@ -57,3 +69,13 @@ Expected outcome:
 
 ## Data Model References
 - Entity definitions and relationships are documented in [data-model.md](data-model.md).
+
+## Latest Validation Outcome
+- Date: 2026-06-26
+- Frontend tests: PASS (`10` suites, `57` tests)
+- Frontend build: PASS
+- Backend tests: BLOCKED in this environment (`mvn` not found in PATH)
+- Manual standing-order coverage added in backend integration tests:
+	- create/pause/resume/cancel lifecycle
+	- update amount/cadence
+	- scheduled execution outcome listing

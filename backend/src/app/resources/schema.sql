@@ -174,3 +174,70 @@ CREATE TABLE IF NOT EXISTS transaction_lifecycle_events (
     reason_code VARCHAR(128),
     metadata TEXT
 );
+
+CREATE TABLE IF NOT EXISTS standing_orders (
+    standing_order_id VARCHAR(36) PRIMARY KEY,
+    source_account_id VARCHAR(36) NOT NULL,
+    destination_account_id VARCHAR(36) NOT NULL,
+    amount DECIMAL(18, 2) NOT NULL,
+    currency_code VARCHAR(3) NOT NULL,
+    cadence VARCHAR(16) NOT NULL,
+    schedule_config TEXT,
+    effective_from_utc TIMESTAMP NOT NULL,
+    effective_to_utc TIMESTAMP NULL,
+    next_execution_at_utc TIMESTAMP NULL,
+    lifecycle_state VARCHAR(16) NOT NULL,
+    retry_policy_code VARCHAR(32) NOT NULL,
+    created_by_user_id VARCHAR(36) NOT NULL,
+    updated_at_utc TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_standing_orders_due
+    ON standing_orders(lifecycle_state, next_execution_at_utc);
+
+CREATE INDEX IF NOT EXISTS ix_standing_orders_source
+    ON standing_orders(source_account_id);
+
+CREATE TABLE IF NOT EXISTS standing_order_lifecycle_events (
+    event_id VARCHAR(36) PRIMARY KEY,
+    standing_order_id VARCHAR(36) NOT NULL,
+    event_type VARCHAR(32) NOT NULL,
+    actor_user_id VARCHAR(36) NOT NULL,
+    actor_role VARCHAR(16) NOT NULL,
+    occurred_at_utc TIMESTAMP NOT NULL,
+    reason_code VARCHAR(128),
+    metadata TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_so_lifecycle_by_order
+    ON standing_order_lifecycle_events(standing_order_id, occurred_at_utc);
+
+CREATE TABLE IF NOT EXISTS standing_order_execution_events (
+    execution_event_id VARCHAR(36) PRIMARY KEY,
+    standing_order_id VARCHAR(36) NOT NULL,
+    due_at_utc TIMESTAMP NOT NULL,
+    started_at_utc TIMESTAMP NOT NULL,
+    completed_at_utc TIMESTAMP NULL,
+    status VARCHAR(48) NOT NULL,
+    transfer_reference_id VARCHAR(36) NULL,
+    attempt_number INT NOT NULL,
+    next_retry_at_utc TIMESTAMP NULL,
+    reason_code VARCHAR(128),
+    metadata TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_so_execution_by_order
+    ON standing_order_execution_events(standing_order_id, started_at_utc);
+
+CREATE TABLE IF NOT EXISTS standing_order_schedule_cursors (
+    cursor_id VARCHAR(36) PRIMARY KEY,
+    worker_id VARCHAR(64) NOT NULL,
+    window_start_utc TIMESTAMP NOT NULL,
+    window_end_utc TIMESTAMP NOT NULL,
+    claimed_at_utc TIMESTAMP NOT NULL,
+    completed_at_utc TIMESTAMP NULL,
+    status VARCHAR(16) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_so_cursor_worker_claimed
+    ON standing_order_schedule_cursors(worker_id, claimed_at_utc);

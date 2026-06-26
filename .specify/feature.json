@@ -1,1 +1,1 @@
-{"feature_directory":"specs/005-transaction-operations"}
+{"feature_directory":"specs/006-standing-orders","feature_name":"006-standing-orders","feature_description":"As a customer, I want to view my standing orders so that I can manage my recurring payments.","feature_scenario":"Given that I am a logged-in customer, when I navigate to the \"Standing Orders\" page, then I should see a list of my standing orders with details such as the payee, amount, frequency, and next payment date."}

@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "../services/accounts";
 import { fetchRecentTransactions } from "../services/transactions";
 import { fetchStandingOrders } from "../services/standingOrders";
-import { formatCurrency, formatDate } from "../utils/formatting";
+import { formatCurrency, formatDate, formatDateTime } from "../utils/formatting";
 
 export function DashboardPage() {
   const accountsQuery = useQuery({
@@ -35,7 +35,12 @@ export function DashboardPage() {
     [transactions]
   );
 
-  const upcomingCount = standingOrders.filter((order) => order.status === "Active").length;
+  const accountNameById = useMemo(
+    () => new Map(accounts.map((account) => [account.accountId, account.accountName])),
+    [accounts]
+  );
+
+  const upcomingCount = standingOrders.filter((order) => order.lifecycleState === "ACTIVE").length;
 
   return (
     <section className="bank-page">
@@ -94,10 +99,14 @@ export function DashboardPage() {
             {standingOrders.slice(0, 4).map((order) => (
               <li key={order.standingOrderId} className="stack-list-item">
                 <div>
-                  <p className="item-title">{order.payeeName}</p>
-                  <p className="item-meta">{order.frequency} · Next run {formatDate(order.nextRunAt)}</p>
+                  <p className="item-title">
+                    {(accountNameById.get(order.sourceAccountId) ?? order.sourceAccountId)} to {(accountNameById.get(order.destinationAccountId) ?? order.destinationAccountId)}
+                  </p>
+                  <p className="item-meta">
+                    {order.cadence} · Next run {order.nextExecutionAtUtc ? formatDateTime(order.nextExecutionAtUtc) : "none"}
+                  </p>
                 </div>
-                <p className="item-emphasis">{formatCurrency(order.amount, order.currency)}</p>
+                <p className="item-emphasis">{formatCurrency(order.amount, "USD")}</p>
               </li>
             ))}
           </ul>

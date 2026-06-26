@@ -1,14 +1,72 @@
-import { FormEvent, useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAccounts } from "../services/accounts";
 import {
+  cancelStandingOrder,
   createStandingOrder,
   fetchStandingOrders,
-  type CreateStandingOrderInput
+  pauseStandingOrder,
+  resumeStandingOrder,
+  type CreateStandingOrderInput,
+  type StandingOrder,
+  type StandingOrderCadence
 } from "../services/standingOrders";
-import { formatCurrency, formatDate } from "../utils/formatting";
+import { formatCurrency, formatDateTime } from "../utils/formatting";
+
+type StandingOrderFormState = {
+  sourceAccountId: string;
+  destinationAccountId: string;
+  amount: string;
+  cadence: StandingOrderCadence;
+  effectiveFromDate: string;
+  effectiveToDate: string;
+  retryPolicyCode: string;
+};
+
+function todayDateInput(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function toUtcStartOfDay(dateInputValue: string): string {
+  return new Date(`${dateInputValue}T00:00:00Z`).toISOString();
+}
+
+function cadenceMonthlyFactor(cadence: StandingOrderCadence): number {
+  if (cadence === "DAILY") {
+    return 30;
+  }
+  if (cadence === "WEEKLY") {
+    return 52 / 12;
+  }
+  return 1;
+}
+
+function cadenceLabel(cadence: StandingOrderCadence): string {
+  if (cadence === "DAILY") {
+    return "Daily";
+  }
+  if (cadence === "WEEKLY") {
+    return "Weekly";
+  }
+  return "Monthly";
+}
+
+function resolveStatusLabel(order: StandingOrder): string {
+  if (order.lifecycleState === "ACTIVE") {
+    return "Active";
+  }
+  if (order.lifecycleState === "PAUSED") {
+    return "Paused";
+  }
+  if (order.lifecycleState === "CANCELLED") {
+    return "Cancelled";
+  }
+  return "Completed";
+}
 
 export function StandingOrdersPage() {
+  const queryClient = useQueryClient();
+
   const accountsQuery = useQuery({
     queryKey: ["accounts"],
     queryFn: () => fetchAccounts()
@@ -20,52 +78,126 @@ export function StandingOrdersPage() {
 
   const accounts = accountsQuery.data ?? [];
   const hasAccounts = accounts.length > 0;
+  const canCreateStandingOrder = accounts.length > 1;
 
-  const [form, setForm] = useState<CreateStandingOrderInput>({
-    payeeName: "",
-    sourceAccountId: accounts[0]?.accountId ?? "",
-    amount: 0,
-    frequency: "Monthly",
-    nextRunAt: new Date().toISOString().slice(0, 10)
+  const [form, setForm] = useState<StandingOrderFormState>({
+    sourceAccountId: "",
+    destinationAccountId: "",
+    amount: "",
+    cadence: "MONTHLY",
+    effectiveFromDate: todayDateInput(),
+    effectiveToDate: "",
+    retryPolicyCode: "STANDARD"
   });
-  const [feedback, setFeedback] = useState("Set up recurring payments for bills and savings.");
+  const [feedback, setFeedback] = useState("Create recurring transfers between eligible accounts.");
+
+  useEffect(() => {
+    if (accounts.length === 0) {
+      return;
+    }
+
+    setForm((previous) => {
+      const sourceAccountId = previous.sourceAccountId || accounts[0]?.accountId || "";
+      let destinationAccountId = previous.destinationAccountId;
+
+      if (!destinationAccountId || destinationAccountId === sourceAccountId) {
+        destinationAccountId = accounts.find((account) => account.accountId !== sourceAccountId)?.accountId ?? "";
+      }
+
+      return {
+        ...previous,
+        sourceAccountId,
+        destinationAccountId
+      };
+    });
+  }, [accounts]);
 
   const createMutation = useMutation({
-    mutationFn: createStandingOrder
+    mutationFn: createStandingOrder,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["standing-orders"] });
+      setFeedback("Standing order created successfully.");
+      setForm((previous) => ({
+        ...previous,
+        amount: ""
+      }));
+    }
+  });
+
+  const lifecycleMutation = useMutation({
+    mutationFn: async ({
+      action,
+      standingOrderId
+    }: {
+      action: "pause" | "resume" | "cancel";
+      standingOrderId: string;
+    }) => {
+      if (action === "pause") {
+        return pauseStandingOrder(standingOrderId);
+      }
+      if (action === "resume") {
+        return resumeStandingOrder(standingOrderId);
+      }
+      return cancelStandingOrder(standingOrderId);
+    },
+    onSuccess: (_result, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["standing-orders"] });
+      setFeedback(`Standing order ${variables.action} action completed.`);
+    }
   });
 
   const monthlyCommitted = useMemo(
     () => (ordersQuery.data ?? [])
-      .filter((order) => order.status === "Active")
-      .reduce((sum, order) => sum + order.amount, 0),
+      .filter((order) => order.lifecycleState === "ACTIVE")
+      .reduce((sum, order) => sum + (order.amount * cadenceMonthlyFactor(order.cadence)), 0),
     [ordersQuery.data]
   );
+
+  const accountNameById = useMemo(() => new Map(accounts.map((account) => [account.accountId, account.accountName])), [accounts]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!hasAccounts) {
-      setFeedback("No accounts found for customer. Open an account before creating a scheduled payment.");
+    if (!canCreateStandingOrder) {
+      setFeedback("At least two active accounts are required to create a standing order.");
+      return;
+    }
+
+    if (!form.sourceAccountId || !form.destinationAccountId) {
+      setFeedback("Select both source and destination accounts.");
+      return;
+    }
+
+    if (form.sourceAccountId === form.destinationAccountId) {
+      setFeedback("Source and destination accounts must be different.");
       return;
     }
 
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
-      setFeedback("Enter a valid recurring amount.");
+      setFeedback("Enter a valid transfer amount.");
       return;
     }
 
+    if (!form.effectiveFromDate) {
+      setFeedback("Effective from date is required.");
+      return;
+    }
+
+    const payload: CreateStandingOrderInput = {
+      sourceAccountId: form.sourceAccountId,
+      destinationAccountId: form.destinationAccountId,
+      amount,
+      cadence: form.cadence,
+      effectiveFromUtc: toUtcStartOfDay(form.effectiveFromDate),
+      effectiveToUtc: form.effectiveToDate ? toUtcStartOfDay(form.effectiveToDate) : null,
+      retryPolicyCode: form.retryPolicyCode
+    };
+
     try {
-      await createMutation.mutateAsync({
-        ...form,
-        amount,
-        sourceAccountId: form.sourceAccountId || accounts[0]?.accountId || "",
-        nextRunAt: new Date(form.nextRunAt).toISOString()
-      });
-      setFeedback("Recurring payment saved.");
-      setForm((previous) => ({ ...previous, payeeName: "", amount: 0 }));
+      await createMutation.mutateAsync(payload);
     } catch (error) {
-      setFeedback(`Unable to save recurring payment: ${(error as Error).message}`);
+      setFeedback(`Unable to create standing order: ${(error as Error).message}`);
     }
   };
 
@@ -73,30 +205,36 @@ export function StandingOrdersPage() {
     <section className="bank-page">
       <header className="page-header">
         <div>
-          <h2 className="page-title">Scheduled payments</h2>
-          <p className="page-subtitle">Automate recurring bills and savings transfers with full visibility.</p>
+          <h2 className="page-title">Standing orders</h2>
+          <p className="page-subtitle">Automate recurring transfers with lifecycle controls and execution visibility.</p>
         </div>
       </header>
 
       <section className="two-column-grid">
         <article className="surface-card">
-          <h3>Create scheduled payment</h3>
+          <h3>Create standing order</h3>
           <form className="form" onSubmit={onSubmit}>
-            <label>
-              Payee
-              <input
-                value={form.payeeName}
-                onChange={(event) => setForm({ ...form, payeeName: event.target.value })}
-                placeholder="e.g. Citywide Rent"
-                required
-              />
-            </label>
-
             <label>
               From account
               <select
-                value={form.sourceAccountId || accounts[0]?.accountId || ""}
+                value={form.sourceAccountId}
                 onChange={(event) => setForm({ ...form, sourceAccountId: event.target.value })}
+                disabled={!hasAccounts || accountsQuery.isPending || accountsQuery.isError}
+              >
+                {!hasAccounts && <option value="">No accounts available</option>}
+                {accounts.map((account) => (
+                  <option key={account.accountId} value={account.accountId}>
+                    {account.accountName}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label>
+              To account
+              <select
+                value={form.destinationAccountId}
+                onChange={(event) => setForm({ ...form, destinationAccountId: event.target.value })}
                 disabled={!hasAccounts || accountsQuery.isPending || accountsQuery.isError}
               >
                 {!hasAccounts && <option value="">No accounts available</option>}
@@ -115,73 +253,133 @@ export function StandingOrdersPage() {
                   type="number"
                   min={0.01}
                   step={0.01}
-                  value={form.amount || ""}
-                  onChange={(event) => setForm({ ...form, amount: Number(event.target.value) })}
+                  value={form.amount}
+                  onChange={(event) => setForm({ ...form, amount: event.target.value })}
                   required
                 />
               </label>
 
               <label>
-                Frequency
+                Cadence
                 <select
-                  value={form.frequency}
+                  value={form.cadence}
                   onChange={(event) =>
                     setForm({
                       ...form,
-                      frequency: event.target.value as CreateStandingOrderInput["frequency"]
+                      cadence: event.target.value as StandingOrderCadence
                     })
                   }
                 >
-                  <option value="Weekly">Weekly</option>
-                  <option value="Fortnightly">Fortnightly</option>
-                  <option value="Monthly">Monthly</option>
+                  <option value="DAILY">Daily</option>
+                  <option value="WEEKLY">Weekly</option>
+                  <option value="MONTHLY">Monthly</option>
                 </select>
               </label>
             </div>
 
             <label>
-              First payment date
+              Effective from
               <input
                 type="date"
-                value={form.nextRunAt}
-                onChange={(event) => setForm({ ...form, nextRunAt: event.target.value })}
+                value={form.effectiveFromDate}
+                onChange={(event) => setForm({ ...form, effectiveFromDate: event.target.value })}
                 required
               />
             </label>
 
+            <label>
+              Effective to (optional)
+              <input
+                type="date"
+                value={form.effectiveToDate}
+                onChange={(event) => setForm({ ...form, effectiveToDate: event.target.value })}
+              />
+            </label>
+
+            <label>
+              Retry policy
+              <select
+                value={form.retryPolicyCode}
+                onChange={(event) => setForm({ ...form, retryPolicyCode: event.target.value })}
+              >
+                <option value="STANDARD">Standard</option>
+                <option value="NO_RETRY">No retry</option>
+              </select>
+            </label>
+
             <div className="actions">
-              <button type="submit" disabled={createMutation.isPending || !hasAccounts || accountsQuery.isPending || accountsQuery.isError}>
-                {createMutation.isPending ? "Saving..." : "Save schedule"}
+              <button type="submit" disabled={createMutation.isPending || !canCreateStandingOrder || accountsQuery.isPending || accountsQuery.isError}>
+                {createMutation.isPending ? "Saving..." : "Create standing order"}
               </button>
             </div>
           </form>
           {accountsQuery.isError ? (
             <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
-          ) : !hasAccounts ? (
-            <p className="hint-text">No accounts found for customer. Open an account from Accounts first.</p>
+          ) : !canCreateStandingOrder ? (
+            <p className="hint-text">At least two active accounts are required to create a standing order.</p>
           ) : null}
           <p className="hint-text">{feedback}</p>
         </article>
 
         <article className="surface-card">
-          <h3>Active schedules</h3>
-          <p className="hint-text">Monthly committed amount: {formatCurrency(monthlyCommitted, "AUD")}</p>
+          <h3>Configured standing orders</h3>
+          <p className="hint-text">Estimated monthly committed amount: {formatCurrency(monthlyCommitted, "USD")}</p>
           <ul className="stack-list">
-            {(ordersQuery.data ?? []).map((order) => (
+            {(ordersQuery.data ?? []).map((order) => {
+              const sourceName = accountNameById.get(order.sourceAccountId) ?? order.sourceAccountId;
+              const destinationName = accountNameById.get(order.destinationAccountId) ?? order.destinationAccountId;
+              const canPause = order.lifecycleState === "ACTIVE";
+              const canResume = order.lifecycleState === "PAUSED";
+              const canCancel = order.lifecycleState === "ACTIVE" || order.lifecycleState === "PAUSED";
+
+              return (
               <li className="stack-list-item" key={order.standingOrderId}>
                 <div>
-                  <p className="item-title">{order.payeeName}</p>
-                  <p className="item-meta">{order.frequency} · Next run {formatDate(order.nextRunAt)}</p>
+                  <p className="item-title">{sourceName} to {destinationName}</p>
+                  <p className="item-meta">
+                    {cadenceLabel(order.cadence)} · Next run {order.nextExecutionAtUtc ? formatDateTime(order.nextExecutionAtUtc) : "none"}
+                  </p>
                 </div>
                 <div className="stack-list-meta">
-                  <p className="item-emphasis">{formatCurrency(order.amount, order.currency)}</p>
-                  <span className={order.status === "Active" ? "status-pill status-pill--ok" : "status-pill"}>
-                    {order.status}
+                  <p className="item-emphasis">{formatCurrency(order.amount, "USD")}</p>
+                  <span className={order.lifecycleState === "ACTIVE" ? "status-pill status-pill--ok" : "status-pill"}>
+                    {resolveStatusLabel(order)}
                   </span>
+                  <div className="actions">
+                    {canPause ? (
+                      <button
+                        type="button"
+                        disabled={lifecycleMutation.isPending}
+                        onClick={() => lifecycleMutation.mutate({ action: "pause", standingOrderId: order.standingOrderId })}
+                      >
+                        Pause
+                      </button>
+                    ) : null}
+                    {canResume ? (
+                      <button
+                        type="button"
+                        disabled={lifecycleMutation.isPending}
+                        onClick={() => lifecycleMutation.mutate({ action: "resume", standingOrderId: order.standingOrderId })}
+                      >
+                        Resume
+                      </button>
+                    ) : null}
+                    {canCancel ? (
+                      <button
+                        type="button"
+                        disabled={lifecycleMutation.isPending}
+                        onClick={() => lifecycleMutation.mutate({ action: "cancel", standingOrderId: order.standingOrderId })}
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </div>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
+          {ordersQuery.isError ? <p className="hint-text">Unable to load standing orders.</p> : null}
         </article>
       </section>
     </section>
