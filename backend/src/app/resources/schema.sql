@@ -112,3 +112,65 @@ CREATE TABLE IF NOT EXISTS account_deletion_policy_checks (
     blocker_reasons TEXT,
     decision VARCHAR(16) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS transactions (
+    transaction_id VARCHAR(36) PRIMARY KEY,
+    account_id VARCHAR(36) NOT NULL,
+    transaction_type VARCHAR(32) NOT NULL,
+    amount DECIMAL(18, 2) NOT NULL,
+    currency_code VARCHAR(3) NOT NULL,
+    posted_at_utc TIMESTAMP NOT NULL,
+    idempotency_key VARCHAR(128) NOT NULL,
+    correlation_id VARCHAR(36) NULL,
+    actor_user_id VARCHAR(36) NOT NULL,
+    actor_role VARCHAR(16) NOT NULL,
+    balance_before DECIMAL(18, 2) NOT NULL,
+    balance_after DECIMAL(18, 2) NOT NULL,
+    metadata TEXT,
+    created_at_utc TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_transactions_account_posted
+    ON transactions(account_id, posted_at_utc, transaction_id);
+
+CREATE INDEX IF NOT EXISTS ix_transactions_correlation
+    ON transactions(correlation_id);
+
+CREATE TABLE IF NOT EXISTS transfer_links (
+    transfer_id VARCHAR(36) PRIMARY KEY,
+    debit_transaction_id VARCHAR(36) NOT NULL,
+    credit_transaction_id VARCHAR(36) NOT NULL,
+    source_account_id VARCHAR(36) NOT NULL,
+    destination_account_id VARCHAR(36) NOT NULL,
+    amount DECIMAL(18, 2) NOT NULL,
+    currency_code VARCHAR(3) NOT NULL,
+    created_at_utc TIMESTAMP NOT NULL,
+    CONSTRAINT ux_transfer_links_debit UNIQUE (debit_transaction_id),
+    CONSTRAINT ux_transfer_links_credit UNIQUE (credit_transaction_id)
+);
+
+CREATE TABLE IF NOT EXISTS idempotency_records (
+    id VARCHAR(36) PRIMARY KEY,
+    idempotency_key VARCHAR(128) NOT NULL,
+    operation_type VARCHAR(32) NOT NULL,
+    request_hash VARCHAR(128) NOT NULL,
+    response_transaction_id VARCHAR(36),
+    response_payload TEXT,
+    status VARCHAR(16) NOT NULL,
+    created_at_utc TIMESTAMP NOT NULL,
+    expires_at_utc TIMESTAMP NOT NULL,
+    failure_reason VARCHAR(128),
+    CONSTRAINT ux_idempotency_operation UNIQUE (idempotency_key, operation_type)
+);
+
+CREATE TABLE IF NOT EXISTS transaction_lifecycle_events (
+    event_id VARCHAR(36) PRIMARY KEY,
+    transaction_id VARCHAR(36),
+    event_type VARCHAR(32) NOT NULL,
+    actor_user_id VARCHAR(36) NOT NULL,
+    actor_role VARCHAR(16) NOT NULL,
+    occurred_at_utc TIMESTAMP NOT NULL,
+    outcome VARCHAR(16) NOT NULL,
+    reason_code VARCHAR(128),
+    metadata TEXT
+);

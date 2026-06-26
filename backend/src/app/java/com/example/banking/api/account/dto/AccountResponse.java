@@ -8,6 +8,9 @@ public record AccountResponse(
         String status,
         String currencyCode,
         String nickname,
+        String balance,
+        String availableBalance,
+        String currentBalance,
         String openedAtUtc,
         String closedAtUtc) {
 }

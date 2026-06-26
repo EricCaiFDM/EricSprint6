@@ -235,7 +235,7 @@ components:
           enum: [ACTIVE, SUSPENDED, CLOSED]
     AccountResponse:
       type: object
-      required: [accountId, accountNumber, customerId, accountType, status, currencyCode, openedAtUtc]
+      required: [accountId, accountNumber, customerId, accountType, status, currencyCode, balance, availableBalance, currentBalance, openedAtUtc]
       properties:
         accountId:
           type: string
@@ -252,6 +252,12 @@ components:
           type: string
           enum: [ACTIVE, SUSPENDED, CLOSED]
         currencyCode:
+          type: string
+        balance:
+          type: string
+        availableBalance:
+          type: string
+        currentBalance:
           type: string
         nickname:
           type: string

@@ -13,17 +13,29 @@ export type BankAccount = {
 };
 
 export type CreateCustomerAccountInput = {
+  customerId?: string;
   accountType: "CHECKING" | "SAVINGS";
   currencyCode: string;
   nickname?: string;
 };
 
-export async function fetchAccounts(): Promise<BankAccount[]> {
+export type UpdateCustomerAccountInput = {
+  accountId: string;
+  nickname?: string;
+  status?: "ACTIVE" | "SUSPENDED" | "CLOSED";
+};
+
+export type DeleteCustomerAccountResult = {
+  status: "DELETED" | "CLOSED";
+  message: string;
+};
+
+export async function fetchAccounts(customerId?: string): Promise<BankAccount[]> {
   try {
-    const customerId = await resolveCustomerIdForAccounts();
+    const resolvedCustomerId = await resolveCustomerIdForAccounts(customerId);
     const response = await apiClient.get("/accounts", {
       params: {
-        customerId,
+        customerId: resolvedCustomerId,
         page: 1,
         pageSize: 20
       }
@@ -43,7 +55,7 @@ export async function fetchAccounts(): Promise<BankAccount[]> {
 
 export async function createCustomerAccount(input: CreateCustomerAccountInput): Promise<BankAccount> {
   try {
-    const customerId = await resolveCustomerIdForAccounts();
+    const customerId = await resolveCustomerIdForAccounts(input.customerId);
     const response = await apiClient.post("/accounts", {
       customerId,
       accountType: input.accountType,
@@ -75,7 +87,95 @@ export async function createCustomerAccount(input: CreateCustomerAccountInput): 
   }
 }
 
-async function resolveCustomerIdForAccounts(): Promise<string> {
+export async function fetchAccountDetails(accountId: string): Promise<BankAccount> {
+  if (!accountId || accountId.trim().length === 0) {
+    throw new Error("Enter a valid account ID.");
+  }
+
+  try {
+    const response = await apiClient.get(`/accounts/${encodeURIComponent(accountId.trim())}`);
+    const mapped = mapAccount(response.data);
+    if (!mapped) {
+      throw new Error("Account payload is invalid");
+    }
+    return mapped;
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.status === 403) {
+      throw new Error("This signed-in account is not authorized to access the selected account.");
+    }
+    if (details.status === 404) {
+      throw new Error("The selected account could not be found.");
+    }
+    throw new Error(details.message);
+  }
+}
+
+export async function updateCustomerAccount(input: UpdateCustomerAccountInput): Promise<BankAccount> {
+  if (!input.accountId || input.accountId.trim().length === 0) {
+    throw new Error("Enter a valid account ID.");
+  }
+
+  if (!input.nickname && !input.status) {
+    throw new Error("Provide at least one account field to update.");
+  }
+
+  try {
+    const response = await apiClient.patch(`/accounts/${encodeURIComponent(input.accountId.trim())}`, {
+      nickname: input.nickname?.trim() || undefined,
+      status: input.status
+    });
+
+    const mapped = mapAccount(response.data);
+    if (!mapped) {
+      throw new Error("Account payload is invalid");
+    }
+    return mapped;
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.status === 403) {
+      throw new Error("This signed-in account is not authorized to update the selected account.");
+    }
+    if (details.status === 404) {
+      throw new Error("The selected account could not be found.");
+    }
+    throw new Error(details.message);
+  }
+}
+
+export async function deleteCustomerAccount(accountId: string): Promise<DeleteCustomerAccountResult> {
+  if (!accountId || accountId.trim().length === 0) {
+    throw new Error("Enter a valid account ID.");
+  }
+
+  try {
+    const response = await apiClient.delete(`/accounts/${encodeURIComponent(accountId.trim())}`);
+    const payload = response.data as Record<string, unknown>;
+    const status = asString(payload?.status, "DELETED");
+    return {
+      status: status === "CLOSED" ? "CLOSED" : "DELETED",
+      message: asString(payload?.message, "Account deleted")
+    };
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.status === 403) {
+      throw new Error("This signed-in account is not authorized to delete the selected account.");
+    }
+    if (details.status === 404) {
+      throw new Error("The selected account could not be found.");
+    }
+    if (details.status === 409) {
+      throw new Error("Account deletion is blocked by policy or linked dependencies.");
+    }
+    throw new Error(details.message);
+  }
+}
+
+async function resolveCustomerIdForAccounts(customerId?: string): Promise<string> {
+  if (customerId && customerId.trim().length > 0) {
+    return customerId.trim();
+  }
+
   const profile = await resolveCurrentCustomerProfile();
   return profile.customerId;
 }

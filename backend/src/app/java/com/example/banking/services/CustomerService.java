@@ -1,6 +1,7 @@
 package com.example.banking.services;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.banking.api.common.ApiErrorException;
 import com.example.banking.api.customer.dto.CreateCustomerRequest;
+import com.example.banking.api.customer.dto.CustomerListResponse;
 import com.example.banking.api.customer.dto.CustomerResponse;
 import com.example.banking.api.customer.dto.UpdateCustomerRequest;
 import com.example.banking.models.CustomerEntity;
@@ -73,6 +75,32 @@ public class CustomerService {
                     null);
         } catch (ApiErrorException exception) {
             lifecycleAuditService.recordFailure(null, "CREATE", actorId, role, exception.getCode(), "{}");
+            throw exception;
+        }
+    }
+
+    public CustomerListResponse listCustomers(int page, int pageSize, String actorUserId, String role) {
+        String actorId = normalizeActor(actorUserId);
+        try {
+            accessPolicyService.enforceListAccess(role);
+
+            int normalizedPage = Math.max(page, 1);
+            int normalizedPageSize = Math.max(1, Math.min(pageSize, 100));
+
+            List<CustomerEntity> customers = customerRepository.findActiveCustomers();
+            int fromIndex = Math.min((normalizedPage - 1) * normalizedPageSize, customers.size());
+            int toIndex = Math.min(fromIndex + normalizedPageSize, customers.size());
+
+            List<CustomerResponse> items = customers.subList(fromIndex, toIndex).stream()
+                    .map(customer -> toResponse(customer, false, false))
+                    .toList();
+
+            long totalItems = customers.size();
+            int totalPages = (int) Math.ceil(totalItems / (double) normalizedPageSize);
+            lifecycleAuditService.recordSuccess(null, "LIST", actorId, role);
+            return new CustomerListResponse(items, normalizedPage, normalizedPageSize, totalItems, Math.max(totalPages, 1));
+        } catch (ApiErrorException exception) {
+            lifecycleAuditService.recordFailure(null, "LIST", actorId, role, exception.getCode(), "{}");
             throw exception;
         }
     }

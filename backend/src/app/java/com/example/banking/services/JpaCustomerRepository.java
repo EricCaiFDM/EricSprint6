@@ -1,5 +1,6 @@
 package com.example.banking.services;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
@@ -42,6 +43,11 @@ public class JpaCustomerRepository implements CustomerRepository {
         }
 
         return customerJpaRepository.findFirstByCreatedByUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc(creatorUserId);
+    }
+
+    @Override
+    public List<CustomerEntity> findActiveCustomers() {
+        return customerJpaRepository.findByDeletedAtIsNullOrderByCreatedAtUtcDesc();
     }
 
     @Override

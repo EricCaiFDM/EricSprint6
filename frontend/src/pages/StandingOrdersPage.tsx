@@ -11,7 +11,7 @@ import { formatCurrency, formatDate } from "../utils/formatting";
 export function StandingOrdersPage() {
   const accountsQuery = useQuery({
     queryKey: ["accounts"],
-    queryFn: fetchAccounts
+    queryFn: () => fetchAccounts()
   });
   const ordersQuery = useQuery({
     queryKey: ["standing-orders"],

@@ -401,6 +401,37 @@ a {
   gap: 0.82rem;
 }
 
+.payments-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.82rem;
+}
+
+.payments-transfer-card {
+  grid-column: span 2;
+}
+
+.history-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.68rem;
+  align-items: end;
+  margin-bottom: 0.86rem;
+}
+
+.payments-pagination {
+  margin-top: 0.82rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.payments-receipt-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .surface-card {
   border: 1px solid var(--line-200);
   border-radius: 14px;
@@ -680,6 +711,31 @@ button:disabled {
   gap: 0.28rem;
 }
 
+.selector-list-button {
+  width: 100%;
+  border: 1px solid var(--line-200);
+  border-radius: 11px;
+  padding: 0.64rem 0.7rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.55rem;
+  text-align: left;
+  color: var(--ink-900);
+  background: #fcfeff;
+}
+
+.selector-list-button:hover:not(:disabled) {
+  border-color: var(--line-300);
+  background: #f6fbff;
+}
+
+.selector-list-button.active {
+  border-color: var(--brand-500);
+  background: var(--brand-100);
+  box-shadow: inset 0 0 0 1px rgba(35, 134, 200, 0.25);
+}
+
 .item-title {
   margin: 0;
   font-weight: 700;
@@ -827,10 +883,16 @@ button:disabled {
 
   .summary-grid,
   .two-column-grid,
+  .payments-ops-grid,
+  .history-filter-grid,
   .inline-fields,
   .account-grid,
   .side-rail {
     grid-template-columns: 1fr;
+  }
+
+  .payments-transfer-card {
+    grid-column: span 1;
   }
 
   .content-surface,

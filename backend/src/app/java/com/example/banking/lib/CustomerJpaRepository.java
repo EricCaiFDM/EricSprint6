@@ -1,5 +1,6 @@
 package com.example.banking.lib;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -12,6 +13,8 @@ public interface CustomerJpaRepository extends JpaRepository<CustomerEntity, Str
     Optional<CustomerEntity> findFirstByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc(String ownerUserId);
 
     Optional<CustomerEntity> findFirstByCreatedByUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc(String createdByUserId);
+
+    List<CustomerEntity> findByDeletedAtIsNullOrderByCreatedAtUtcDesc();
 
     boolean existsByExternalCustomerKeyIgnoreCaseAndDeletedAtIsNull(String externalCustomerKey);
 

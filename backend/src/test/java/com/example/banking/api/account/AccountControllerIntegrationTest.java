@@ -85,7 +85,10 @@ class AccountControllerIntegrationTest {
                                 .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-400").claim("role", "CUSTOMER"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountId").value(accountId))
-                .andExpect(jsonPath("$.accountType").value("CHECKING"));
+                .andExpect(jsonPath("$.accountType").value("CHECKING"))
+                .andExpect(jsonPath("$.balance").value("0.00"))
+                .andExpect(jsonPath("$.availableBalance").value("0.00"))
+                .andExpect(jsonPath("$.currentBalance").value("0.00"));
     }
 
     @Test
@@ -102,6 +105,7 @@ class AccountControllerIntegrationTest {
                 .queryParam("accountType", "CHECKING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].balance").value("0.00"))
                 .andExpect(jsonPath("$.page").value(1))
                 .andExpect(jsonPath("$.pageSize").value(1));
     }
@@ -178,6 +182,33 @@ class AccountControllerIntegrationTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
     }
+
+        @Test
+        void adminCanDeleteCrossScopeAccount() throws Exception {
+                String customerId = createCustomer("owner-405b", "CUSTOMER", "405b");
+                String accountId = createAccount("owner-405b", "CUSTOMER", customerId, "CHECKING");
+
+                mockMvc.perform(delete("/accounts/{accountId}", accountId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-user").claim("role", "ADMIN"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("CLOSED"));
+
+                mockMvc.perform(get("/accounts/{accountId}", accountId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-user").claim("role", "ADMIN"))))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.code").value("ACCOUNT_NOT_FOUND"));
+        }
+
+        @Test
+        void outOfScopeCustomerCannotDeleteAccount() throws Exception {
+                String customerId = createCustomer("owner-405c", "CUSTOMER", "405c");
+                String accountId = createAccount("owner-405c", "CUSTOMER", customerId, "SAVINGS");
+
+                mockMvc.perform(delete("/accounts/{accountId}", accountId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "other-user").claim("role", "CUSTOMER"))))
+                                .andExpect(status().isForbidden())
+                                .andExpect(jsonPath("$.code").value("ACCOUNT_FORBIDDEN"));
+        }
 
     @Test
     void adminCanRetrieveCrossScope() throws Exception {

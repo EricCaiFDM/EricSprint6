@@ -12,9 +12,11 @@ import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.banking.api.customer.dto.CreateCustomerRequest;
+import com.example.banking.api.customer.dto.CustomerListResponse;
 import com.example.banking.api.customer.dto.CustomerResponse;
 import com.example.banking.api.customer.dto.DeleteCustomerResponse;
 import com.example.banking.api.customer.dto.UpdateCustomerRequest;
@@ -43,6 +45,16 @@ public class CustomerController {
         CustomerPrincipal principal = principalResolver.resolve(authentication);
         CustomerResponse response = customerService.createCustomer(request, principal.userId(), principal.role());
         return ResponseEntity.created(URI.create("/customers/" + response.customerId())).body(response);
+    }
+
+    @GetMapping
+    public ResponseEntity<CustomerListResponse> listCustomers(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "50") int pageSize,
+            Authentication authentication) {
+        CustomerPrincipal principal = principalResolver.resolve(authentication);
+        CustomerListResponse response = customerService.listCustomers(page, pageSize, principal.userId(), principal.role());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{customerId}")

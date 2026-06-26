@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="20260625-transaction-operations-init" author="copilot">
+        <createTable tableName="transactions">
+            <column name="transaction_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="account_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="posted_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="idempotency_key" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="correlation_id" type="VARCHAR(36)"/>
+            <column name="actor_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_role" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_before" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="balance_after" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="metadata" type="TEXT"/>
+            <column name="created_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="transactions" indexName="ix_transactions_account_posted">
+            <column name="account_id"/>
+            <column name="posted_at_utc"/>
+            <column name="transaction_id"/>
+        </createIndex>
+
+        <createIndex tableName="transactions" indexName="ix_transactions_correlation">
+            <column name="correlation_id"/>
+        </createIndex>
+
+        <createTable tableName="transfer_links">
+            <column name="transfer_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="debit_transaction_id" type="VARCHAR(36)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="credit_transaction_id" type="VARCHAR(36)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="source_account_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="destination_account_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="idempotency_records">
+            <column name="id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="idempotency_key" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="operation_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="request_hash" type="VARCHAR(128)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="response_transaction_id" type="VARCHAR(36)"/>
+            <column name="response_payload" type="TEXT"/>
+            <column name="status" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="expires_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="failure_reason" type="VARCHAR(128)"/>
+        </createTable>
+
+        <addUniqueConstraint
+                tableName="idempotency_records"
+                columnNames="idempotency_key,operation_type"
+                constraintName="ux_idempotency_operation"/>
+
+        <createTable tableName="transaction_lifecycle_events">
+            <column name="event_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="transaction_id" type="VARCHAR(36)"/>
+            <column name="event_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_role" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="occurred_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="outcome" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_code" type="VARCHAR(128)"/>
+            <column name="metadata" type="TEXT"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>
