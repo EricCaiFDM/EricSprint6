@@ -23,3 +23,6 @@ security:
     secret: ${JWT_SECRET:northbridge-demo-signing-secret-key-2026-at-least-32-chars}
     access-token-ttl-minutes: 15
     refresh-token-ttl-days: 7
+
+customer:
+  masking-enabled: true

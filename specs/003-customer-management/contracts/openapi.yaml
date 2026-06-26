@@ -9,6 +9,8 @@ paths:
   /customers:
     post:
       summary: Create customer profile
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
@@ -24,18 +26,36 @@ paths:
                 $ref: '#/components/schemas/CustomerResponse'
         '400':
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Duplicate customer conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /customers/{customerId}:
     get:
       summary: Get customer details
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CustomerId'
       responses:
         '400':
           description: Invalid customerId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '200':
           description: Customer found
           content:
@@ -44,10 +64,20 @@ paths:
                 $ref: '#/components/schemas/CustomerResponse'
         '403':
           description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     patch:
       summary: Update customer profile
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CustomerId'
       requestBody:
@@ -65,17 +95,35 @@ paths:
                 $ref: '#/components/schemas/CustomerResponse'
         '400':
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
     delete:
       summary: Delete customer profile
+      security:
+        - bearerAuth: []
       parameters:
         - $ref: '#/components/parameters/CustomerId'
       responses:
         '400':
           description: Invalid customerId format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '200':
           description: Deletion succeeded
           content:
@@ -84,11 +132,28 @@ paths:
                 $ref: '#/components/schemas/DeleteCustomerResponse'
         '403':
           description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Deletion blocked by dependency or retention policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   parameters:
     CustomerId:
       name: customerId
@@ -104,21 +169,28 @@ components:
       properties:
         externalCustomerKey:
           type: string
+          maxLength: 120
         legalName:
           type: string
+          maxLength: 160
         primaryEmail:
           type: string
           format: email
+          maxLength: 255
         phoneNumber:
           type: string
+          nullable: true
     UpdateCustomerRequest:
       type: object
+      minProperties: 1
       properties:
         legalName:
           type: string
+          maxLength: 160
         primaryEmail:
           type: string
           format: email
+          maxLength: 255
         phoneNumber:
           type: string
         status:
@@ -126,7 +198,7 @@ components:
           enum: [ACTIVE, SUSPENDED, CLOSED]
     CustomerResponse:
       type: object
-      required: [customerId, externalCustomerKey, legalName, primaryEmail, status]
+      required: [customerId, externalCustomerKey, legalName, primaryEmail, status, createdAtUtc, updatedAtUtc, createdByUserId, ownerUserId]
       properties:
         customerId:
           type: string
@@ -143,6 +215,18 @@ components:
         status:
           type: string
           enum: [ACTIVE, SUSPENDED, CLOSED]
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+        createdByUserId:
+          type: string
+          format: uuid
+        ownerUserId:
+          type: string
+          format: uuid
     DeleteCustomerResponse:
       type: object
       required: [status]
@@ -151,4 +235,14 @@ components:
           type: string
           enum: [DELETED]
         message:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        field:
           type: string
