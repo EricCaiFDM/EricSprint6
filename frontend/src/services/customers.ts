@@ -10,6 +10,16 @@ export type CustomerProfile = {
   joinedAt: string;
 };
 
+export type CustomerListItem = {
+  customerId: string;
+  externalCustomerKey: string;
+  fullName: string;
+  email: string;
+  mobile: string;
+  status: "ACTIVE" | "SUSPENDED" | "CLOSED";
+  joinedAt: string;
+};
+
 export type CustomerContactUpdate = {
   phoneNumber: string;
 };
@@ -58,6 +68,25 @@ export async function fetchCustomerDetails(customerId: string): Promise<Customer
   return getCustomerById(customerId.trim());
 }
 
+export async function fetchCustomersForAdmin(page = 1, pageSize = 50): Promise<CustomerListItem[]> {
+  try {
+    const response = await apiClient.get("/customers", {
+      params: {
+        page: Math.max(1, page),
+        pageSize: Math.max(1, Math.min(100, pageSize))
+      }
+    });
+
+    return mapCustomerList(response.data);
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.status === 403) {
+      throw new Error("This signed-in account is not authorized to list all customers.");
+    }
+    throw new Error(details.message);
+  }
+}
+
 export async function updateCustomerContact(update: CustomerContactUpdate): Promise<CustomerProfile> {
   return updateCustomerProfile({ phoneNumber: update.phoneNumber });
 }
@@ -101,7 +130,7 @@ export async function deleteCustomerProfile(customerId?: string): Promise<Delete
   } catch (error) {
     const details = getApiErrorDetails(error);
     if (details.status === 403) {
-      throw new Error("This signed-in account is not authorized to delete the selected customer.");
+      throw new Error("Only admin accounts can delete customer profiles.");
     }
     if (details.status === 404) {
       throw new Error("The selected customer could not be found.");
@@ -161,6 +190,44 @@ function mapCustomerProfile(data: unknown): CustomerProfile {
 
   return {
     customerId,
+    fullName: asString(row.legalName, "Customer"),
+    email: asString(row.primaryEmail, ""),
+    mobile: asString(row.phoneNumber, ""),
+    status: asStatus(row.status),
+    joinedAt: asString(row.createdAtUtc, new Date().toISOString())
+  };
+}
+
+function mapCustomerList(payload: unknown): CustomerListItem[] {
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object" && Array.isArray((payload as { items?: unknown }).items)
+      ? ((payload as { items: unknown[] }).items ?? [])
+      : [];
+
+  if (!Array.isArray(rows)) {
+    return [];
+  }
+
+  return rows
+    .map((row) => mapCustomerListItem(row))
+    .filter((customer): customer is CustomerListItem => customer !== null);
+}
+
+function mapCustomerListItem(data: unknown): CustomerListItem | null {
+  if (!data || typeof data !== "object") {
+    return null;
+  }
+
+  const row = data as Record<string, unknown>;
+  const customerId = asString(row.customerId, "");
+  if (!customerId) {
+    return null;
+  }
+
+  return {
+    customerId,
+    externalCustomerKey: asString(row.externalCustomerKey, ""),
     fullName: asString(row.legalName, "Customer"),
     email: asString(row.primaryEmail, ""),
     mobile: asString(row.phoneNumber, ""),

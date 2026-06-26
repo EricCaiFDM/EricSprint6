@@ -33,7 +33,7 @@ export function CustomerManagementPage() {
   const isAdmin = role === "ADMIN";
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
-  const [feedback, setFeedback] = useState("Create, retrieve, update, and delete customer profiles.");
+  const [feedback, setFeedback] = useState("Create, retrieve, and update customer profiles. Admins can delete customers.");
   const [createForm, setCreateForm] = useState<CreateCustomerProfileInput>(initialCreate);
   const [updateForm, setUpdateForm] = useState<UpdateCustomerProfileInput>(initialUpdate);
 
@@ -127,6 +127,11 @@ export function CustomerManagementPage() {
   };
 
   const onDeleteCustomer = () => {
+    if (!isAdmin) {
+      setFeedback("Only admin accounts can delete customer profiles.");
+      return;
+    }
+
     if (isAdmin && !selectedCustomerId.trim()) {
       setFeedback("Enter customer ID scope before deleting as admin.");
       return;
@@ -142,7 +147,7 @@ export function CustomerManagementPage() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Customer management</h2>
-          <p className="page-subtitle">Create, retrieve, update, and delete customer profiles for this role scope.</p>
+          <p className="page-subtitle">Create, retrieve, and update customer profiles for this role scope. Admins can delete.</p>
         </div>
       </header>
 
@@ -332,14 +337,16 @@ export function CustomerManagementPage() {
               <button type="submit" disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? "Updating..." : "Update customer"}
               </button>
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={onDeleteCustomer}
-                disabled={deleteMutation.isPending}
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete customer"}
-              </button>
+              {isAdmin ? (
+                <button
+                  type="button"
+                  className="button-secondary"
+                  onClick={onDeleteCustomer}
+                  disabled={deleteMutation.isPending}
+                >
+                  {deleteMutation.isPending ? "Deleting..." : "Delete customer"}
+                </button>
+              ) : null}
             </div>
           </form>
         </article>

@@ -3,6 +3,7 @@ import { apiClient } from "./api";
 import {
   createCustomerProfile,
   deleteCustomerProfile,
+  fetchCustomersForAdmin,
   fetchCustomerDetails,
   fetchCustomerProfile,
   updateCustomerContact,
@@ -52,6 +53,45 @@ describe("customer experience services", () => {
     expect(profile.customerId).toBe("cust-100");
     expect(profile.email).toBe("jordan.patel@example.com");
     expect(profile.fullName).toBe("Jordan Patel");
+  });
+
+  it("loads admin customer directory", async () => {
+    const getMock = jest.spyOn(apiClient, "get").mockResolvedValue({
+      data: {
+        items: [
+          {
+            customerId: "cust-admin-1",
+            externalCustomerKey: "ext-admin-1",
+            legalName: "Casey Admin",
+            primaryEmail: "casey.admin@example.com",
+            phoneNumber: "+61 400 000 001",
+            status: "ACTIVE",
+            createdAtUtc: "2024-05-10T00:00:00Z"
+          },
+          {
+            customerId: "cust-admin-2",
+            externalCustomerKey: "ext-admin-2",
+            legalName: "Riley Ops",
+            primaryEmail: "riley.ops@example.com",
+            phoneNumber: "+61 400 000 002",
+            status: "SUSPENDED",
+            createdAtUtc: "2024-05-11T00:00:00Z"
+          }
+        ]
+      }
+    } as never);
+
+    const customers = await fetchCustomersForAdmin(1, 100);
+
+    expect(getMock).toHaveBeenCalledWith("/customers", {
+      params: {
+        page: 1,
+        pageSize: 100
+      }
+    });
+    expect(customers).toHaveLength(2);
+    expect(customers[0].customerId).toBe("cust-admin-1");
+    expect(customers[1].status).toBe("SUSPENDED");
   });
 
   it("updates customer contact through customer patch route", async () => {

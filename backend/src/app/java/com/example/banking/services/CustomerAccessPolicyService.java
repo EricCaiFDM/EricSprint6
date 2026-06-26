@@ -17,6 +17,14 @@ public class CustomerAccessPolicyService {
         throw forbidden("create");
     }
 
+    public void enforceListAccess(String role) {
+        String normalizedRole = normalizeRole(role);
+        if ("ADMIN".equals(normalizedRole)) {
+            return;
+        }
+        throw forbidden("list");
+    }
+
     public void enforceReadAccess(String role) {
         String normalizedRole = normalizeRole(role);
         if ("CUSTOMER".equals(normalizedRole) || "ADMIN".equals(normalizedRole)) {
@@ -35,7 +43,7 @@ public class CustomerAccessPolicyService {
 
     public void enforceDeleteAccess(String role) {
         String normalizedRole = normalizeRole(role);
-        if ("CUSTOMER".equals(normalizedRole) || "ADMIN".equals(normalizedRole)) {
+        if ("ADMIN".equals(normalizedRole)) {
             return;
         }
         throw forbidden("delete");

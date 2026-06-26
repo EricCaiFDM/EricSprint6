@@ -5,6 +5,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -124,6 +125,35 @@ class CustomerControllerIntegrationTest {
                 .andExpect(jsonPath("$.primaryEmail").value("jane202@example.com"));
     }
 
+    @Test
+    void adminCanListAllCustomers() throws Exception {
+        MvcResult firstCreateResult = createCustomer("owner-list-1", "CUSTOMER", "ext-list-1", "list1@example.com");
+        String firstCustomerId = objectMapper.readTree(firstCreateResult.getResponse().getContentAsString())
+                .get("customerId")
+                .asText();
+
+        MvcResult secondCreateResult = createCustomer("owner-list-2", "CUSTOMER", "ext-list-2", "list2@example.com");
+        String secondCustomerId = objectMapper.readTree(secondCreateResult.getResponse().getContentAsString())
+                .get("customerId")
+                .asText();
+
+        mockMvc.perform(get("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-list-user").claim("role", "ADMIN")))
+                .queryParam("page", "1")
+                .queryParam("pageSize", "50"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[*].customerId", hasItem(firstCustomerId)))
+                .andExpect(jsonPath("$.items[*].customerId", hasItem(secondCustomerId)));
+    }
+
+    @Test
+    void customerCannotListAllCustomers() throws Exception {
+        mockMvc.perform(get("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "customer-list-user").claim("role", "CUSTOMER"))))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("CUSTOMER_FORBIDDEN"));
+    }
+
         @Test
         void getCurrentCustomerResolvesByOwnerUserId() throws Exception {
                 MvcResult createResult = createCustomer("owner-202b", "CUSTOMER", "ext-202b", "jane202b@example.com");
@@ -226,10 +256,22 @@ class CustomerControllerIntegrationTest {
                 null);
 
         mockMvc.perform(delete("/customers/{customerId}", customerId)
-                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-205").claim("role", "CUSTOMER"))))
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-user").claim("role", "ADMIN"))))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("CUSTOMER_DELETE_BLOCKED"));
     }
+
+        @Test
+        void customerCannotDeleteOwnCustomerProfile() throws Exception {
+                MvcResult createResult = createCustomer("owner-205b", "CUSTOMER", "ext-205b", "jane205b@example.com");
+                JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+                String customerId = created.get("customerId").asText();
+
+                mockMvc.perform(delete("/customers/{customerId}", customerId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-205b").claim("role", "CUSTOMER"))))
+                                .andExpect(status().isForbidden())
+                                .andExpect(jsonPath("$.code").value("CUSTOMER_FORBIDDEN"));
+        }
 
     @Test
     void deleteCustomerSuccessRemovesFromOperationalAccess() throws Exception {
@@ -238,7 +280,7 @@ class CustomerControllerIntegrationTest {
         String customerId = created.get("customerId").asText();
 
         mockMvc.perform(delete("/customers/{customerId}", customerId)
-                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-206").claim("role", "CUSTOMER"))))
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-user").claim("role", "ADMIN"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("DELETED"));
 
