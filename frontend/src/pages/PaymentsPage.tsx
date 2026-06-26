@@ -20,6 +20,7 @@ export function PaymentsPage() {
   });
 
   const accounts = accountsQuery.data ?? [];
+  const hasAccounts = accounts.length > 0;
   const sourceAccountId = accounts[0]?.accountId ?? "";
 
   const [paymentForm, setPaymentForm] = useState<TransferInput>({
@@ -44,6 +45,11 @@ export function PaymentsPage() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!hasAccounts) {
+      setFeedback("No accounts found for customer. Open an account before submitting a payment.");
+      return;
+    }
 
     const amount = Number(paymentForm.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -82,7 +88,9 @@ export function PaymentsPage() {
               <select
                 value={paymentForm.sourceAccountId || sourceAccountId}
                 onChange={(event) => setPaymentForm({ ...paymentForm, sourceAccountId: event.target.value })}
+                disabled={!hasAccounts || accountsQuery.isPending || accountsQuery.isError}
               >
+                {!hasAccounts && <option value="">No accounts available</option>}
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
                     {account.accountName}
@@ -138,11 +146,16 @@ export function PaymentsPage() {
             </div>
 
             <div className="actions">
-              <button type="submit" disabled={transferMutation.isPending}>
+              <button type="submit" disabled={transferMutation.isPending || !hasAccounts || accountsQuery.isPending || accountsQuery.isError}>
                 {transferMutation.isPending ? "Submitting..." : "Confirm payment"}
               </button>
             </div>
           </form>
+          {accountsQuery.isError ? (
+            <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
+          ) : !hasAccounts ? (
+            <p className="hint-text">No accounts found for customer. Open an account from Accounts first.</p>
+          ) : null}
           <p className="hint-text">{feedback}</p>
         </article>
 

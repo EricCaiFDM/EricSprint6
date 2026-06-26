@@ -18,14 +18,41 @@ public class AccountEntity {
     @Column(name = "customer_id", nullable = false, length = 36)
     private String customerId;
 
+    @Column(name = "account_number", nullable = false, length = 24)
+    private String accountNumber;
+
+    @Column(name = "account_type", nullable = false, length = 16)
+    private String accountType;
+
+    @Column(name = "status", nullable = false, length = 16)
+    private String status;
+
+    @Column(name = "nickname", length = 64)
+    private String nickname;
+
     @Column(name = "balance", nullable = false)
     private BigDecimal balance;
 
-    @Column(name = "currency", nullable = false, length = 3)
-    private String currency;
+    @Column(name = "currency_code", nullable = false, length = 3)
+    private String currencyCode;
 
-    @Column(name = "created_at", nullable = false)
-    private Instant createdAt;
+    @Column(name = "opened_at_utc", nullable = false)
+    private Instant openedAtUtc;
+
+    @Column(name = "closed_at_utc")
+    private Instant closedAtUtc;
+
+    @Column(name = "created_by_user_id", nullable = false, length = 36)
+    private String createdByUserId;
+
+    @Column(name = "owner_user_id", nullable = false, length = 36)
+    private String ownerUserId;
+
+    @Column(name = "updated_at_utc", nullable = false)
+    private Instant updatedAtUtc;
+
+    @Column(name = "deleted_at")
+    private Instant deletedAt;
 
     public String getAccountId() {
         return accountId;
@@ -43,6 +70,38 @@ public class AccountEntity {
         this.customerId = customerId;
     }
 
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
+    public String getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(String accountType) {
+        this.accountType = accountType;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getNickname() {
+        return nickname;
+    }
+
+    public void setNickname(String nickname) {
+        this.nickname = nickname;
+    }
+
     public BigDecimal getBalance() {
         return balance;
     }
@@ -51,19 +110,59 @@ public class AccountEntity {
         this.balance = balance;
     }
 
-    public String getCurrency() {
-        return currency;
+    public String getCurrencyCode() {
+        return currencyCode;
     }
 
-    public void setCurrency(String currency) {
-        this.currency = currency;
+    public void setCurrencyCode(String currencyCode) {
+        this.currencyCode = currencyCode;
     }
 
-    public Instant getCreatedAt() {
-        return createdAt;
+    public Instant getOpenedAtUtc() {
+        return openedAtUtc;
     }
 
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
+    public void setOpenedAtUtc(Instant openedAtUtc) {
+        this.openedAtUtc = openedAtUtc;
+    }
+
+    public Instant getClosedAtUtc() {
+        return closedAtUtc;
+    }
+
+    public void setClosedAtUtc(Instant closedAtUtc) {
+        this.closedAtUtc = closedAtUtc;
+    }
+
+    public String getCreatedByUserId() {
+        return createdByUserId;
+    }
+
+    public void setCreatedByUserId(String createdByUserId) {
+        this.createdByUserId = createdByUserId;
+    }
+
+    public String getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(String ownerUserId) {
+        this.ownerUserId = ownerUserId;
+    }
+
+    public Instant getUpdatedAtUtc() {
+        return updatedAtUtc;
+    }
+
+    public void setUpdatedAtUtc(Instant updatedAtUtc) {
+        this.updatedAtUtc = updatedAtUtc;
+    }
+
+    public Instant getDeletedAt() {
+        return deletedAt;
+    }
+
+    public void setDeletedAt(Instant deletedAt) {
+        this.deletedAt = deletedAt;
     }
 }

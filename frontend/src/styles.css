@@ -221,6 +221,49 @@ a {
   background: linear-gradient(125deg, var(--brand-800), var(--brand-500));
 }
 
+.main-nav-link--admin-switch {
+  margin-left: auto;
+  color: #ffffff;
+  border-color: var(--accent-700);
+  background: linear-gradient(125deg, var(--accent-700), #149788);
+}
+
+.main-nav-link--admin-switch:hover {
+  border-color: #0a6f63;
+  background: linear-gradient(125deg, #0a6f63, #108374);
+}
+
+.main-nav-link--admin-switch.active {
+  border-color: var(--accent-700);
+  background: linear-gradient(125deg, var(--accent-700), #149788);
+}
+
+.main-nav-action {
+  border-radius: 999px;
+  padding: 0.48rem 0.9rem;
+  font-family: var(--font-display);
+  font-size: 0.84rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+  transition: transform 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.main-nav-action:hover {
+  transform: translateY(-1px);
+}
+
+.main-nav-action--logout {
+  margin-left: auto;
+  color: #ffffff;
+  border-color: #8d2644;
+  background: linear-gradient(125deg, #b63658, #8d2644);
+}
+
+.main-nav-action--logout:hover {
+  border-color: #7a1f39;
+  background: linear-gradient(125deg, #982f4b, #7a1f39);
+}
+
 .content-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.9fr);
@@ -489,6 +532,33 @@ button:disabled {
   margin-top: 0.36rem;
   color: var(--ink-700);
   line-height: 1.42;
+}
+
+.auth-links {
+  margin-top: 0.88rem;
+  border: 1px solid var(--line-200);
+  border-radius: 12px;
+  background: #f8fbff;
+  padding: 0.68rem 0.74rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.auth-links strong {
+  color: var(--ink-900);
+  font-family: var(--font-display);
+  font-size: 0.87rem;
+}
+
+.auth-links a {
+  color: var(--brand-700);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-links a:hover {
+  text-decoration: underline;
 }
 
 .profile-grid {

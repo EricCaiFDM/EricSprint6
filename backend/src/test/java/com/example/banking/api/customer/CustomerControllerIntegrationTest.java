@@ -124,6 +124,44 @@ class CustomerControllerIntegrationTest {
                 .andExpect(jsonPath("$.primaryEmail").value("jane202@example.com"));
     }
 
+        @Test
+        void getCurrentCustomerResolvesByOwnerUserId() throws Exception {
+                MvcResult createResult = createCustomer("owner-202b", "CUSTOMER", "ext-202b", "jane202b@example.com");
+                JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+                String customerId = created.get("customerId").asText();
+
+                mockMvc.perform(get("/customers/me")
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-202b").claim("role", "CUSTOMER"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.customerId").value(customerId));
+        }
+
+        @Test
+        void getCurrentCustomerRecoversLegacyCreatorScopeWhenOwnerDrifts() throws Exception {
+                MvcResult createResult = createCustomer("owner-202c", "CUSTOMER", "ext-202c", "jane202c@example.com");
+                JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+                String customerId = created.get("customerId").asText();
+
+                jdbcTemplate.update(
+                                "UPDATE customers SET owner_user_id = ? WHERE customer_id = ?",
+                                "owner-drift-202c",
+                                customerId);
+
+                mockMvc.perform(get("/customers/me")
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-202c").claim("role", "CUSTOMER"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.customerId").value(customerId))
+                                .andExpect(jsonPath("$.ownerUserId").value("owner-202c"));
+        }
+
+        @Test
+        void getCurrentCustomerReturnsNotFoundWhenNoProfileLinked() throws Exception {
+                mockMvc.perform(get("/customers/me")
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-no-profile").claim("role", "CUSTOMER"))))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.code").value("CUSTOMER_NOT_FOUND"));
+        }
+
     @Test
     void patchCustomerUpdatesMutableFields() throws Exception {
         MvcResult createResult = createCustomer("owner-203", "CUSTOMER", "ext-203", "jane203@example.com");
@@ -171,12 +209,21 @@ class CustomerControllerIntegrationTest {
         String customerId = created.get("customerId").asText();
 
         jdbcTemplate.update(
-                "INSERT INTO accounts(account_id, customer_id, balance, currency, created_at) VALUES (?, ?, ?, ?, ?)",
-                "acct-1",
+                "INSERT INTO accounts(account_id, customer_id, account_number, account_type, status, nickname, balance, currency_code, opened_at_utc, closed_at_utc, created_by_user_id, owner_user_id, updated_at_utc, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "00000000-0000-0000-0000-000000000001",
                 customerId,
+                "NBDEPEND000001",
+                "CHECKING",
+                "ACTIVE",
+                "Dependency Account",
                 100.00,
                 "USD",
-                Instant.now());
+                Instant.now(),
+                null,
+                "owner-205",
+                customerId,
+                Instant.now(),
+                null);
 
         mockMvc.perform(delete("/customers/{customerId}", customerId)
                 .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-205").claim("role", "CUSTOMER"))))

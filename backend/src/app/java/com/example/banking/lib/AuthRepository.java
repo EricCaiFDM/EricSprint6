@@ -19,12 +19,12 @@ public class AuthRepository {
         return authUserJpaRepository.existsByEmail(normalizeEmail(email));
     }
 
-    public void createUser(UUID userId, String email, String passwordHash) {
+    public void createUser(UUID userId, String email, String passwordHash, String role) {
         AuthUserEntity authUserEntity = new AuthUserEntity(
                 userId.toString(),
                 normalizeEmail(email),
                 passwordHash,
-                "CUSTOMER",
+                role,
                 "ACTIVE");
         authUserJpaRepository.save(authUserEntity);
     }
@@ -37,9 +37,9 @@ public class AuthRepository {
                         entity.getPasswordHash(),
                         entity.getRole(),
                         entity.getAccountStatus()));
-                }
+    }
 
-                public Optional<AuthUserCredentials> findCredentialsByUserId(String userId) {
+    public Optional<AuthUserCredentials> findCredentialsByUserId(String userId) {
                 return authUserJpaRepository.findById(userId)
                     .map(entity -> new AuthUserCredentials(
                         entity.getId(),

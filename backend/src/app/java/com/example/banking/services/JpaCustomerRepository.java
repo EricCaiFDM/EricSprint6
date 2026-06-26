@@ -27,6 +27,24 @@ public class JpaCustomerRepository implements CustomerRepository {
     }
 
     @Override
+    public Optional<CustomerEntity> findLatestActiveByOwnerUserId(String ownerUserId) {
+        if (ownerUserId == null || ownerUserId.isBlank()) {
+            return Optional.empty();
+        }
+
+        return customerJpaRepository.findFirstByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc(ownerUserId);
+    }
+
+    @Override
+    public Optional<CustomerEntity> findLatestActiveByCreatorUserId(String creatorUserId) {
+        if (creatorUserId == null || creatorUserId.isBlank()) {
+            return Optional.empty();
+        }
+
+        return customerJpaRepository.findFirstByCreatedByUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc(creatorUserId);
+    }
+
+    @Override
     public boolean existsByExternalCustomerKey(String externalCustomerKey) {
         if (externalCustomerKey == null) {
             return false;

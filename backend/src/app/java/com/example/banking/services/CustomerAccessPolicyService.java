@@ -41,12 +41,19 @@ public class CustomerAccessPolicyService {
         throw forbidden("delete");
     }
 
-    public void enforceOwnershipIfRequired(String role, String actorUserId, String ownerUserId, String operation) {
+    public void enforceOwnershipIfRequired(
+            String role,
+            String actorUserId,
+            String ownerUserId,
+            String createdByUserId,
+            String operation) {
         String normalizedRole = normalizeRole(role);
         if ("ADMIN".equals(normalizedRole)) {
             return;
         }
-        if ("CUSTOMER".equals(normalizedRole) && actorUserId != null && actorUserId.equals(ownerUserId)) {
+        if ("CUSTOMER".equals(normalizedRole)
+                && actorUserId != null
+                && (actorUserId.equals(ownerUserId) || actorUserId.equals(createdByUserId))) {
             return;
         }
         throw forbidden(operation);

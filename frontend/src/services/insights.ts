@@ -15,71 +15,28 @@ export type SpendingInsight = {
   categories: InsightCategory[];
 };
 
-const fallbackInsights: SpendingInsight = {
-  periodLabel: "June 2026",
-  totalSpend: 1975.44,
-  currency: "AUD",
-  confidenceLabel: "High confidence",
-  categories: [
-    {
-      category: "Home",
-      amount: 780.0,
-      ratio: 0.39,
-      trend: "flat"
-    },
-    {
-      category: "Groceries",
-      amount: 420.6,
-      ratio: 0.21,
-      trend: "up"
-    },
-    {
-      category: "Transport",
-      amount: 231.2,
-      ratio: 0.12,
-      trend: "down"
-    },
-    {
-      category: "Dining",
-      amount: 188.5,
-      ratio: 0.1,
-      trend: "up"
-    },
-    {
-      category: "Utilities",
-      amount: 355.14,
-      ratio: 0.18,
-      trend: "flat"
-    }
-  ]
-};
-
 export async function fetchSpendingInsights(): Promise<SpendingInsight> {
-  try {
-    const response = await apiClient.get("/insights/spending");
-    return mapInsights(response.data);
-  } catch {
-    return fallbackInsights;
-  }
+  const response = await apiClient.get("/insights/spending");
+  return mapInsights(response.data);
 }
 
 function mapInsights(payload: unknown): SpendingInsight {
   if (!payload || typeof payload !== "object") {
-    return fallbackInsights;
+    throw new Error("Spending insights payload is invalid");
   }
 
   const data = payload as Record<string, unknown>;
   const categories = mapCategories(data.categories);
 
   return {
-    periodLabel: asString(data.periodLabel, fallbackInsights.periodLabel),
-    totalSpend: asNumber(data.totalSpend, fallbackInsights.totalSpend),
-    currency: asString(data.currency, fallbackInsights.currency),
+    periodLabel: asString(data.periodLabel, "Current period"),
+    totalSpend: asNumber(data.totalSpend, 0),
+    currency: asString(data.currency, "USD"),
     confidenceLabel:
-      asString(data.confidenceLabel, fallbackInsights.confidenceLabel) === "Medium confidence"
+      asString(data.confidenceLabel, "High confidence") === "Medium confidence"
         ? "Medium confidence"
         : "High confidence",
-    categories: categories.length > 0 ? categories : fallbackInsights.categories
+    categories
   };
 }
 

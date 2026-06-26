@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -14,6 +15,8 @@ import com.example.banking.lib.security.JwtTokenService;
 
 @Service
 public class AuthService {
+    private static final Set<String> ALLOWED_ROLES = Set.of("CUSTOMER", "ADMIN");
+
     private final AuthRepository repository;
     private final JwtTokenService jwtTokenService;
     private final AuthenticationAuditService authenticationAuditService;
@@ -27,18 +30,20 @@ public class AuthService {
         this.authenticationAuditService = authenticationAuditService;
     }
 
-    public UUID register(String email, String password, String passwordConfirmation) {
+    public UUID register(String email, String password, String passwordConfirmation, String role) {
         if (password == null || !password.equals(passwordConfirmation)) {
             authenticationAuditService.record("REGISTER", normalizeIdentity(email), "FAILURE", "PASSWORD_MISMATCH");
             throw new IllegalArgumentException("Password confirmation mismatch");
         }
-        if (repository.emailExists(email)) {
+        AuthRepository.AuthUserCredentials existingUser = repository.findCredentialsByEmail(email).orElse(null);
+        if (existingUser != null) {
             authenticationAuditService.record("REGISTER", normalizeIdentity(email), "FAILURE", "DUPLICATE_IDENTITY");
-            throw new IllegalStateException("Email already registered");
+            throw new IllegalStateException("Email already registered with role " + existingUser.role());
         }
 
+        String normalizedRole = normalizeRole(role);
         UUID userId = UUID.randomUUID();
-        repository.createUser(userId, email, hash(password));
+        repository.createUser(userId, email, hash(password), normalizedRole);
         authenticationAuditService.record("REGISTER", normalizeIdentity(email), "SUCCESS", null);
         return userId;
     }
@@ -130,6 +135,19 @@ public class AuthService {
 
     private String normalizeIdentity(String identity) {
         return identity == null ? "" : identity.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeRole(String role) {
+        if (role == null || role.trim().isEmpty()) {
+            return "CUSTOMER";
+        }
+
+        String normalizedRole = role.trim().toUpperCase(Locale.ROOT);
+        if (ALLOWED_ROLES.contains(normalizedRole)) {
+            return normalizedRole;
+        }
+
+        throw new IllegalArgumentException("Unsupported role. Allowed values: CUSTOMER, ADMIN");
     }
 
     public record LoginTokens(String accessToken, String refreshToken, long expiresIn) {

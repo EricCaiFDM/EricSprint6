@@ -28,3 +28,6 @@ security:
 
 customer:
   masking-enabled: true
+
+account:
+  masking-enabled: true

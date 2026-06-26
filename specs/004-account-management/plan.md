@@ -1,6 +1,6 @@
 # Implementation Plan: Account Management
 
-**Branch**: `[unassigned]` | **Date**: 2026-06-25 | **Spec**: [spec.md](./spec.md)
+**Branch**: `feature/account` | **Date**: 2026-06-25 | **Spec**: [spec.md](./spec.md)
 
 **Input**: Feature specification from `/specs/004-account-management/spec.md`
 
@@ -23,6 +23,7 @@ Deliver an account lifecycle management service for checking and savings account
 | Target Platform | Linux server (backend), modern browser (frontend) |
 | Monetary Precision | BigDecimal scale=2, single system currency |
 | Security | JWT Bearer token on all endpoints, RBAC permission enforcement, ownership authorization per resource |
+| Identity Mapping | JWT `sub` is user identity; `customerId` is profile UUID; ownership checks resolve through `customers.owner_user_id` |
 | Project Type | Web service (backend) + Web application (frontend) |
 
 ## Constitution Check
@@ -51,19 +52,24 @@ specs/004-account-management/
 
 ```text
 backend/
-├── src/
-│   ├── api/
-│   │   └── accounts/
+├── src/app/java/com/example/banking/
+│   ├── api/account/
 │   ├── models/
 │   ├── services/
 │   └── lib/
-└── tests/
-    ├── contract/
-    ├── integration/
-    └── unit/
+└── src/test/java/com/example/banking/
+    ├── api/account/
+    ├── api/customer/
+    └── api/auth/
+
+frontend/
+└── src/
+    ├── pages/
+    ├── services/
+    └── components/
 ```
 
-**Structure Decision**: Use a dedicated account module under `backend/src/api/accounts` with domain services and model abstractions for eligibility, RBAC enforcement, list pagination/filtering, and lifecycle policy checks.
+**Structure Decision**: Use the existing account module under `backend/src/app/java/com/example/banking/api/account` with supporting domain services in `backend/src/app/java/com/example/banking/services` and role-aware UI/service integration in `frontend/src`.
 
 ## Post-Design Constitution Check
 

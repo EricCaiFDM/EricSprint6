@@ -39,8 +39,16 @@
 - Alternatives considered:
   - Application logs only: rejected because logs alone are weaker for queryable compliance evidence.
 
+## Decision 7: Ownership Identity Mapping
+- Decision: Treat JWT `sub` as the actor user identity and resolve customer/account ownership through `owner_user_id` instead of direct comparisons with `customerId`.
+- Rationale: `customerId` is a customer profile UUID, while JWT `sub` identifies the authenticated user; direct equality causes false 403 denials for valid owned-scope operations.
+- Alternatives considered:
+  - Make `customerId == sub` globally: rejected because it breaks existing customer profile model and UUID semantics.
+  - Keep direct equality checks only: rejected due to repeated authorization mismatches on list/read/update/delete.
+
 ## Resolved Clarifications
 - RBAC: Hybrid RBAC (Customer owned scope + Admin global scope).
 - Account type scope: Checking and savings only.
 - Deletion behavior: Block when dependency/retention policy constraints exist.
 - Listing behavior: Paginated and filterable list responses.
+- Ownership mapping: JWT subject ownership is validated via `customers.owner_user_id`.

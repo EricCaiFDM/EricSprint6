@@ -1,0 +1,29 @@
+package com.example.banking.services;
+
+import org.springframework.stereotype.Service;
+
+import com.example.banking.api.account.dto.AccountResponse;
+import com.example.banking.models.AccountEntity;
+
+@Service
+public class AccountResponsePolicyService {
+    private final AccountFieldMaskingService maskingService;
+
+    public AccountResponsePolicyService(AccountFieldMaskingService maskingService) {
+        this.maskingService = maskingService;
+    }
+
+    public AccountResponse toResponse(AccountEntity entity, boolean masked) {
+        String accountNumber = masked ? maskingService.maskAccountNumber(entity.getAccountNumber()) : entity.getAccountNumber();
+        return new AccountResponse(
+                entity.getAccountId(),
+                accountNumber,
+                entity.getCustomerId(),
+                entity.getAccountType(),
+                entity.getStatus(),
+                entity.getCurrencyCode(),
+                entity.getNickname(),
+                entity.getOpenedAtUtc().toString(),
+                entity.getClosedAtUtc() == null ? null : entity.getClosedAtUtc().toString());
+    }
+}

@@ -61,7 +61,54 @@ CREATE TABLE IF NOT EXISTS deletion_policy_checks (
 CREATE TABLE IF NOT EXISTS accounts (
     account_id VARCHAR(36) PRIMARY KEY,
     customer_id VARCHAR(36) NOT NULL,
+    account_number VARCHAR(24) NOT NULL,
+    account_type VARCHAR(16) NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    nickname VARCHAR(64),
     balance DECIMAL(18, 2) NOT NULL DEFAULT 0,
-    currency VARCHAR(3) NOT NULL,
-    created_at TIMESTAMP NOT NULL
+    currency_code VARCHAR(3) NOT NULL,
+    opened_at_utc TIMESTAMP NOT NULL,
+    closed_at_utc TIMESTAMP NULL,
+    created_by_user_id VARCHAR(36) NOT NULL,
+    owner_user_id VARCHAR(36) NOT NULL,
+    updated_at_utc TIMESTAMP NOT NULL,
+    deleted_at TIMESTAMP NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_account_number
+    ON accounts(account_number);
+
+CREATE INDEX IF NOT EXISTS ix_accounts_customer_active
+    ON accounts(customer_id, deleted_at);
+
+CREATE TABLE IF NOT EXISTS account_lifecycle_events (
+    event_id VARCHAR(36) PRIMARY KEY,
+    account_id VARCHAR(36),
+    event_type VARCHAR(32) NOT NULL,
+    actor_user_id VARCHAR(36) NOT NULL,
+    actor_role VARCHAR(16) NOT NULL,
+    occurred_at_utc TIMESTAMP NOT NULL,
+    outcome VARCHAR(16) NOT NULL,
+    reason_code VARCHAR(128),
+    metadata TEXT
+);
+
+CREATE TABLE IF NOT EXISTS account_eligibility_checks (
+    check_id VARCHAR(36) PRIMARY KEY,
+    customer_id VARCHAR(36) NOT NULL,
+    account_type VARCHAR(16) NOT NULL,
+    evaluated_at_utc TIMESTAMP NOT NULL,
+    is_eligible BOOLEAN NOT NULL,
+    reason_code VARCHAR(128),
+    metadata TEXT
+);
+
+CREATE TABLE IF NOT EXISTS account_deletion_policy_checks (
+    check_id VARCHAR(36) PRIMARY KEY,
+    account_id VARCHAR(36) NOT NULL,
+    evaluated_at_utc TIMESTAMP NOT NULL,
+    has_dependency_blocker BOOLEAN NOT NULL,
+    has_retention_blocker BOOLEAN NOT NULL,
+    blocker_reasons TEXT,
+    decision VARCHAR(16) NOT NULL
 );

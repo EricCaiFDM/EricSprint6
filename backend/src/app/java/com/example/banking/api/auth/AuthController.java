@@ -34,7 +34,11 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            UUID userId = authService.register(request.email(), request.password(), request.passwordConfirmation());
+            UUID userId = authService.register(
+                    request.email(),
+                    request.password(),
+                    request.passwordConfirmation(),
+                    request.role());
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(new RegisterResponse("CREATED", userId.toString()));
         } catch (IllegalArgumentException ex) {

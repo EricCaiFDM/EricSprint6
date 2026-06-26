@@ -84,13 +84,53 @@ public class CustomerService {
             accessPolicyService.enforceReadAccess(role);
 
             CustomerEntity customer = activeCustomerOrThrow(customerId);
-            accessPolicyService.enforceOwnershipIfRequired(role, actorId, customer.getOwnerUserId(), "read");
+                accessPolicyService.enforceOwnershipIfRequired(
+                    role,
+                    actorId,
+                    customer.getOwnerUserId(),
+                    customer.getCreatedByUserId(),
+                    "read");
 
             boolean applyMasking = "CUSTOMER".equalsIgnoreCase(role);
             lifecycleAuditService.recordSuccess(customer.getCustomerId(), "GET", actorId, role);
             return toResponse(customer, applyMasking, true);
         } catch (ApiErrorException exception) {
             lifecycleAuditService.recordFailure(customerId, "GET", actorId, role, exception.getCode(), "{}");
+            throw exception;
+        }
+    }
+
+    public CustomerResponse getCurrentCustomer(String actorUserId, String role) {
+        String actorId = normalizeActor(actorUserId);
+        try {
+            accessPolicyService.enforceReadAccess(role);
+
+            CustomerEntity customer = customerRepository.findLatestActiveByOwnerUserId(actorId)
+                .or(() -> customerRepository.findLatestActiveByCreatorUserId(actorId))
+                    .orElseThrow(() -> new ApiErrorException(
+                            HttpStatus.NOT_FOUND,
+                            "CUSTOMER_NOT_FOUND",
+                            "No customer account record found for this sign-in. Complete account setup first.",
+                            null));
+
+            accessPolicyService.enforceOwnershipIfRequired(
+                role,
+                actorId,
+                customer.getOwnerUserId(),
+                customer.getCreatedByUserId(),
+                "read");
+
+            if (!actorId.equals(customer.getOwnerUserId())) {
+            customer.setOwnerUserId(actorId);
+            customer.setUpdatedAtUtc(Instant.now());
+            customer = customerRepository.save(customer);
+            }
+
+            boolean applyMasking = "CUSTOMER".equalsIgnoreCase(role);
+            lifecycleAuditService.recordSuccess(customer.getCustomerId(), "GET", actorId, role);
+            return toResponse(customer, applyMasking, true);
+        } catch (ApiErrorException exception) {
+            lifecycleAuditService.recordFailure(null, "GET", actorId, role, exception.getCode(), "{}");
             throw exception;
         }
     }
@@ -102,7 +142,12 @@ public class CustomerService {
             accessPolicyService.enforceUpdateAccess(role);
 
             CustomerEntity customer = activeCustomerOrThrow(customerId);
-            accessPolicyService.enforceOwnershipIfRequired(role, actorId, customer.getOwnerUserId(), "update");
+                accessPolicyService.enforceOwnershipIfRequired(
+                    role,
+                    actorId,
+                    customer.getOwnerUserId(),
+                    customer.getCreatedByUserId(),
+                    "update");
 
             if (!hasAnyPatchField(request)) {
                 throw new ApiErrorException(
@@ -167,7 +212,12 @@ public class CustomerService {
             accessPolicyService.enforceDeleteAccess(role);
             CustomerEntity customer = activeCustomerOrThrow(customerId);
 
-            accessPolicyService.enforceOwnershipIfRequired(role, actorId, customer.getOwnerUserId(), "delete");
+                accessPolicyService.enforceOwnershipIfRequired(
+                    role,
+                    actorId,
+                    customer.getOwnerUserId(),
+                    customer.getCreatedByUserId(),
+                    "delete");
             lifecycleAuditService.recordSuccess(customerId, "DELETE_ATTEMPT", actorId, role);
 
             CustomerDeletionPolicyService.DeletionDecision decision = deletionPolicyService.evaluateDeletion(customer);

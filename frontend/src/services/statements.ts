@@ -10,44 +10,9 @@ export type StatementItem = {
   status: "Ready" | "Processing";
 };
 
-const fallbackStatements: StatementItem[] = [
-  {
-    statementId: "stmt-2026-05",
-    periodLabel: "May 2026",
-    accountName: "Everyday Banking",
-    issuedAt: "2026-06-01T02:10:00Z",
-    closingBalance: 5988.32,
-    currency: "AUD",
-    status: "Ready"
-  },
-  {
-    statementId: "stmt-2026-04",
-    periodLabel: "Apr 2026",
-    accountName: "Everyday Banking",
-    issuedAt: "2026-05-01T02:12:00Z",
-    closingBalance: 5642.08,
-    currency: "AUD",
-    status: "Ready"
-  },
-  {
-    statementId: "stmt-2026-06",
-    periodLabel: "Jun 2026",
-    accountName: "Everyday Banking",
-    issuedAt: "2026-07-01T02:12:00Z",
-    closingBalance: 0,
-    currency: "AUD",
-    status: "Processing"
-  }
-];
-
 export async function fetchStatements(): Promise<StatementItem[]> {
-  try {
-    const response = await apiClient.get("/statements");
-    const mapped = mapStatements(response.data);
-    return mapped.length > 0 ? mapped : fallbackStatements;
-  } catch {
-    return fallbackStatements;
-  }
+  const response = await apiClient.get("/statements");
+  return mapStatements(response.data);
 }
 
 function mapStatements(payload: unknown): StatementItem[] {

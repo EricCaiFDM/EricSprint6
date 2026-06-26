@@ -19,72 +19,31 @@ export type CreateStandingOrderInput = {
   nextRunAt: string;
 };
 
-const fallbackStandingOrders: StandingOrder[] = [
-  {
-    standingOrderId: "so-001",
-    payeeName: "Citywide Rent",
-    sourceAccountName: "Everyday Banking",
-    amount: 1950,
-    currency: "AUD",
-    frequency: "Monthly",
-    nextRunAt: "2026-07-01T00:00:00Z",
-    status: "Active"
-  },
-  {
-    standingOrderId: "so-002",
-    payeeName: "Future Saver",
-    sourceAccountName: "Everyday Banking",
-    amount: 250,
-    currency: "AUD",
-    frequency: "Weekly",
-    nextRunAt: "2026-06-29T00:00:00Z",
-    status: "Active"
-  }
-];
-
 export async function fetchStandingOrders(): Promise<StandingOrder[]> {
-  try {
-    const response = await apiClient.get("/standing-orders");
-    const mapped = mapStandingOrders(response.data);
-    return mapped.length > 0 ? mapped : fallbackStandingOrders;
-  } catch {
-    return fallbackStandingOrders;
-  }
+  const response = await apiClient.get("/standing-orders");
+  return mapStandingOrders(response.data);
 }
 
 export async function createStandingOrder(input: CreateStandingOrderInput): Promise<StandingOrder> {
-  try {
-    const response = await apiClient.post("/standing-orders", {
-      sourceAccountId: input.sourceAccountId,
-      amount: input.amount,
-      currency: "AUD",
-      frequency: input.frequency.toUpperCase(),
-      startDateUtc: input.nextRunAt,
-      payeeName: input.payeeName
-    });
+  const response = await apiClient.post("/standing-orders", {
+    sourceAccountId: input.sourceAccountId,
+    amount: input.amount,
+    currency: "AUD",
+    frequency: input.frequency.toUpperCase(),
+    startDateUtc: input.nextRunAt,
+    payeeName: input.payeeName
+  });
 
-    return {
-      standingOrderId: asString(response.data?.standingOrderId, `so-${Date.now()}`),
-      payeeName: input.payeeName,
-      sourceAccountName: "Selected Account",
-      amount: input.amount,
-      currency: "AUD",
-      frequency: input.frequency,
-      nextRunAt: input.nextRunAt,
-      status: "Active"
-    };
-  } catch {
-    return {
-      standingOrderId: `so-${Date.now()}`,
-      payeeName: input.payeeName,
-      sourceAccountName: "Selected Account",
-      amount: input.amount,
-      currency: "AUD",
-      frequency: input.frequency,
-      nextRunAt: input.nextRunAt,
-      status: "Active"
-    };
-  }
+  return {
+    standingOrderId: asString(response.data?.standingOrderId, `so-${Date.now()}`),
+    payeeName: input.payeeName,
+    sourceAccountName: "Selected Account",
+    amount: input.amount,
+    currency: "AUD",
+    frequency: input.frequency,
+    nextRunAt: input.nextRunAt,
+    status: "Active"
+  };
 }
 
 function mapStandingOrders(payload: unknown): StandingOrder[] {

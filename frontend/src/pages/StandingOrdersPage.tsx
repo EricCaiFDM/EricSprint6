@@ -19,6 +19,7 @@ export function StandingOrdersPage() {
   });
 
   const accounts = accountsQuery.data ?? [];
+  const hasAccounts = accounts.length > 0;
 
   const [form, setForm] = useState<CreateStandingOrderInput>({
     payeeName: "",
@@ -42,6 +43,11 @@ export function StandingOrdersPage() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (!hasAccounts) {
+      setFeedback("No accounts found for customer. Open an account before creating a scheduled payment.");
+      return;
+    }
 
     const amount = Number(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -91,7 +97,9 @@ export function StandingOrdersPage() {
               <select
                 value={form.sourceAccountId || accounts[0]?.accountId || ""}
                 onChange={(event) => setForm({ ...form, sourceAccountId: event.target.value })}
+                disabled={!hasAccounts || accountsQuery.isPending || accountsQuery.isError}
               >
+                {!hasAccounts && <option value="">No accounts available</option>}
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
                     {account.accountName}
@@ -142,11 +150,16 @@ export function StandingOrdersPage() {
             </label>
 
             <div className="actions">
-              <button type="submit" disabled={createMutation.isPending}>
+              <button type="submit" disabled={createMutation.isPending || !hasAccounts || accountsQuery.isPending || accountsQuery.isError}>
                 {createMutation.isPending ? "Saving..." : "Save schedule"}
               </button>
             </div>
           </form>
+          {accountsQuery.isError ? (
+            <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
+          ) : !hasAccounts ? (
+            <p className="hint-text">No accounts found for customer. Open an account from Accounts first.</p>
+          ) : null}
           <p className="hint-text">{feedback}</p>
         </article>
 
