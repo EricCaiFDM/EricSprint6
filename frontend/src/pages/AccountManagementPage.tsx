@@ -1,26 +1,26 @@
 import { FormEvent, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   createCustomerAccount,
-  deleteCustomerAccount,
-  fetchAccountDetails,
   fetchAccounts,
-  updateCustomerAccount,
-  type BankAccount,
-  type CreateCustomerAccountInput,
-  type UpdateCustomerAccountInput
+  type CreateCustomerAccountInput
 } from "../services/accounts";
 import { getNormalizedTokenRole } from "../services/session";
 import { formatCurrency } from "../utils/formatting";
 
 export function AccountManagementPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
+  const initialScopeId = isAdmin ? (searchParams.get("customerId") ?? "") : "";
 
-  const [customerScopeId, setCustomerScopeId] = useState("");
-  const [selectedAccountId, setSelectedAccountId] = useState("");
-  const [feedback, setFeedback] = useState("Create, retrieve, list, update, and delete accounts from this workspace.");
+  const [customerScopeId, setCustomerScopeId] = useState(initialScopeId);
+  const [feedback, setFeedback] = useState(
+    "Create and list accounts in this workspace, then open a specific account to view and update it."
+  );
 
   const [openForm, setOpenForm] = useState<CreateCustomerAccountInput>({
     accountType: "CHECKING",
@@ -28,21 +28,10 @@ export function AccountManagementPage() {
     nickname: ""
   });
 
-  const [updateForm, setUpdateForm] = useState<Omit<UpdateCustomerAccountInput, "accountId">>({
-    nickname: "",
-    status: undefined
-  });
-
   const accountsQuery = useQuery({
     queryKey: ["accounts", "list", isAdmin ? customerScopeId : "self"],
     queryFn: () => fetchAccounts(isAdmin ? customerScopeId || undefined : undefined),
     enabled: !isAdmin || Boolean(customerScopeId.trim())
-  });
-
-  const selectedAccountDetailsQuery = useQuery({
-    queryKey: ["accounts", "details", selectedAccountId],
-    queryFn: () => fetchAccountDetails(selectedAccountId),
-    enabled: Boolean(selectedAccountId)
   });
 
   const createMutation = useMutation({
@@ -54,32 +43,6 @@ export function AccountManagementPage() {
     },
     onError: (error) => {
       setFeedback(`Unable to create account: ${(error as Error).message}`);
-    }
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: updateCustomerAccount,
-    onSuccess: async (account) => {
-      setFeedback(`Account updated: ${account.accountName}.`);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["accounts", "list"] }),
-        queryClient.invalidateQueries({ queryKey: ["accounts", "details", account.accountId] })
-      ]);
-    },
-    onError: (error) => {
-      setFeedback(`Unable to update account: ${(error as Error).message}`);
-    }
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: deleteCustomerAccount,
-    onSuccess: async (result) => {
-      setFeedback(`Account ${result.status.toLowerCase()}: ${result.message}`);
-      setSelectedAccountId("");
-      await queryClient.invalidateQueries({ queryKey: ["accounts", "list"] });
-    },
-    onError: (error) => {
-      setFeedback(`Unable to delete account: ${(error as Error).message}`);
     }
   });
 
@@ -104,37 +67,14 @@ export function AccountManagementPage() {
     });
   };
 
-  const onUpdateAccount = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!selectedAccountId) {
-      setFeedback("Select an account before updating.");
-      return;
-    }
-
-    if (!updateForm.nickname && !updateForm.status) {
-      setFeedback("Provide nickname or status to update account.");
-      return;
-    }
-
-    updateMutation.mutate({
-      accountId: selectedAccountId,
-      nickname: updateForm.nickname?.trim() || undefined,
-      status: updateForm.status
-    });
-  };
-
-  const onDeleteAccount = () => {
-    if (!selectedAccountId) {
-      setFeedback("Select an account before deleting.");
-      return;
-    }
-
-    deleteMutation.mutate(selectedAccountId);
+  const onOpenAccount = (accountId: string) => {
+    const basePath = isAdmin ? "/admin/accounts" : "/customer/accounts";
+    const scopeId = customerScopeId.trim();
+    const query = isAdmin && scopeId ? `?customerId=${encodeURIComponent(scopeId)}` : "";
+    navigate(`${basePath}/${encodeURIComponent(accountId)}${query}`);
   };
 
   const accounts = accountsQuery.data ?? [];
-  const selectedDetails = selectedAccountDetailsQuery.data;
 
   return (
     <section className="bank-page">
@@ -220,86 +160,7 @@ export function AccountManagementPage() {
         </article>
 
         <article className="surface-card">
-          <h3>Retrieve account details</h3>
-          <form className="form" onSubmit={(event) => event.preventDefault()}>
-            <label>
-              Account ID
-              <input
-                value={selectedAccountId}
-                onChange={(event) => setSelectedAccountId(event.target.value)}
-                placeholder="account UUID"
-              />
-            </label>
-          </form>
-
-          {!selectedAccountId ? (
-            <p className="hint-text">Select an account ID to retrieve details.</p>
-          ) : selectedAccountDetailsQuery.isLoading ? (
-            <p className="hint-text">Loading account details...</p>
-          ) : selectedAccountDetailsQuery.isError ? (
-            <p className="hint-text">{(selectedAccountDetailsQuery.error as Error).message}</p>
-          ) : selectedDetails ? (
-            <AccountDetailsSummary account={selectedDetails} />
-          ) : null}
-        </article>
-      </section>
-
-      <section className="two-column-grid">
-        <article className="surface-card">
-          <h3>Update account</h3>
-          <form className="form" onSubmit={onUpdateAccount}>
-            <label>
-              Nickname
-              <input
-                value={updateForm.nickname ?? ""}
-                onChange={(event) =>
-                  setUpdateForm((previous) => ({
-                    ...previous,
-                    nickname: event.target.value
-                  }))
-                }
-                placeholder="New nickname"
-              />
-            </label>
-
-            <label>
-              Status
-              <select
-                value={updateForm.status ?? ""}
-                onChange={(event) =>
-                  setUpdateForm((previous) => ({
-                    ...previous,
-                    status: event.target.value
-                      ? (event.target.value as "ACTIVE" | "SUSPENDED" | "CLOSED")
-                      : undefined
-                  }))
-                }
-              >
-                <option value="">No change</option>
-                <option value="ACTIVE">Active</option>
-                <option value="SUSPENDED">Suspended</option>
-                <option value="CLOSED">Closed</option>
-              </select>
-            </label>
-
-            <div className="actions">
-              <button type="submit" disabled={updateMutation.isPending || !selectedAccountId}>
-                {updateMutation.isPending ? "Updating..." : "Update account"}
-              </button>
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={onDeleteAccount}
-                disabled={deleteMutation.isPending || !selectedAccountId}
-              >
-                {deleteMutation.isPending ? "Deleting..." : "Delete account"}
-              </button>
-            </div>
-          </form>
-        </article>
-
-        <article className="surface-card">
-          <h3>List customer accounts</h3>
+          <h3>Customer accounts</h3>
           {accountsQuery.isLoading ? (
             <p className="hint-text">Loading accounts...</p>
           ) : accountsQuery.isError ? (
@@ -309,22 +170,30 @@ export function AccountManagementPage() {
           ) : (
             <ul className="stack-list">
               {accounts.map((account) => (
-                <li className="stack-list-item" key={account.accountId}>
-                  <div>
-                    <p className="item-title">{account.accountName}</p>
-                    <p className="item-meta">{account.accountType} · {account.accountNumberMasked}</p>
-                    <p className="item-meta">ID: {account.accountId}</p>
-                  </div>
-                  <div className="stack-list-meta">
-                    <p className="item-emphasis">{formatCurrency(account.availableBalance, account.currency)}</p>
-                    <span className={account.status === "Active" ? "status-pill status-pill--ok" : "status-pill"}>
-                      {account.status}
-                    </span>
-                  </div>
+                <li key={account.accountId}>
+                  <button
+                    type="button"
+                    className="selector-list-button"
+                    onClick={() => onOpenAccount(account.accountId)}
+                    aria-label={`Open details for ${account.accountName}`}
+                  >
+                    <div>
+                      <p className="item-title">{account.accountName}</p>
+                      <p className="item-meta">{account.accountType} · {account.accountNumberMasked}</p>
+                      <p className="item-meta">ID: {account.accountId}</p>
+                    </div>
+                    <div className="stack-list-meta">
+                      <p className="item-emphasis">{formatCurrency(account.availableBalance, account.currency)}</p>
+                      <span className={account.status === "Active" ? "status-pill status-pill--ok" : "status-pill"}>
+                        {account.status}
+                      </span>
+                    </div>
+                  </button>
                 </li>
               ))}
             </ul>
           )}
+          <p className="hint-text">Click an account to open its dedicated details and update page.</p>
         </article>
       </section>
 
@@ -333,40 +202,5 @@ export function AccountManagementPage() {
         <p className="hint-text">{feedback}</p>
       </article>
     </section>
-  );
-}
-
-function AccountDetailsSummary({ account }: { account: BankAccount }) {
-  return (
-    <dl className="profile-grid">
-      <div>
-        <dt>Account ID</dt>
-        <dd>{account.accountId}</dd>
-      </div>
-      <div>
-        <dt>Name</dt>
-        <dd>{account.accountName}</dd>
-      </div>
-      <div>
-        <dt>Type</dt>
-        <dd>{account.accountType}</dd>
-      </div>
-      <div>
-        <dt>Number</dt>
-        <dd>{account.accountNumberMasked}</dd>
-      </div>
-      <div>
-        <dt>Available</dt>
-        <dd>{formatCurrency(account.availableBalance, account.currency)}</dd>
-      </div>
-      <div>
-        <dt>Current</dt>
-        <dd>{formatCurrency(account.currentBalance, account.currency)}</dd>
-      </div>
-      <div>
-        <dt>Status</dt>
-        <dd>{account.status}</dd>
-      </div>
-    </dl>
   );
 }

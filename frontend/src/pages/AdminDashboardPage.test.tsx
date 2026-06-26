@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AdminDashboardPage } from "./AdminDashboardPage";
 import * as accounts from "../services/accounts";
 import * as customers from "../services/customers";
@@ -22,8 +22,11 @@ describe("AdminDashboardPage", () => {
 
     return render(
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          <AdminDashboardPage />
+        <MemoryRouter initialEntries={["/admin/dashboard"]}>
+          <Routes>
+            <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/accounts/:accountId" element={<div>Admin account details route</div>} />
+          </Routes>
         </MemoryRouter>
       </QueryClientProvider>
     );
@@ -44,7 +47,6 @@ describe("AdminDashboardPage", () => {
   it("lists customers and loads clicked customer accounts", async () => {
     const fetchCustomersMock = customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>;
     const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
-    const fetchAccountDetailsMock = accounts.fetchAccountDetails as jest.MockedFunction<typeof accounts.fetchAccountDetails>;
 
     fetchCustomersMock.mockResolvedValue([
       {
@@ -97,17 +99,6 @@ describe("AdminDashboardPage", () => {
       ];
     });
 
-    fetchAccountDetailsMock.mockImplementation(async (accountId: string) => ({
-      accountId,
-      accountName: accountId === "acc-20" ? "House Savings" : "Daily Spend",
-      accountType: accountId === "acc-20" ? "Savings" : "Everyday",
-      accountNumberMasked: accountId === "acc-20" ? "**** 2020" : "**** 1010",
-      availableBalance: accountId === "acc-20" ? 4100 : 1200,
-      currentBalance: accountId === "acc-20" ? 4100 : 1200,
-      currency: "USD",
-      status: "Active"
-    }));
-
     renderPage();
 
     expect(await screen.findByRole("heading", { name: /All customers/i })).toBeInTheDocument();
@@ -126,11 +117,9 @@ describe("AdminDashboardPage", () => {
     expect(await screen.findByText(/House Savings/i)).toBeInTheDocument();
   });
 
-  it("updates selected customer account from admin dashboard", async () => {
+  it("opens dedicated account details page when admin clicks an account", async () => {
     const fetchCustomersMock = customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>;
     const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
-    const fetchAccountDetailsMock = accounts.fetchAccountDetails as jest.MockedFunction<typeof accounts.fetchAccountDetails>;
-    const updateAccountMock = accounts.updateCustomerAccount as jest.MockedFunction<typeof accounts.updateCustomerAccount>;
 
     fetchCustomersMock.mockResolvedValue([
       {
@@ -157,55 +146,16 @@ describe("AdminDashboardPage", () => {
       }
     ]);
 
-    fetchAccountDetailsMock.mockResolvedValue({
-      accountId: "acc-10",
-      accountName: "Daily Spend",
-      accountType: "Everyday",
-      accountNumberMasked: "**** 1010",
-      availableBalance: 1200,
-      currentBalance: 1200,
-      currency: "USD",
-      status: "Active"
-    });
-
-    updateAccountMock.mockResolvedValue({
-      accountId: "acc-10",
-      accountName: "Emergency Fund",
-      accountType: "Everyday",
-      accountNumberMasked: "**** 1010",
-      availableBalance: 1200,
-      currentBalance: 1200,
-      currency: "USD",
-      status: "Paused"
-    });
-
     renderPage();
 
     await waitFor(() => {
       expect(fetchAccountsMock).toHaveBeenCalledWith("cust-1");
-      expect(fetchAccountDetailsMock).toHaveBeenCalledWith("acc-10");
     });
 
-    fireEvent.change(screen.getByLabelText(/Nickname/i), {
-      target: { value: "Emergency Fund" }
-    });
-
-    fireEvent.change(screen.getByLabelText(/Status/i), {
-      target: { value: "SUSPENDED" }
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /Update account/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /Daily Spend/i }));
 
     await waitFor(() => {
-      expect(updateAccountMock).toHaveBeenCalled();
+      expect(screen.getByText(/Admin account details route/i)).toBeInTheDocument();
     });
-
-    expect(updateAccountMock.mock.calls[0]?.[0]).toEqual({
-      accountId: "acc-10",
-      nickname: "Emergency Fund",
-      status: "SUSPENDED"
-    });
-
-    expect(await screen.findByText(/Account updated:/i)).toBeInTheDocument();
   });
 });

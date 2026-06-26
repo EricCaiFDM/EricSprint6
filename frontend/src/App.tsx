@@ -16,6 +16,7 @@ import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CustomerManagementPage } from "./pages/CustomerManagementPage";
 import { AccountManagementPage } from "./pages/AccountManagementPage";
+import { AccountDetailsPage } from "./pages/AccountDetailsPage";
 import { PaymentsPage } from "./pages/PaymentsPage";
 import { StandingOrdersPage } from "./pages/StandingOrdersPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
@@ -202,6 +203,7 @@ export default function App() {
             <Route path="/customer" element={<Navigate to="/customer/dashboard" replace />} />
             <Route path="/customer/dashboard" element={withRole(["CUSTOMER"], <DashboardPage />)} />
             <Route path="/customer/accounts" element={withRole(["CUSTOMER"], <AccountManagementPage />)} />
+            <Route path="/customer/accounts/:accountId" element={withRole(["CUSTOMER"], <AccountDetailsPage />)} />
             <Route path="/customer/payments" element={withRole(["CUSTOMER"], <PaymentsPage />)} />
             <Route path="/customer/scheduled" element={withRole(["CUSTOMER"], <StandingOrdersPage />)} />
             <Route path="/customer/notifications" element={withRole(["CUSTOMER"], <NotificationsPage />)} />
@@ -212,6 +214,7 @@ export default function App() {
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={withRole(["ADMIN"], <AdminDashboardPage />)} />
             <Route path="/admin/accounts" element={withRole(["ADMIN"], <AccountManagementPage />)} />
+            <Route path="/admin/accounts/:accountId" element={withRole(["ADMIN"], <AccountDetailsPage />)} />
             <Route path="/admin/payments" element={withRole(["ADMIN"], <PaymentsPage />)} />
             <Route path="/admin/profile" element={withRole(["ADMIN"], <CustomerManagementPage />)} />
 
