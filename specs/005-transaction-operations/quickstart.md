@@ -14,6 +14,41 @@
 3. Seed role/scope test fixtures (Customer and Admin).
 4. Start the backend API service.
 
+### Example Backend Commands
+```bash
+cd backend
+mvn test
+mvn spring-boot:run
+```
+
+### Example API Calls
+```bash
+# Deposit
+curl -i -X POST "http://localhost:8080/transactions/deposit" \
+	-H "Authorization: Bearer <access-token>" \
+	-H "Idempotency-Key: dep-001-unique" \
+	-H "Content-Type: application/json" \
+	-d '{"accountId":"<account-uuid>","amount":"100.00"}'
+
+# Withdrawal
+curl -i -X POST "http://localhost:8080/transactions/withdrawal" \
+	-H "Authorization: Bearer <access-token>" \
+	-H "Idempotency-Key: wd-001-unique" \
+	-H "Content-Type: application/json" \
+	-d '{"accountId":"<account-uuid>","amount":"20.00"}'
+
+# Transfer
+curl -i -X POST "http://localhost:8080/transactions/transfer" \
+	-H "Authorization: Bearer <access-token>" \
+	-H "Idempotency-Key: tr-001-unique" \
+	-H "Content-Type: application/json" \
+	-d '{"sourceAccountId":"<source-uuid>","destinationAccountId":"<destination-uuid>","amount":"15.00"}'
+
+# History
+curl -i "http://localhost:8080/transactions/history?scopeType=ACCOUNT&scopeId=<account-uuid>&page=1&pageSize=20" \
+	-H "Authorization: Bearer <access-token>"
+```
+
 ## Validation Scenarios
 
 ### Scenario 1: Deposit and Withdraw
@@ -59,3 +94,11 @@ Expected outcome:
 
 ## Data Model References
 - Entity definitions and relationships are documented in [data-model.md](data-model.md).
+
+## Validation Outcomes (2026-06-26)
+
+| Validation Item | Result | Notes |
+|---|---|---|
+| Static compile diagnostics (`src/app/java`, `src/test/java`) | PASS | No Java diagnostics in changed transaction implementation and tests. |
+| Automated transaction integration tests (`TransactionControllerIntegrationTest`) | BLOCKED | Maven is unavailable in this shell (`mvn: command not found`), so runtime execution could not be performed here. |
+| Quickstart scenario execution (deposit/withdraw/transfer/history) | PARTIAL | Endpoints and flows are implemented and covered by integration tests, but end-to-end command execution is pending in an environment with Maven installed. |

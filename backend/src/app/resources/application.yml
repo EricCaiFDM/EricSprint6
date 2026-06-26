@@ -31,3 +31,8 @@ customer:
 
 account:
   masking-enabled: true
+
+transaction:
+  default-currency-code: USD
+  history-max-page-size: 100
+  idempotency-ttl-hours: 24
