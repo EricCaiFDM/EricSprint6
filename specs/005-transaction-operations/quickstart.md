@@ -101,4 +101,5 @@ Expected outcome:
 |---|---|---|
 | Static compile diagnostics (`src/app/java`, `src/test/java`) | PASS | No Java diagnostics in changed transaction implementation and tests. |
 | Automated transaction integration tests (`TransactionControllerIntegrationTest`) | BLOCKED | Maven is unavailable in this shell (`mvn: command not found`), so runtime execution could not be performed here. |
+| Frontend transaction operation validation (`frontend`: `npm run build`, `npm test -- --runInBand`) | PASS | Build succeeded and all test suites passed (5/5, 43 tests), including deposit/withdraw/transfer/history service coverage and Payments page UI operation coverage. |
 | Quickstart scenario execution (deposit/withdraw/transfer/history) | PARTIAL | Endpoints and flows are implemented and covered by integration tests, but end-to-end command execution is pending in an environment with Maven installed. |

@@ -96,6 +96,13 @@ class TransactionControllerIntegrationTest {
                 .andExpect(jsonPath("$.postedAmount").value("125.50"))
                 .andExpect(jsonPath("$.balanceAfter").value("125.50"));
 
+        mockMvc.perform(get("/accounts/{accountId}", accountId)
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "tx-owner-100").claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.balance").value("125.50"))
+                .andExpect(jsonPath("$.availableBalance").value("125.50"))
+                .andExpect(jsonPath("$.currentBalance").value("125.50"));
+
         BigDecimal balance = jdbcTemplate.queryForObject(
                 "SELECT balance FROM accounts WHERE account_id = ?",
                 BigDecimal.class,

@@ -38,6 +38,10 @@ function roleHomePath(role: UserRole): string {
   return role === "ADMIN" ? "/admin/dashboard" : "/customer/dashboard";
 }
 
+function roleWorkspacePrefix(role: UserRole): "admin" | "customer" {
+  return role === "ADMIN" ? "admin" : "customer";
+}
+
 export default function App() {
   const navigate = useNavigate();
   const [authState, setAuthState] = useState<AuthState>(() => readAuthState());
@@ -94,16 +98,19 @@ export default function App() {
     return <Navigate to={roleHomePath(role)} replace />;
   };
 
-  const customerLegacyTarget = (segment: string): string => {
-    if (isAuthenticated && role === "CUSTOMER") {
-      return `/customer/${segment}`;
+  const roleScopedTarget = (segment: string): string => {
+    if (isAuthenticated && role) {
+      return `/${roleWorkspacePrefix(role)}/${segment}`;
     }
     return defaultRoute;
   };
 
   const navLinks = role === "ADMIN"
     ? [
-        { to: "/admin/dashboard", label: "Admin Dashboard" }
+        { to: "/admin/dashboard", label: "Admin Dashboard" },
+        { to: "/admin/accounts", label: "Accounts" },
+        { to: "/admin/payments", label: "Payments" },
+        { to: "/admin/profile", label: "Customers" }
       ]
     : role === "CUSTOMER"
       ? [
@@ -204,6 +211,9 @@ export default function App() {
 
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={withRole(["ADMIN"], <AdminDashboardPage />)} />
+            <Route path="/admin/accounts" element={withRole(["ADMIN"], <AccountManagementPage />)} />
+            <Route path="/admin/payments" element={withRole(["ADMIN"], <PaymentsPage />)} />
+            <Route path="/admin/profile" element={withRole(["ADMIN"], <CustomerManagementPage />)} />
 
             <Route path="/security/login" element={<LoginPage />} />
             <Route path="/security/register" element={<RegisterPage />} />
@@ -217,14 +227,14 @@ export default function App() {
             <Route path="/reset" element={<Navigate to="/security/reset" replace />} />
             <Route path="/refresh" element={<Navigate to="/security/refresh" replace />} />
 
-            <Route path="/dashboard" element={<Navigate to={customerLegacyTarget("dashboard")} replace />} />
-            <Route path="/accounts" element={<Navigate to={customerLegacyTarget("accounts")} replace />} />
-            <Route path="/payments" element={<Navigate to={customerLegacyTarget("payments")} replace />} />
-            <Route path="/scheduled" element={<Navigate to={customerLegacyTarget("scheduled")} replace />} />
-            <Route path="/notifications" element={<Navigate to={customerLegacyTarget("notifications")} replace />} />
-            <Route path="/statements" element={<Navigate to={customerLegacyTarget("statements")} replace />} />
-            <Route path="/insights" element={<Navigate to={customerLegacyTarget("insights")} replace />} />
-            <Route path="/profile" element={<Navigate to={customerLegacyTarget("profile")} replace />} />
+            <Route path="/dashboard" element={<Navigate to={roleScopedTarget("dashboard")} replace />} />
+            <Route path="/accounts" element={<Navigate to={roleScopedTarget("accounts")} replace />} />
+            <Route path="/payments" element={<Navigate to={roleScopedTarget("payments")} replace />} />
+            <Route path="/scheduled" element={<Navigate to={roleScopedTarget("scheduled")} replace />} />
+            <Route path="/notifications" element={<Navigate to={roleScopedTarget("notifications")} replace />} />
+            <Route path="/statements" element={<Navigate to={roleScopedTarget("statements")} replace />} />
+            <Route path="/insights" element={<Navigate to={roleScopedTarget("insights")} replace />} />
+            <Route path="/profile" element={<Navigate to={roleScopedTarget("profile")} replace />} />
 
             <Route path="*" element={<Navigate to={defaultRoute} replace />} />
           </Routes>

@@ -85,7 +85,10 @@ class AccountControllerIntegrationTest {
                                 .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-400").claim("role", "CUSTOMER"))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountId").value(accountId))
-                .andExpect(jsonPath("$.accountType").value("CHECKING"));
+                .andExpect(jsonPath("$.accountType").value("CHECKING"))
+                .andExpect(jsonPath("$.balance").value("0.00"))
+                .andExpect(jsonPath("$.availableBalance").value("0.00"))
+                .andExpect(jsonPath("$.currentBalance").value("0.00"));
     }
 
     @Test
@@ -102,6 +105,7 @@ class AccountControllerIntegrationTest {
                 .queryParam("accountType", "CHECKING"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].balance").value("0.00"))
                 .andExpect(jsonPath("$.page").value(1))
                 .andExpect(jsonPath("$.pageSize").value(1));
     }

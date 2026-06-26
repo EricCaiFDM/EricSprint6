@@ -401,6 +401,37 @@ a {
   gap: 0.82rem;
 }
 
+.payments-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.82rem;
+}
+
+.payments-transfer-card {
+  grid-column: span 2;
+}
+
+.history-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.68rem;
+  align-items: end;
+  margin-bottom: 0.86rem;
+}
+
+.payments-pagination {
+  margin-top: 0.82rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.payments-receipt-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .surface-card {
   border: 1px solid var(--line-200);
   border-radius: 14px;
@@ -827,10 +858,16 @@ button:disabled {
 
   .summary-grid,
   .two-column-grid,
+  .payments-ops-grid,
+  .history-filter-grid,
   .inline-fields,
   .account-grid,
   .side-rail {
     grid-template-columns: 1fr;
+  }
+
+  .payments-transfer-card {
+    grid-column: span 1;
   }
 
   .content-surface,

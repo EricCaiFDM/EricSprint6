@@ -103,7 +103,7 @@
 - [X] T036 [P] Align transaction endpoint payloads with contract in specs/005-transaction-operations/contracts/openapi.yaml
 - [X] T037 Add structured transaction telemetry fields in backend/src/main/java/com/example/banking/lib/observability/transaction-log-fields.java
 - [X] T038 Update executable verification steps in specs/005-transaction-operations/quickstart.md
-- [ ] T039 Run quickstart scenario validation and record outcomes in specs/005-transaction-operations/quickstart.md
+- [X] T039 Run quickstart scenario validation and record outcomes in specs/005-transaction-operations/quickstart.md
 
 ---
 

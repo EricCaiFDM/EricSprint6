@@ -69,6 +69,13 @@ export function setActiveCustomerId(customerId: string): void {
   writeStorage(CUSTOMER_ID_KEY, customerId);
 }
 
+export function clearActiveCustomerId(): void {
+  if (!hasStorage()) {
+    return;
+  }
+  window.localStorage.removeItem(CUSTOMER_ID_KEY);
+}
+
 export function getActiveCustomerId(): string | null {
   const saved = readStorage(CUSTOMER_ID_KEY);
   if (saved && saved.trim().length > 0) {

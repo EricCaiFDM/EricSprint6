@@ -8,7 +8,7 @@ import { formatCurrency, formatDate } from "../utils/formatting";
 export function DashboardPage() {
   const accountsQuery = useQuery({
     queryKey: ["accounts"],
-    queryFn: fetchAccounts
+    queryFn: () => fetchAccounts()
   });
   const transactionsQuery = useQuery({
     queryKey: ["transactions", "recent"],
