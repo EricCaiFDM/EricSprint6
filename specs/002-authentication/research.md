@@ -1,7 +1,7 @@
 # Phase 0 Research: Authentication
 
 ## Decision 1: Stateless Access Token + Stateful Refresh Token
-- Decision: Use short-lived stateless JWT access tokens and stateful refresh tokens persisted in PostgreSQL.
+- Decision: Use short-lived stateless JWT access tokens and stateful refresh tokens persisted in MySQL (runtime) with H2 for local development and test execution.
 - Rationale: Keeps authorization checks fast for access tokens while allowing revocation, rotation, and replay controls through persisted refresh token records.
 - Alternatives considered:
   - Fully stateless refresh tokens: rejected due to weak revocation and replay control.

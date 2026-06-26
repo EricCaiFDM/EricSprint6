@@ -4,6 +4,12 @@ This workspace now contains a consolidated master spec plus feature-specific spl
 
 Canonical tool stack reference:
 - [Project Tool Stack](../TOOL-STACK.md)
+- [Definition of Done](../DEFINITION-OF-DONE.md)
+
+## Feature Creation Policy
+- Every new feature MUST include test artifacts and test tasks from the start.
+- At minimum, include negative-path tests plus integration/contract tests where endpoints or external contracts exist.
+- A feature is not considered complete until tests are implemented and passing according to [Definition of Done](../DEFINITION-OF-DONE.md).
 
 ## Master Spec
 - [001 User Auth Flows](001-user-auth-flows/spec.md)

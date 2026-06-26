@@ -115,3 +115,47 @@ directories captured above]
 |-----------|------------|-------------------------------------|
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+
+## Definition of Done Alignment
+
+Reference: [DEFINITION-OF-DONE.md](../../DEFINITION-OF-DONE.md)
+
+### Specification Complete
+- [ ] Feature spec written and approved before development
+- [ ] Business rules, acceptance criteria, negative scenarios, and error codes defined
+- [ ] OpenAPI contract complete
+- [ ] Allowed/forbidden libraries and guardrail rules documented
+
+### Implementation Complete
+- [ ] Spring Boot implementation uses required libraries and avoids forbidden patterns
+- [ ] React implementation uses spec-first client patterns and proper error handling
+- [ ] Implementation matches OpenAPI exactly with no undeclared fields
+
+### Testing Complete
+- [ ] 70%+ code coverage target defined and tracked
+- [ ] Contract tests passing
+- [ ] Negative tests implemented
+- [ ] Integration tests executed against mock server
+
+### Guardrails Enforced
+- [ ] Prompt/workflow references the feature spec
+- [ ] No insecure AI-suggested dependencies included
+- [ ] Static analysis, secret scanning, and dependency audit pass
+
+### Git Workflow Complete
+- [ ] Feature branch -> PR -> develop workflow used
+- [ ] Two peer approvals required
+- [ ] CI passing and commit messages meaningful
+- [ ] No direct commits to protected branches
+
+### Documentation Complete
+- [ ] OpenAPI updated and Swagger UI renders
+- [ ] README updated
+- [ ] Request/response examples included
+
+### Demo Ready
+- [ ] API running
+- [ ] Positive and negative paths demonstrated
+- [ ] Contract tests shown
+- [ ] Documentation presented
+- [ ] Guardrails explained

@@ -155,6 +155,15 @@
 
 ---
 
+### Definition of Done (MANDATORY)
+
+- [ ] TXXX Verify specification completeness (business rules, acceptance criteria, negative scenarios, error codes, OpenAPI, allowed/forbidden libraries, guardrails)
+- [ ] TXXX Verify implementation matches OpenAPI exactly (no undocumented fields or behavior)
+- [ ] TXXX Verify test obligations (>=70% coverage, contract tests, negative tests, mock-server integration tests)
+- [ ] TXXX Verify guardrails (spec reference, secure dependencies, static analysis, secret scan, dependency audit)
+- [ ] TXXX Verify git workflow evidence (feature branch, PR to develop, 2 approvals, passing CI, meaningful commits)
+- [ ] TXXX Verify documentation/demo readiness (OpenAPI, Swagger UI, README, examples, positive/negative demo)
+
 ## Notes
 
 - All tasks follow checklist format with Task ID, optional parallel marker, optional story label, and explicit file paths.

@@ -1,0 +1,30 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: banking-backend
+  profiles:
+    default: local
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/bankingdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:banking_app}
+    password: ${DB_PASSWORD:banking_app}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+security:
+  jwt:
+    issuer: banking-backend
+    secret: ${JWT_SECRET:northbridge-demo-signing-secret-key-2026-at-least-32-chars}
+    access-token-ttl-minutes: 15
+    refresh-token-ttl-days: 7
+
+customer:
+  masking-enabled: true

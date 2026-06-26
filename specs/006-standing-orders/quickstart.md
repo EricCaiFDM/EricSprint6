@@ -1,10 +1,10 @@
 # Quickstart: Standing Orders Feature Validation
 
 ## Prerequisites
-- Java 17+
-- Maven or Gradle
-- React 18 toolchain (Vite or CRA) with TypeScript support
-- PostgreSQL 15+
+- Java 21
+- Maven (pom.xml)
+- React 18 + React Query v5 + Axios + Vite (JavaScript ES2022 frontend)
+- MySQL (runtime) and H2 (local development/test execution)
 - Postman and Prism mock server available for API validation and mocking
 - Environment configured for Spring Boot backend, React frontend, DB connection, RBAC seed data, and scheduler worker execution
 

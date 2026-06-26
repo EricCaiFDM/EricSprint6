@@ -24,8 +24,16 @@ paths:
                 $ref: '#/components/schemas/RegisterResponse'
         '400':
           description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '409':
           description: Duplicate identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /auth/login:
     post:
       summary: Authenticate user credentials
@@ -44,6 +52,10 @@ paths:
                 $ref: '#/components/schemas/LoginResponse'
         '401':
           description: Invalid credentials or ineligible account state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /auth/password-reset/request:
     post:
       summary: Request password reset initiation
@@ -78,8 +90,20 @@ paths:
                 $ref: '#/components/schemas/RefreshResponse'
         '401':
           description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   schemas:
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
     RegisterRequest:
       type: object
       required: [email, password, passwordConfirmation]
@@ -153,3 +177,7 @@ components:
           type: string
         expiresIn:
           type: integer
+      example:
+        accessToken: acc-6a3ff377-229f-49bd-b9fe-2c2a2634da10-1761322000
+        refreshToken: ref-6a3ff377-229f-49bd-b9fe-2c2a2634da10-4b7cf271-c850-4cda-9840-bec58adf4f43
+        expiresIn: 900
