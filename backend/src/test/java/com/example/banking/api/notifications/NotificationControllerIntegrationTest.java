@@ -2,6 +2,7 @@ package com.example.banking.api.notifications;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -50,6 +51,42 @@ class NotificationControllerIntegrationTest {
 
         JsonNode response = objectMapper.readTree(result.getResponse().getContentAsString());
         return response.get("customerId").asText();
+    }
+
+    @Test
+    void notificationPreferencesCanBeReadAndUpdated() throws Exception {
+        mockMvc.perform(get("/notifications/preferences")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-pref-100").claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pushEnabled").value(false))
+                .andExpect(jsonPath("$.emailEnabled").value(true))
+                .andExpect(jsonPath("$.smsEnabled").value(true))
+                .andExpect(jsonPath("$.marketingEnabled").value(false));
+
+        String updatePayload = "{" +
+                "\"pushEnabled\":true," +
+                "\"emailEnabled\":false," +
+                "\"smsEnabled\":false," +
+                "\"marketingEnabled\":true" +
+                "}";
+
+        mockMvc.perform(patch("/notifications/preferences")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-pref-100").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updatePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pushEnabled").value(true))
+                .andExpect(jsonPath("$.emailEnabled").value(false))
+                .andExpect(jsonPath("$.smsEnabled").value(false))
+                .andExpect(jsonPath("$.marketingEnabled").value(true));
+
+        mockMvc.perform(get("/notifications/preferences")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-pref-100").claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.pushEnabled").value(true))
+                .andExpect(jsonPath("$.emailEnabled").value(false))
+                .andExpect(jsonPath("$.smsEnabled").value(false))
+                .andExpect(jsonPath("$.marketingEnabled").value(true));
     }
 
     @Test

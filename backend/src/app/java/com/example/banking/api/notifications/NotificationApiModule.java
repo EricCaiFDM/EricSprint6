@@ -5,13 +5,15 @@ import org.springframework.context.annotation.Import;
 
 import com.example.banking.api.notifications.routes.GetNotificationEventRoute;
 import com.example.banking.api.notifications.routes.ListNotificationAttemptsRoute;
+import com.example.banking.api.notifications.routes.NotificationPreferencesRoute;
 import com.example.banking.api.notifications.routes.TriggerNotificationRoute;
 
 @Configuration
 @Import({
         TriggerNotificationRoute.class,
         GetNotificationEventRoute.class,
-        ListNotificationAttemptsRoute.class
+        ListNotificationAttemptsRoute.class,
+        NotificationPreferencesRoute.class
 })
 public class NotificationApiModule {
 }
