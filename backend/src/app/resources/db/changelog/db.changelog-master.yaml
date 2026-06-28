@@ -7,3 +7,5 @@ databaseChangeLog:
       file: db/changelog/changes/20260625_transaction_ops_init.xml
   - include:
       file: db/changelog/changes/20260625_standing_orders_init.xml
+  - include:
+      file: db/changelog/changes/20260625_notifications_init.xml

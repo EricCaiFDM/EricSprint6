@@ -8,9 +8,9 @@
 
 **Purpose**: Initialize notifications module scaffolding and baseline configuration
 
-- [ ] T001 Create notifications API module entrypoint in backend/src/main/java/com/example/banking/api/notifications/index.java
-- [ ] T002 Add notifications module configuration schema in backend/src/main/java/com/example/banking/lib/config/notifications-config.java
-- [ ] T003 [P] Add notifications module dependency wiring in backend/src/main/java/com/example/banking/lib/container.java
+- [X] T001 Create notifications API module entrypoint in backend/src/main/java/com/example/banking/api/notifications/index.java
+- [X] T002 Add notifications module configuration schema in backend/src/main/java/com/example/banking/lib/config/notifications-config.java
+- [X] T003 [P] Add notifications module dependency wiring in backend/src/main/java/com/example/banking/lib/container.java
 
 ---
 
@@ -20,15 +20,15 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [ ] T004 Define notification entities and enums in backend/src/main/resources/db/changelog/db.changelog-master.yaml
-- [ ] T005 Create notifications migration in backend/src/main/resources/db/changelog/changes/20260625_notifications_init.xml
-- [ ] T006 [P] Implement consent and channel-preference policy evaluator in backend/src/main/java/com/example/banking/lib/security/notification-preference-policy.java
-- [ ] T007 [P] Implement template context sanitization utility in backend/src/main/java/com/example/banking/lib/security/notification-template-sanitizer.java
-- [ ] T008 Implement notification event repository abstractions in backend/src/main/java/com/example/banking/services/notification-event-repository.java
-- [ ] T009 Implement dispatch attempt repository abstractions in backend/src/main/java/com/example/banking/services/notification-dispatch-attempt-repository.java
-- [ ] T010 Implement delivery outcome repository abstractions in backend/src/main/java/com/example/banking/services/notification-delivery-outcome-repository.java
-- [ ] T011 Implement retry and fallback policy service in backend/src/main/java/com/example/banking/services/notification-retry-fallback-policy-service.java
-- [ ] T012 Implement notifications error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/notification-errors.java
+- [X] T004 Define notification entities and enums in backend/src/main/resources/db/changelog/db.changelog-master.yaml
+- [X] T005 Create notifications migration in backend/src/main/resources/db/changelog/changes/20260625_notifications_init.xml
+- [X] T006 [P] Implement consent and channel-preference policy evaluator in backend/src/main/java/com/example/banking/lib/security/notification-preference-policy.java
+- [X] T007 [P] Implement template context sanitization utility in backend/src/main/java/com/example/banking/lib/security/notification-template-sanitizer.java
+- [X] T008 Implement notification event repository abstractions in backend/src/main/java/com/example/banking/services/notification-event-repository.java
+- [X] T009 Implement dispatch attempt repository abstractions in backend/src/main/java/com/example/banking/services/notification-dispatch-attempt-repository.java
+- [X] T010 Implement delivery outcome repository abstractions in backend/src/main/java/com/example/banking/services/notification-delivery-outcome-repository.java
+- [X] T011 Implement retry and fallback policy service in backend/src/main/java/com/example/banking/services/notification-retry-fallback-policy-service.java
+- [X] T012 Implement notifications error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/notification-errors.java
 
 **Checkpoint**: Foundation complete - user story implementation can begin
 
@@ -42,15 +42,15 @@
 
 ### Implementation for User Story 1
 
-- [ ] T013 [P] [US1] Implement notification-event domain model in backend/src/main/java/com/example/banking/models/notification-event.java
-- [ ] T014 [P] [US1] Implement trigger-notification request schema in backend/src/main/java/com/example/banking/api/notifications/schemas/trigger-notification-schema.java
-- [ ] T015 [P] [US1] Implement event-status query schema in backend/src/main/java/com/example/banking/api/notifications/schemas/get-notification-event-schema.java
-- [ ] T016 [US1] Implement trigger-notification ingestion service in backend/src/main/java/com/example/banking/services/trigger-notification-service.java
-- [ ] T017 [US1] Implement dispatch worker orchestration service in backend/src/main/java/com/example/banking/workers/notifications/notification-dispatch-worker.java
-- [ ] T018 [US1] Implement channel dispatch adapter interface and default adapter in backend/src/main/java/com/example/banking/services/channel-dispatch-adapter.java
-- [ ] T019 [US1] Implement POST /notifications/events route handler in backend/src/main/java/com/example/banking/api/notifications/routes/trigger-notification-route.java
-- [ ] T020 [US1] Implement GET /notifications/events/{notificationEventId} route handler in backend/src/main/java/com/example/banking/api/notifications/routes/get-notification-event-route.java
-- [ ] T021 [US1] Register trigger/status routes in backend/src/main/java/com/example/banking/api/notifications/index.java
+- [X] T013 [P] [US1] Implement notification-event domain model in backend/src/main/java/com/example/banking/models/notification-event.java
+- [X] T014 [P] [US1] Implement trigger-notification request schema in backend/src/main/java/com/example/banking/api/notifications/schemas/trigger-notification-schema.java
+- [X] T015 [P] [US1] Implement event-status query schema in backend/src/main/java/com/example/banking/api/notifications/schemas/get-notification-event-schema.java
+- [X] T016 [US1] Implement trigger-notification ingestion service in backend/src/main/java/com/example/banking/services/trigger-notification-service.java
+- [X] T017 [US1] Implement dispatch worker orchestration service in backend/src/main/java/com/example/banking/workers/notifications/notification-dispatch-worker.java
+- [X] T018 [US1] Implement channel dispatch adapter interface and default adapter in backend/src/main/java/com/example/banking/services/channel-dispatch-adapter.java
+- [X] T019 [US1] Implement POST /notifications/events route handler in backend/src/main/java/com/example/banking/api/notifications/routes/trigger-notification-route.java
+- [X] T020 [US1] Implement GET /notifications/events/{notificationEventId} route handler in backend/src/main/java/com/example/banking/api/notifications/routes/get-notification-event-route.java
+- [X] T021 [US1] Register trigger/status routes in backend/src/main/java/com/example/banking/api/notifications/index.java
 
 **Checkpoint**: User Story 1 is independently functional
 
@@ -64,14 +64,14 @@
 
 ### Implementation for User Story 2
 
-- [ ] T022 [P] [US2] Implement preference snapshot domain model in backend/src/main/java/com/example/banking/models/notification-preference-snapshot.java
-- [ ] T023 [P] [US2] Implement attempts-list query schema in backend/src/main/java/com/example/banking/api/notifications/schemas/list-notification-attempts-schema.java
-- [ ] T024 [US2] Integrate consent and channel-preference checks in backend/src/main/java/com/example/banking/workers/notifications/notification-dispatch-worker.java
-- [ ] T025 [US2] Implement restricted-delivery blocking and reason-code mapping in backend/src/main/java/com/example/banking/services/notification-preference-enforcement-service.java
-- [ ] T026 [US2] Implement retry/fallback attempt scheduler in backend/src/main/java/com/example/banking/services/notification-retry-fallback-policy-service.java
-- [ ] T027 [US2] Persist blocked/failure outcomes in backend/src/main/java/com/example/banking/services/notification-delivery-outcome-repository.java
-- [ ] T028 [US2] Implement GET /notifications/events/{notificationEventId}/attempts route handler in backend/src/main/java/com/example/banking/api/notifications/routes/list-notification-attempts-route.java
-- [ ] T029 [US2] Register attempts route in backend/src/main/java/com/example/banking/api/notifications/index.java
+- [X] T022 [P] [US2] Implement preference snapshot domain model in backend/src/main/java/com/example/banking/models/notification-preference-snapshot.java
+- [X] T023 [P] [US2] Implement attempts-list query schema in backend/src/main/java/com/example/banking/api/notifications/schemas/list-notification-attempts-schema.java
+- [X] T024 [US2] Integrate consent and channel-preference checks in backend/src/main/java/com/example/banking/workers/notifications/notification-dispatch-worker.java
+- [X] T025 [US2] Implement restricted-delivery blocking and reason-code mapping in backend/src/main/java/com/example/banking/services/notification-preference-enforcement-service.java
+- [X] T026 [US2] Implement retry/fallback attempt scheduler in backend/src/main/java/com/example/banking/services/notification-retry-fallback-policy-service.java
+- [X] T027 [US2] Persist blocked/failure outcomes in backend/src/main/java/com/example/banking/services/notification-delivery-outcome-repository.java
+- [X] T028 [US2] Implement GET /notifications/events/{notificationEventId}/attempts route handler in backend/src/main/java/com/example/banking/api/notifications/routes/list-notification-attempts-route.java
+- [X] T029 [US2] Register attempts route in backend/src/main/java/com/example/banking/api/notifications/index.java
 
 **Checkpoint**: User Story 2 is independently functional
 
@@ -81,10 +81,10 @@
 
 **Purpose**: Ensure contract, observability, and validation documentation are aligned
 
-- [ ] T030 [P] Align notification endpoint payloads with contract in specs/007-notifications/contracts/openapi.yaml
-- [ ] T031 Add structured notification telemetry fields in backend/src/main/java/com/example/banking/lib/observability/notification-log-fields.java
-- [ ] T032 Update executable verification steps in specs/007-notifications/quickstart.md
-- [ ] T033 Run quickstart scenario validation and record outcomes in specs/007-notifications/quickstart.md
+- [X] T030 [P] Align notification endpoint payloads with contract in specs/007-notifications/contracts/openapi.yaml
+- [X] T031 Add structured notification telemetry fields in backend/src/main/java/com/example/banking/lib/observability/notification-log-fields.java
+- [X] T032 Update executable verification steps in specs/007-notifications/quickstart.md
+- [X] T033 Run quickstart scenario validation and record outcomes in specs/007-notifications/quickstart.md
 
 ---
 

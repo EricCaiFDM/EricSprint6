@@ -55,3 +55,21 @@ Expected outcome:
 
 ## Data Model References
 - Entity definitions and relationships are documented in [data-model.md](data-model.md).
+
+## Execution Notes (Current Validation)
+
+Commands executed:
+
+```bash
+cd backend
+mvn -Dtest=NotificationControllerIntegrationTest test
+```
+
+Observed results:
+- Backend Maven test execution is currently blocked in this environment (`mvn: command not found`).
+- Java diagnostics across notification app and test sources report no compile-time errors.
+
+Covered test scenarios in `NotificationControllerIntegrationTest`:
+- Trigger event records delivery and exposes status and attempts
+- Restricted consent blocks delivery and records blocked status
+- Primary channel unavailable path records retry/fallback attempts and delivery

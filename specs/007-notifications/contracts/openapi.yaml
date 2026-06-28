@@ -113,7 +113,7 @@ components:
           format: uuid
         status:
           type: string
-          enum: [PENDING, PROCESSING]
+          enum: [PENDING, PROCESSING, COMPLETED, BLOCKED, FAILED]
     NotificationEventResponse:
       type: object
       required: [notificationEventId, eventType, status, triggeredAtUtc]
