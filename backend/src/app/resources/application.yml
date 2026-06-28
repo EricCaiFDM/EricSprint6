@@ -36,3 +36,11 @@ transaction:
   default-currency-code: USD
   history-max-page-size: 100
   idempotency-ttl-hours: 24
+
+standing-order:
+  max-page-size: 100
+  scheduler-window-minutes: 5
+  scheduler-fixed-delay-ms: 60000
+  max-retry-attempts: 3
+  retry-delay-minutes: 30
+  default-retry-policy-code: STANDARD

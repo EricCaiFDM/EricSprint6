@@ -7,6 +7,20 @@ servers:
   - url: https://api.example.com
 paths:
   /standing-orders:
+    get:
+      summary: List standing orders in caller scope
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Standing orders returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderListResponse'
+        '403':
+          description: Insufficient permission
     post:
       summary: Create standing order
       requestBody:
@@ -257,6 +271,22 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/StandingOrderExecutionItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+    StandingOrderListResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StandingOrderResponse'
         page:
           type: integer
         pageSize:

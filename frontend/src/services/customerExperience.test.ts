@@ -855,22 +855,32 @@ describe("customer experience services", () => {
     expect(history.totalItems).toBe(0);
   });
 
-  it("creates recurring payment and maps response id", async () => {
+  it("creates standing order and maps contract response", async () => {
     jest.spyOn(apiClient, "post").mockResolvedValue({
-      data: { standingOrderId: "so-100" }
+      data: {
+        standingOrderId: "so-100",
+        sourceAccountId: "acc-main",
+        destinationAccountId: "acc-save",
+        amount: "1950.00",
+        cadence: "MONTHLY",
+        lifecycleState: "ACTIVE",
+        nextExecutionAtUtc: "2026-07-01T00:00:00Z",
+        effectiveFromUtc: "2026-07-01T00:00:00Z",
+        effectiveToUtc: null
+      }
     } as never);
 
     const created = await createStandingOrder({
-      payeeName: "Citywide Rent",
       sourceAccountId: "acc-main",
+      destinationAccountId: "acc-save",
       amount: 1950,
-      frequency: "Monthly",
-      nextRunAt: "2026-07-01"
+      cadence: "MONTHLY",
+      effectiveFromUtc: "2026-07-01T00:00:00Z"
     });
 
     expect(created.standingOrderId).toBe("so-100");
-    expect(created.frequency).toBe("Monthly");
-    expect(created.status).toBe("Active");
+    expect(created.cadence).toBe("MONTHLY");
+    expect(created.lifecycleState).toBe("ACTIVE");
   });
 
   it("reads notification preferences from API response", async () => {

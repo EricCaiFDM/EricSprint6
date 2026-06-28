@@ -8,9 +8,9 @@
 
 **Purpose**: Initialize standing-orders module scaffolding and baseline configuration
 
-- [ ] T001 Create standing-orders API module entrypoint in backend/src/main/java/com/example/banking/api/standing-orders/index.java
-- [ ] T002 Add standing-orders module configuration schema in backend/src/main/java/com/example/banking/lib/config/standing-orders-config.java
-- [ ] T003 [P] Add standing-orders module dependency wiring in backend/src/main/java/com/example/banking/lib/container.java
+- [X] T001 Create standing-orders API module entrypoint in backend/src/main/java/com/example/banking/api/standing-orders/index.java
+- [X] T002 Add standing-orders module configuration schema in backend/src/main/java/com/example/banking/lib/config/standing-orders-config.java
+- [X] T003 [P] Add standing-orders module dependency wiring in backend/src/main/java/com/example/banking/lib/container.java
 
 ---
 
@@ -20,16 +20,16 @@
 
 **⚠️ CRITICAL**: No user story work should begin until this phase is complete
 
-- [ ] T004 Define standing-order entities and enums in backend/src/main/resources/db/changelog/db.changelog-master.yaml
-- [ ] T005 Create standing-orders migration in backend/src/main/resources/db/changelog/changes/20260625_standing_orders_init.xml
-- [ ] T006 [P] Implement standing-order RBAC scope policy utility in backend/src/main/java/com/example/banking/lib/security/standing-order-access-policy.java
-- [ ] T007 [P] Implement UTC schedule calculation utility in backend/src/main/java/com/example/banking/lib/scheduling/standing-order-schedule-calculator.java
-- [ ] T008 Implement standing-order lifecycle transition policy service in backend/src/main/java/com/example/banking/services/standing-order-lifecycle-policy-service.java
-- [ ] T009 Implement standing-order repository abstractions in backend/src/main/java/com/example/banking/services/standing-order-repository.java
-- [ ] T010 Implement execution event repository abstractions in backend/src/main/java/com/example/banking/services/standing-order-execution-event-repository.java
-- [ ] T011 Implement retry policy evaluator service in backend/src/main/java/com/example/banking/services/standing-order-retry-policy-service.java
-- [ ] T012 Implement standing-order error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/standing-order-errors.java
-- [ ] T013 Implement standing-order lifecycle audit service in backend/src/main/java/com/example/banking/services/standing-order-lifecycle-audit-service.java
+- [X] T004 Define standing-order entities and enums in backend/src/main/resources/db/changelog/db.changelog-master.yaml
+- [X] T005 Create standing-orders migration in backend/src/main/resources/db/changelog/changes/20260625_standing_orders_init.xml
+- [X] T006 [P] Implement standing-order RBAC scope policy utility in backend/src/main/java/com/example/banking/lib/security/standing-order-access-policy.java
+- [X] T007 [P] Implement UTC schedule calculation utility in backend/src/main/java/com/example/banking/lib/scheduling/standing-order-schedule-calculator.java
+- [X] T008 Implement standing-order lifecycle transition policy service in backend/src/main/java/com/example/banking/services/standing-order-lifecycle-policy-service.java
+- [X] T009 Implement standing-order repository abstractions in backend/src/main/java/com/example/banking/services/standing-order-repository.java
+- [X] T010 Implement execution event repository abstractions in backend/src/main/java/com/example/banking/services/standing-order-execution-event-repository.java
+- [X] T011 Implement retry policy evaluator service in backend/src/main/java/com/example/banking/services/standing-order-retry-policy-service.java
+- [X] T012 Implement standing-order error mapping utilities in backend/src/main/java/com/example/banking/lib/errors/standing-order-errors.java
+- [X] T013 Implement standing-order lifecycle audit service in backend/src/main/java/com/example/banking/services/standing-order-lifecycle-audit-service.java
 
 **Checkpoint**: Foundation complete - user story implementation can begin
 
@@ -43,16 +43,16 @@
 
 ### Implementation for User Story 1
 
-- [ ] T014 [P] [US1] Implement standing-order domain model in backend/src/main/java/com/example/banking/models/standing-order.java
-- [ ] T015 [P] [US1] Implement create-standing-order request schema in backend/src/main/java/com/example/banking/api/standing-orders/schemas/create-standing-order-schema.java
-- [ ] T016 [P] [US1] Implement update-standing-order request schema in backend/src/main/java/com/example/banking/api/standing-orders/schemas/update-standing-order-schema.java
-- [ ] T017 [US1] Implement create-standing-order service workflow in backend/src/main/java/com/example/banking/services/create-standing-order-service.java
-- [ ] T018 [US1] Implement update-standing-order service workflow in backend/src/main/java/com/example/banking/services/update-standing-order-service.java
-- [ ] T019 [US1] Implement pause/resume/cancel standing-order service workflow in backend/src/main/java/com/example/banking/services/standing-order-lifecycle-service.java
-- [ ] T020 [US1] Implement POST /standing-orders route handler in backend/src/main/java/com/example/banking/api/standing-orders/routes/create-standing-order-route.java
-- [ ] T021 [US1] Implement PATCH /standing-orders/{standingOrderId} route handler in backend/src/main/java/com/example/banking/api/standing-orders/routes/update-standing-order-route.java
-- [ ] T022 [US1] Implement pause/resume/cancel route handlers in backend/src/main/java/com/example/banking/api/standing-orders/routes/lifecycle-routes.java
-- [ ] T023 [US1] Register standing-order lifecycle routes in backend/src/main/java/com/example/banking/api/standing-orders/index.java
+- [X] T014 [P] [US1] Implement standing-order domain model in backend/src/main/java/com/example/banking/models/standing-order.java
+- [X] T015 [P] [US1] Implement create-standing-order request schema in backend/src/main/java/com/example/banking/api/standing-orders/schemas/create-standing-order-schema.java
+- [X] T016 [P] [US1] Implement update-standing-order request schema in backend/src/main/java/com/example/banking/api/standing-orders/schemas/update-standing-order-schema.java
+- [X] T017 [US1] Implement create-standing-order service workflow in backend/src/main/java/com/example/banking/services/create-standing-order-service.java
+- [X] T018 [US1] Implement update-standing-order service workflow in backend/src/main/java/com/example/banking/services/update-standing-order-service.java
+- [X] T019 [US1] Implement pause/resume/cancel standing-order service workflow in backend/src/main/java/com/example/banking/services/standing-order-lifecycle-service.java
+- [X] T020 [US1] Implement POST /standing-orders route handler in backend/src/main/java/com/example/banking/api/standing-orders/routes/create-standing-order-route.java
+- [X] T021 [US1] Implement PATCH /standing-orders/{standingOrderId} route handler in backend/src/main/java/com/example/banking/api/standing-orders/routes/update-standing-order-route.java
+- [X] T022 [US1] Implement pause/resume/cancel route handlers in backend/src/main/java/com/example/banking/api/standing-orders/routes/lifecycle-routes.java
+- [X] T023 [US1] Register standing-order lifecycle routes in backend/src/main/java/com/example/banking/api/standing-orders/index.java
 
 **Checkpoint**: User Story 1 is independently functional
 
@@ -66,15 +66,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T024 [P] [US2] Implement scheduler due-window query utility in backend/src/main/java/com/example/banking/jobs/standing-orders/due-window-query.java
-- [ ] T025 [P] [US2] Implement scheduler claim cursor service in backend/src/main/java/com/example/banking/jobs/standing-orders/schedule-cursor-service.java
-- [ ] T026 [US2] Implement standing-order execution orchestrator in backend/src/main/java/com/example/banking/services/standing-order-execution-orchestrator.java
-- [ ] T027 [US2] Integrate transfer eligibility and funds-availability checks in backend/src/main/java/com/example/banking/services/standing-order-execution-orchestrator.java
-- [ ] T028 [US2] Implement retry scheduling logic for failed executions in backend/src/main/java/com/example/banking/services/standing-order-retry-policy-service.java
-- [ ] T029 [US2] Persist execution outcome events in backend/src/main/java/com/example/banking/services/standing-order-execution-event-repository.java
-- [ ] T030 [US2] Implement scheduler runner job in backend/src/main/java/com/example/banking/jobs/standing-orders/standing-order-scheduler-job.java
-- [ ] T031 [US2] Implement GET /standing-orders/{standingOrderId}/executions route handler in backend/src/main/java/com/example/banking/api/standing-orders/routes/list-executions-route.java
-- [ ] T032 [US2] Register execution outcomes route in backend/src/main/java/com/example/banking/api/standing-orders/index.java
+- [X] T024 [P] [US2] Implement scheduler due-window query utility in backend/src/main/java/com/example/banking/jobs/standing-orders/due-window-query.java
+- [X] T025 [P] [US2] Implement scheduler claim cursor service in backend/src/main/java/com/example/banking/jobs/standing-orders/schedule-cursor-service.java
+- [X] T026 [US2] Implement standing-order execution orchestrator in backend/src/main/java/com/example/banking/services/standing-order-execution-orchestrator.java
+- [X] T027 [US2] Integrate transfer eligibility and funds-availability checks in backend/src/main/java/com/example/banking/services/standing-order-execution-orchestrator.java
+- [X] T028 [US2] Implement retry scheduling logic for failed executions in backend/src/main/java/com/example/banking/services/standing-order-retry-policy-service.java
+- [X] T029 [US2] Persist execution outcome events in backend/src/main/java/com/example/banking/services/standing-order-execution-event-repository.java
+- [X] T030 [US2] Implement scheduler runner job in backend/src/main/java/com/example/banking/jobs/standing-orders/standing-order-scheduler-job.java
+- [X] T031 [US2] Implement GET /standing-orders/{standingOrderId}/executions route handler in backend/src/main/java/com/example/banking/api/standing-orders/routes/list-executions-route.java
+- [X] T032 [US2] Register execution outcomes route in backend/src/main/java/com/example/banking/api/standing-orders/index.java
 
 **Checkpoint**: User Story 2 is independently functional
 
@@ -84,10 +84,10 @@
 
 **Purpose**: Ensure contract, docs, and observability are aligned across lifecycle and execution flows
 
-- [ ] T033 [P] Align standing-order endpoint payloads with contract in specs/006-standing-orders/contracts/openapi.yaml
-- [ ] T034 Add structured execution telemetry fields in backend/src/main/java/com/example/banking/lib/observability/standing-order-log-fields.java
-- [ ] T035 Update executable verification steps in specs/006-standing-orders/quickstart.md
-- [ ] T036 Run quickstart scenario validation and record outcomes in specs/006-standing-orders/quickstart.md
+- [X] T033 [P] Align standing-order endpoint payloads with contract in specs/006-standing-orders/contracts/openapi.yaml
+- [X] T034 Add structured execution telemetry fields in backend/src/main/java/com/example/banking/lib/observability/standing-order-log-fields.java
+- [X] T035 Update executable verification steps in specs/006-standing-orders/quickstart.md
+- [X] T036 Run quickstart scenario validation and record outcomes in specs/006-standing-orders/quickstart.md
 
 ---
 
