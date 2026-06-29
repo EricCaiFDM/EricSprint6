@@ -59,6 +59,9 @@ export function PaymentsPage() {
   const [feedback, setFeedback] = useState("Deposit, withdraw, transfer, and review all transactions in one place.");
   const [notificationFeedback, setNotificationFeedback] = useState<string | null>(null);
   const [lastOperation, setLastOperation] = useState<OperationReceipt | null>(null);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
 
   const accountsQuery = useQuery({
     queryKey: ["accounts", "payments", isAdmin ? customerScopeId : "self"],
@@ -216,6 +219,7 @@ export function PaymentsPage() {
   const depositMutation = useMutation({
     mutationFn: submitDeposit,
     onSuccess: async (receipt, variables) => {
+      setDepositError(null);
       applyBalancePatch([
         {
           accountId: variables.accountId,
@@ -230,12 +234,13 @@ export function PaymentsPage() {
         refreshNotificationFeed("Deposit Posted")
       ]);
     },
-    onError: (error) => setFeedback(`Deposit failed: ${(error as Error).message}`)
+    onError: (error) => setDepositError(`Deposit failed: ${(error as Error).message}`)
   });
 
   const withdrawMutation = useMutation({
     mutationFn: submitWithdrawal,
     onSuccess: async (receipt, variables) => {
+      setWithdrawError(null);
       applyBalancePatch([
         {
           accountId: variables.accountId,
@@ -247,12 +252,13 @@ export function PaymentsPage() {
       setWithdrawAmount("");
       await refreshAll();
     },
-    onError: (error) => setFeedback(`Withdrawal failed: ${(error as Error).message}`)
+    onError: (error) => setWithdrawError(`Withdrawal failed: ${(error as Error).message}`)
   });
 
   const transferMutation = useMutation({
     mutationFn: submitTransfer,
     onSuccess: async (receipt, variables) => {
+      setTransferError(null);
       applyBalancePatch([
         {
           accountId: variables.sourceAccountId,
@@ -271,11 +277,12 @@ export function PaymentsPage() {
         refreshNotificationFeed("Transfer Completed")
       ]);
     },
-    onError: (error) => setFeedback(`Transfer failed: ${(error as Error).message}`)
+    onError: (error) => setTransferError(`Transfer failed: ${(error as Error).message}`)
   });
 
   const onDepositSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setDepositError(null);
 
     depositMutation.mutate({
       accountId: depositAccountId,
@@ -286,6 +293,7 @@ export function PaymentsPage() {
 
   const onWithdrawSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setWithdrawError(null);
 
     withdrawMutation.mutate({
       accountId: withdrawAccountId,
@@ -296,6 +304,7 @@ export function PaymentsPage() {
 
   const onTransferSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setTransferError(null);
 
     transferMutation.mutate({
       sourceAccountId: transferSourceAccountId,
@@ -432,6 +441,7 @@ export function PaymentsPage() {
                 {depositMutation.isPending ? "Depositing..." : "Submit deposit"}
               </button>
             </div>
+            {depositError ? <p className="inline-error" role="alert">{depositError}</p> : null}
           </form>
         </article>
 
@@ -472,6 +482,7 @@ export function PaymentsPage() {
                 {withdrawMutation.isPending ? "Withdrawing..." : "Submit withdrawal"}
               </button>
             </div>
+            {withdrawError ? <p className="inline-error" role="alert">{withdrawError}</p> : null}
           </form>
         </article>
 
@@ -529,6 +540,7 @@ export function PaymentsPage() {
                 {transferMutation.isPending ? "Transferring..." : "Submit transfer"}
               </button>
             </div>
+            {transferError ? <p className="inline-error" role="alert">{transferError}</p> : null}
           </form>
         </article>
       </section>

@@ -572,6 +572,17 @@ button:disabled {
   color: var(--ink-700);
 }
 
+.inline-error {
+  margin-top: 0.55rem;
+  border: 1px solid #efc2cb;
+  border-radius: 10px;
+  background: #fff3f5;
+  color: #8d2644;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  padding: 0.5rem 0.62rem;
+}
+
 .customer-close-card {
   border-color: #efc9ab;
   background: linear-gradient(145deg, #fff8f3 0%, #fff0e5 100%);

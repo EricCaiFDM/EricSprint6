@@ -21,6 +21,7 @@ export function AccountManagementPage() {
   const [feedback, setFeedback] = useState(
     "Create and list accounts in this workspace, then open a specific account to view and update it."
   );
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const [openForm, setOpenForm] = useState<CreateCustomerAccountInput>({
     accountType: "CHECKING",
@@ -37,12 +38,13 @@ export function AccountManagementPage() {
   const createMutation = useMutation({
     mutationFn: createCustomerAccount,
     onSuccess: async (account) => {
+      setCreateError(null);
       setFeedback(`Account created: ${account.accountName} (${account.accountNumberMasked}).`);
       setOpenForm((previous) => ({ ...previous, nickname: "" }));
       await queryClient.invalidateQueries({ queryKey: ["accounts", "list"] });
     },
     onError: (error) => {
-      setFeedback(`Unable to create account: ${(error as Error).message}`);
+      setCreateError(`Unable to create account: ${(error as Error).message}`);
     }
   });
 
@@ -51,14 +53,16 @@ export function AccountManagementPage() {
 
     const normalizedCurrency = openForm.currencyCode.trim().toUpperCase();
     if (!/^[A-Z]{3}$/.test(normalizedCurrency)) {
-      setFeedback("Currency code must be a valid 3-letter code.");
+      setCreateError("Currency code must be a valid 3-letter code.");
       return;
     }
 
     if (isAdmin && !customerScopeId.trim()) {
-      setFeedback("Enter customer ID scope before creating accounts as admin.");
+      setCreateError("Enter customer ID scope before creating accounts as admin.");
       return;
     }
+
+    setCreateError(null);
 
     createMutation.mutate({
       ...openForm,
@@ -156,6 +160,7 @@ export function AccountManagementPage() {
                 {createMutation.isPending ? "Creating..." : "Create account"}
               </button>
             </div>
+            {createError ? <p className="inline-error" role="alert">{createError}</p> : null}
           </form>
         </article>
 

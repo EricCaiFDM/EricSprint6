@@ -42,6 +42,8 @@ export function AccountDetailsPage() {
   const [updateForm, setUpdateForm] = useState<AccountUpdateForm>(initialUpdateForm);
   const [feedback, setFeedback] = useState("Review account information and submit updates from this page.");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const detailsQuery = useQuery({
     queryKey: ["accounts", "details", accountId],
@@ -58,6 +60,7 @@ export function AccountDetailsPage() {
   const updateMutation = useMutation({
     mutationFn: updateCustomerAccount,
     onSuccess: async (account) => {
+      setUpdateError(null);
       setFeedback(`Account updated: ${account.accountName} (${account.accountId}).`);
       setUpdateForm(initialUpdateForm);
 
@@ -69,13 +72,14 @@ export function AccountDetailsPage() {
       ]);
     },
     onError: (error) => {
-      setFeedback(`Unable to update account: ${(error as Error).message}`);
+      setUpdateError(`Unable to update account: ${(error as Error).message}`);
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteCustomerAccount,
     onSuccess: (result) => {
+      setDeleteError(null);
       setFeedback(`Account ${result.status.toLowerCase()}: ${result.message}`);
 
       navigate(backPath, { replace: true });
@@ -88,7 +92,7 @@ export function AccountDetailsPage() {
       ]);
     },
     onError: (error) => {
-      setFeedback(`Unable to delete account: ${(error as Error).message}`);
+      setDeleteError(`Unable to delete account: ${(error as Error).message}`);
     }
   });
 
@@ -96,7 +100,7 @@ export function AccountDetailsPage() {
     event.preventDefault();
 
     if (!accountId) {
-      setFeedback("A valid account ID is required to update this account.");
+      setUpdateError("A valid account ID is required to update this account.");
       return;
     }
 
@@ -104,9 +108,11 @@ export function AccountDetailsPage() {
     const status = updateForm.status;
 
     if (!nickname && !status) {
-      setFeedback("Provide nickname or status to update this account.");
+      setUpdateError("Provide nickname or status to update this account.");
       return;
     }
+
+    setUpdateError(null);
 
     updateMutation.mutate({
       accountId,
@@ -117,14 +123,18 @@ export function AccountDetailsPage() {
 
   const executeDeleteAccount = () => {
     if (!accountId) {
-      setFeedback("A valid account ID is required to delete this account.");
+      setDeleteError("A valid account ID is required to delete this account.");
       return;
     }
+
+    setDeleteError(null);
 
     deleteMutation.mutate(accountId);
   };
 
   const onDeleteAccount = () => {
+    setDeleteError(null);
+
     if (isAdminPath) {
       executeDeleteAccount();
       return;
@@ -253,6 +263,8 @@ export function AccountDetailsPage() {
                 {deleteMutation.isPending ? "Deleting..." : "Delete account"}
               </button>
             </div>
+            {updateError ? <p className="inline-error" role="alert">{updateError}</p> : null}
+            {deleteError ? <p className="inline-error" role="alert">{deleteError}</p> : null}
           </form>
         </article>
       </section>

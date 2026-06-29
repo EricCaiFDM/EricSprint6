@@ -39,6 +39,9 @@ export function CustomerManagementPage() {
   const [createForm, setCreateForm] = useState<CreateCustomerProfileInput>(initialCreate);
   const [updateForm, setUpdateForm] = useState<UpdateCustomerProfileInput>(initialUpdate);
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const selfProfileQuery = useQuery({
     queryKey: ["customers", "self"],
@@ -55,13 +58,14 @@ export function CustomerManagementPage() {
   const createMutation = useMutation({
     mutationFn: createCustomerProfile,
     onSuccess: async (profile) => {
+      setCreateError(null);
       setFeedback(`Customer created: ${profile.customerId}.`);
       setCreateForm(initialCreate);
       setSelectedCustomerId(profile.customerId);
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
     onError: (error) => {
-      setFeedback(`Unable to create customer: ${(error as Error).message}`);
+      setCreateError(`Unable to create customer: ${(error as Error).message}`);
     }
   });
 
@@ -69,17 +73,19 @@ export function CustomerManagementPage() {
     mutationFn: ({ customerId, payload }: { customerId?: string; payload: UpdateCustomerProfileInput }) =>
       updateCustomerProfile(payload, customerId),
     onSuccess: async (profile) => {
+      setUpdateError(null);
       setFeedback(`Customer updated: ${profile.customerId}.`);
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
     onError: (error) => {
-      setFeedback(`Unable to update customer: ${(error as Error).message}`);
+      setUpdateError(`Unable to update customer: ${(error as Error).message}`);
     }
   });
 
   const deleteMutation = useMutation({
     mutationFn: (customerId?: string) => deleteCustomerProfile(customerId),
     onSuccess: async (result) => {
+      setDeleteError(null);
       setFeedback(`Customer ${result.status.toLowerCase()}: ${result.message}`);
       if (isAdmin) {
         setSelectedCustomerId("");
@@ -91,12 +97,14 @@ export function CustomerManagementPage() {
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
     onError: (error) => {
-      setFeedback(`Unable to delete customer: ${(error as Error).message}`);
+      setDeleteError(`Unable to delete customer: ${(error as Error).message}`);
     }
   });
 
   const onCreateCustomer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setCreateError(null);
+
     createMutation.mutate({
       externalCustomerKey: createForm.externalCustomerKey.trim(),
       legalName: createForm.legalName.trim(),
@@ -122,14 +130,16 @@ export function CustomerManagementPage() {
       (isAdmin && payload.status)
     );
     if (!hasChanges) {
-      setFeedback("Provide at least one customer field to update.");
+      setUpdateError("Provide at least one customer field to update.");
       return;
     }
 
     if (isAdmin && !selectedCustomerId.trim()) {
-      setFeedback("Enter customer ID scope before updating as admin.");
+      setUpdateError("Enter customer ID scope before updating as admin.");
       return;
     }
+
+    setUpdateError(null);
 
     updateMutation.mutate({
       customerId: isAdmin ? selectedCustomerId.trim() : undefined,
@@ -139,9 +149,11 @@ export function CustomerManagementPage() {
 
   const onDeleteCustomer = () => {
     if (isAdmin && !selectedCustomerId.trim()) {
-      setFeedback("Enter customer ID scope before deleting as admin.");
+      setDeleteError("Enter customer ID scope before deleting as admin.");
       return;
     }
+
+    setDeleteError(null);
 
     deleteMutation.mutate(isAdmin ? selectedCustomerId.trim() : undefined);
   };
@@ -150,6 +162,7 @@ export function CustomerManagementPage() {
     if (deleteMutation.isPending) {
       return;
     }
+    setDeleteError(null);
     setIsCloseConfirmOpen(true);
   };
 
@@ -262,6 +275,7 @@ export function CustomerManagementPage() {
                   {createMutation.isPending ? "Creating..." : "Create customer"}
                 </button>
               </div>
+              {createError ? <p className="inline-error" role="alert">{createError}</p> : null}
             </form>
           </article>
         ) : null}
@@ -374,6 +388,8 @@ export function CustomerManagementPage() {
                 </button>
               ) : null}
             </div>
+            {updateError ? <p className="inline-error" role="alert">{updateError}</p> : null}
+            {isAdmin && deleteError ? <p className="inline-error" role="alert">{deleteError}</p> : null}
           </form>
         </article>
 
@@ -399,6 +415,7 @@ export function CustomerManagementPage() {
               {deleteMutation.isPending ? "Closing account..." : "Close my customer account"}
             </button>
           </div>
+          {deleteError ? <p className="inline-error" role="alert">{deleteError}</p> : null}
         </article>
       ) : null}
 
