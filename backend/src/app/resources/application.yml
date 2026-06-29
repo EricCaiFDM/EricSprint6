@@ -58,3 +58,9 @@ statement:
   scheduler-cron: "0 5 0 1 * *"
   generation-batch-size: 250
   artifact-base-uri: /statements
+
+insights:
+  minimum-transaction-count: 3
+  medium-confidence-transaction-count: 6
+  max-categories: 8
+  taxonomy-version: v1

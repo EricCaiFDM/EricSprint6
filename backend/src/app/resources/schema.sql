@@ -362,3 +362,71 @@ CREATE TABLE IF NOT EXISTS statement_retrieval_events (
 
 CREATE INDEX IF NOT EXISTS ix_statement_retrieval_events_statement
     ON statement_retrieval_events(statement_id, occurred_at_utc);
+
+CREATE TABLE IF NOT EXISTS spending_insight_requests (
+    request_id VARCHAR(36) PRIMARY KEY,
+    scope_type VARCHAR(16) NOT NULL,
+    scope_id VARCHAR(36) NOT NULL,
+    period_start_utc TIMESTAMP NOT NULL,
+    period_end_utc TIMESTAMP NOT NULL,
+    category_filters TEXT,
+    requested_by_user_id VARCHAR(36) NOT NULL,
+    requested_at_utc TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_spending_insight_requests_scope_period
+    ON spending_insight_requests(scope_type, scope_id, period_start_utc, period_end_utc);
+
+CREATE TABLE IF NOT EXISTS spending_insights (
+    insight_id VARCHAR(36) PRIMARY KEY,
+    request_id VARCHAR(36) NOT NULL,
+    taxonomy_version VARCHAR(32) NOT NULL,
+    generated_at_utc TIMESTAMP NOT NULL,
+    status VARCHAR(24) NOT NULL,
+    total_spend_amount DECIMAL(18, 2) NOT NULL,
+    currency_code VARCHAR(3) NOT NULL,
+    trend_direction VARCHAR(24) NOT NULL,
+    trend_delta_percent DECIMAL(8, 3)
+);
+
+CREATE INDEX IF NOT EXISTS ix_spending_insights_request
+    ON spending_insights(request_id, generated_at_utc);
+
+CREATE TABLE IF NOT EXISTS insight_category_summaries (
+    summary_id VARCHAR(36) PRIMARY KEY,
+    insight_id VARCHAR(36) NOT NULL,
+    category_code VARCHAR(64) NOT NULL,
+    category_label VARCHAR(96) NOT NULL,
+    amount DECIMAL(18, 2) NOT NULL,
+    transaction_count INT NOT NULL,
+    period_share_percent DECIMAL(5, 2) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_insight_category_summaries_insight
+    ON insight_category_summaries(insight_id, category_code);
+
+CREATE TABLE IF NOT EXISTS insight_confidence_metadata (
+    confidence_id VARCHAR(36) PRIMARY KEY,
+    insight_id VARCHAR(36) NOT NULL UNIQUE,
+    coverage_ratio DECIMAL(5, 2) NOT NULL,
+    confidence_level VARCHAR(16) NOT NULL,
+    missing_category_count INT NOT NULL,
+    minimum_threshold_satisfied BOOLEAN NOT NULL,
+    notes VARCHAR(512)
+);
+
+CREATE TABLE IF NOT EXISTS insight_retrieval_events (
+    event_id VARCHAR(36) PRIMARY KEY,
+    request_id VARCHAR(36) NOT NULL,
+    insight_id VARCHAR(36),
+    requester_user_id VARCHAR(36) NOT NULL,
+    requester_role VARCHAR(16) NOT NULL,
+    scope_type VARCHAR(16) NOT NULL,
+    scope_id VARCHAR(36) NOT NULL,
+    occurred_at_utc TIMESTAMP NOT NULL,
+    outcome VARCHAR(32) NOT NULL,
+    reason_code VARCHAR(128)
+);
+
+CREATE INDEX IF NOT EXISTS ix_insight_retrieval_events_scope
+    ON insight_retrieval_events(scope_type, scope_id, occurred_at_utc);

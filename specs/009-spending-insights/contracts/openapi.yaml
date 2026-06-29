@@ -1,0 +1,239 @@
+openapi: 3.0.3
+info:
+	title: Spending Insights API
+	version: 1.0.0
+	description: |
+		Categorized spending insights derived from posted transaction history.
+servers:
+	- url: http://localhost:8080
+security:
+	- bearerAuth: []
+paths:
+	/insights/spending:
+		get:
+			tags:
+				- Insights
+			summary: Get spending insights
+			description: |
+				Returns categorized spending totals, trend indicators, and confidence metadata.
+			operationId: getSpendingInsights
+			parameters:
+				- name: scopeType
+					in: query
+					required: false
+					schema:
+						type: string
+						enum: [ACCOUNT, CUSTOMER]
+					description: Defaults to CUSTOMER when omitted.
+				- name: scopeId
+					in: query
+					required: false
+					schema:
+						type: string
+						format: uuid
+					description: Required for ACCOUNT scope. For CUSTOMER scope, omitted scopeId resolves to current signed-in customer.
+				- name: periodStartUtc
+					in: query
+					required: false
+					schema:
+						type: string
+						format: date-time
+				- name: periodEndUtc
+					in: query
+					required: false
+					schema:
+						type: string
+						format: date-time
+				- name: categoryFilters
+					in: query
+					required: false
+					schema:
+						type: string
+					description: Comma-separated category codes (for example `CASH_WITHDRAWAL,TRANSFER_OUT`).
+			responses:
+				'200':
+					description: Insights generated successfully.
+					content:
+						application/json:
+							schema:
+								$ref: '#/components/schemas/SpendingInsightResponse'
+							examples:
+								generated:
+									value:
+										periodLabel: June 2026
+										periodStartUtc: '2026-06-01T00:00:00Z'
+										periodEndUtc: '2026-06-30T23:59:59Z'
+										scopeType: CUSTOMER
+										scopeId: 7f393c56-5605-4f75-8717-04ac89b2578d
+										totalSpend: '100.00'
+										currency: USD
+										confidenceLabel: Medium confidence
+										confidenceLevel: MEDIUM
+										coverageRatio: '100.00'
+										confidenceReason: Insights are based on a stable category sample.
+										status: GENERATED
+										methodology: Spending insights use posted debit transactions (withdrawals and transfer debits), grouped by approved taxonomy mappings and compared with the previous equivalent period.
+										categories:
+											- category: Transfers out
+												categoryCode: TRANSFER_OUT
+												amount: '50.00'
+												ratio: 0.5
+												trend: up
+											- category: Cash withdrawals
+												categoryCode: CASH_WITHDRAWAL
+												amount: '50.00'
+												ratio: 0.5
+												trend: flat
+								insufficientData:
+									value:
+										periodLabel: June 2026
+										periodStartUtc: '2026-06-01T00:00:00Z'
+										periodEndUtc: '2026-06-30T23:59:59Z'
+										scopeType: ACCOUNT
+										scopeId: d2518bd7-8eaf-45bd-b5c4-a0cd7f634ffd
+										totalSpend: '0.00'
+										currency: USD
+										confidenceLabel: Low confidence
+										confidenceLevel: LOW
+										coverageRatio: '0.00'
+										confidenceReason: No posted spending transactions were found in this period.
+										status: INSUFFICIENT_DATA
+										methodology: Spending insights use posted debit transactions (withdrawals and transfer debits), grouped by approved taxonomy mappings and compared with the previous equivalent period.
+										categories: []
+				'400':
+					description: Invalid query parameters.
+					content:
+						application/json:
+							schema:
+								$ref: '#/components/schemas/ApiError'
+							examples:
+								invalidFilter:
+									value:
+										code: INSIGHT_VALIDATION_ERROR
+										message: Unsupported category filter: TRAVEL
+										field: categoryFilters
+				'403':
+					description: Caller is not allowed to access this scope.
+					content:
+						application/json:
+							schema:
+								$ref: '#/components/schemas/ApiError'
+							examples:
+								forbidden:
+									value:
+										code: INSIGHT_FORBIDDEN
+										message: Insufficient privileges to access spending insights for this scope
+										field: null
+				'404':
+					description: Insight scope does not exist.
+					content:
+						application/json:
+							schema:
+								$ref: '#/components/schemas/ApiError'
+							examples:
+								scopeMissing:
+									value:
+										code: INSIGHT_SCOPE_NOT_FOUND
+										message: Requested insight scope was not found
+										field: scopeId
+				'503':
+					description: Downstream dependency unavailable while building insights.
+					content:
+						application/json:
+							schema:
+								$ref: '#/components/schemas/ApiError'
+							examples:
+								dependencyFailure:
+									value:
+										code: INSIGHT_DEPENDENCY_FAILURE
+										message: Spending insights are temporarily unavailable
+										field: null
+components:
+	securitySchemes:
+		bearerAuth:
+			type: http
+			scheme: bearer
+			bearerFormat: JWT
+	schemas:
+		SpendingInsightCategory:
+			type: object
+			required: [category, categoryCode, amount, ratio, trend]
+			properties:
+				category:
+					type: string
+				categoryCode:
+					type: string
+				amount:
+					type: string
+				ratio:
+					type: number
+					format: double
+				trend:
+					type: string
+					enum: [up, down, flat]
+		SpendingInsightResponse:
+			type: object
+			required:
+				- periodLabel
+				- periodStartUtc
+				- periodEndUtc
+				- scopeType
+				- scopeId
+				- totalSpend
+				- currency
+				- confidenceLabel
+				- confidenceLevel
+				- coverageRatio
+				- confidenceReason
+				- status
+				- methodology
+				- categories
+			properties:
+				periodLabel:
+					type: string
+				periodStartUtc:
+					type: string
+					format: date-time
+				periodEndUtc:
+					type: string
+					format: date-time
+				scopeType:
+					type: string
+					enum: [ACCOUNT, CUSTOMER]
+				scopeId:
+					type: string
+					format: uuid
+				totalSpend:
+					type: string
+				currency:
+					type: string
+				confidenceLabel:
+					type: string
+					enum: [High confidence, Medium confidence, Low confidence]
+				confidenceLevel:
+					type: string
+					enum: [HIGH, MEDIUM, LOW]
+				coverageRatio:
+					type: string
+				confidenceReason:
+					type: string
+				status:
+					type: string
+					enum: [GENERATED, PARTIAL, INSUFFICIENT_DATA]
+				methodology:
+					type: string
+				categories:
+					type: array
+					items:
+						$ref: '#/components/schemas/SpendingInsightCategory'
+		ApiError:
+			type: object
+			required: [code, message]
+			properties:
+				code:
+					type: string
+				message:
+					type: string
+				field:
+					type: string
+					nullable: true

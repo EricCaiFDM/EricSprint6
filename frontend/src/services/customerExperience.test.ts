@@ -911,9 +911,18 @@ describe("customer experience services", () => {
     jest.spyOn(apiClient, "get").mockResolvedValue({
       data: {
         periodLabel: "June 2026",
+        periodStartUtc: "2026-06-01T00:00:00Z",
+        periodEndUtc: "2026-06-30T23:59:59Z",
+        scopeType: "CUSTOMER",
+        scopeId: "c7b7a03e-66e6-4bd2-9b22-8b44cf68f8ef",
         totalSpend: "1234.50",
         currency: "AUD",
         confidenceLabel: "Medium confidence",
+        confidenceLevel: "MEDIUM",
+        coverageRatio: "82.50",
+        confidenceReason: "Insights are based on an adequate sample size.",
+        status: "GENERATED",
+        methodology: "Posted debit transactions are grouped using approved taxonomy mappings.",
         categories: [{ category: "Travel", amount: 240, ratio: 0.19, trend: "up" }]
       }
     } as never);
@@ -922,6 +931,10 @@ describe("customer experience services", () => {
 
     expect(insights.totalSpend).toBe(1234.5);
     expect(insights.confidenceLabel).toBe("Medium confidence");
+    expect(insights.confidenceLevel).toBe("MEDIUM");
+    expect(insights.coverageRatio).toBe(82.5);
+    expect(insights.status).toBe("GENERATED");
+    expect(insights.methodology).toContain("taxonomy mappings");
     expect(insights.categories[0].category).toBe("Travel");
     expect(insights.categories[0].trend).toBe("up");
   });
