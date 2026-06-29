@@ -49,6 +49,18 @@ export type StatementTransactionsQuery = {
   periodYearMonth: string;
 };
 
+export type StatementPdfInput = {
+  statementId: string;
+  artifactVersion: number;
+  artifactUri?: string;
+  periodYearMonth?: string;
+};
+
+export type StatementPdfResult = {
+  blob: Blob;
+  fileName: string;
+};
+
 export async function fetchStatements(params: {
   accountId: string;
   periodYearMonth?: string;
@@ -170,6 +182,48 @@ export async function fetchStatementTransactions(query: StatementTransactionsQue
   return items.sort((left, right) => Date.parse(right.bookedAt) - Date.parse(left.bookedAt));
 }
 
+export async function fetchStatementPdf(input: StatementPdfInput): Promise<StatementPdfResult> {
+  const statementId = input.statementId?.trim() ?? "";
+  if (!statementId) {
+    throw new Error("Select a valid statement to download.");
+  }
+
+  const artifactVersion = Number.isFinite(input.artifactVersion)
+    ? Math.max(1, Math.trunc(input.artifactVersion))
+    : 1;
+
+  const artifactPath = normalizeArtifactPath(input.artifactUri)
+    ?? `/statements/${encodeURIComponent(statementId)}/artifact/v${artifactVersion}.pdf`;
+
+  try {
+    const response = await apiClient.get(artifactPath, {
+      responseType: "blob"
+    });
+
+    const fileName =
+      parseContentDispositionFileName(response.headers)
+      ?? `statement-${input.periodYearMonth || statementId}-v${artifactVersion}.pdf`;
+
+    const blob = response.data instanceof Blob
+      ? response.data
+      : new Blob([response.data], { type: "application/pdf" });
+
+    return {
+      blob,
+      fileName
+    };
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.status === 403) {
+      throw new Error("This signed-in account is not authorized to download the selected statement PDF.");
+    }
+    if (details.status === 404) {
+      throw new Error("The statement PDF artifact is not available for download yet.");
+    }
+    throw new Error(details.message);
+  }
+}
+
 function mapStatementList(payload: unknown): StatementListResult {
   if (!payload || typeof payload !== "object") {
     return {
@@ -267,6 +321,43 @@ function asNumber(value: unknown, fallback: number): number {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
   return fallback;
+}
+
+function normalizeArtifactPath(artifactUri?: string): string | null {
+  const value = artifactUri?.trim();
+  if (!value) {
+    return null;
+  }
+
+  if (value.startsWith("http://") || value.startsWith("https://")) {
+    return value;
+  }
+
+  return value.startsWith("/") ? value : `/${value}`;
+}
+
+function parseContentDispositionFileName(headers: unknown): string | null {
+  if (!headers || typeof headers !== "object") {
+    return null;
+  }
+
+  const record = headers as Record<string, unknown>;
+  const headerValue = record["content-disposition"] ?? record["Content-Disposition"];
+  if (typeof headerValue !== "string" || headerValue.trim().length === 0) {
+    return null;
+  }
+
+  const encodedMatch = headerValue.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1]);
+    } catch {
+      return encodedMatch[1];
+    }
+  }
+
+  const plainMatch = headerValue.match(/filename="?([^";]+)"?/i);
+  return plainMatch?.[1]?.trim() || null;
 }
 
 function normalizeStatementPeriod(periodYearMonth: string): { startDate: string; endDate: string } {

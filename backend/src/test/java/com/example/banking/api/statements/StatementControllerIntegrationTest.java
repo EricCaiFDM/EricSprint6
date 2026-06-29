@@ -142,7 +142,13 @@ class StatementControllerIntegrationTest {
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_PDF))
                 .andExpect(header().string("Content-Disposition", containsString("attachment;")))
                 .andExpect(header().string("Content-Disposition", containsString("statement-" + periodYearMonth + "-v1.pdf")))
-                .andExpect(content().string(startsWith("%PDF")));
+                .andExpect(content().string(startsWith("%PDF")))
+                .andExpect(content().string(containsString("NorthBridge Bank")))
+                .andExpect(content().string(containsString("Account Summary")))
+                .andExpect(content().string(containsString("Balance Snapshot")))
+                .andExpect(content().string(containsString("Statement Transactions")))
+                .andExpect(content().string(containsString("Deposit")))
+                .andExpect(content().string(containsString("+125.50 USD")));
 
         mockMvc.perform(get("/statements")
                 .with(jwt().jwt(jwt -> jwt.claim("sub", "stmt-owner-100").claim("role", "CUSTOMER")))

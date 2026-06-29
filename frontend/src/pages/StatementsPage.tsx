@@ -3,9 +3,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAccounts, type BankAccount } from "../services/accounts";
 import {
   fetchStatement,
+  fetchStatementPdf,
   fetchStatementTransactions,
   fetchStatements,
   generateStatement,
+  type StatementDetail,
   type StatementGenerationMode,
   type StatementListResult
 } from "../services/statements";
@@ -28,6 +30,7 @@ export function StatementsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedStatementId, setSelectedStatementId] = useState("");
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState("Generate and retrieve monthly statements for your accounts.");
 
   const accountsQuery = useQuery({
@@ -91,6 +94,26 @@ export function StatementsPage() {
     }
   });
 
+  const downloadPdfMutation = useMutation({
+    mutationFn: async (statement: StatementDetail) => {
+      const pdf = await fetchStatementPdf(statement);
+      triggerPdfDownload(pdf.blob, pdf.fileName);
+    },
+    onMutate: () => {
+      setDownloadError(null);
+      setFeedback("Preparing statement PDF download...");
+    },
+    onSuccess: () => {
+      setFeedback("Statement PDF download started.");
+    },
+    onError: (error) => {
+      const message = (error as Error).message;
+      const fullMessage = `Unable to download statement PDF: ${message}`;
+      setDownloadError(fullMessage);
+      setFeedback(fullMessage);
+    }
+  });
+
   const statements = statementsQuery.data ?? emptyStatements;
 
   const selectedAccount = useMemo(
@@ -134,7 +157,16 @@ export function StatementsPage() {
 
   const onViewDetails = (statementId: string) => {
     setSelectedStatementId(statementId);
+    setDownloadError(null);
     setFeedback("Retrieving selected statement details and transactions...");
+  };
+
+  const onDownloadPdf = () => {
+    if (!statementDetailQuery.data) {
+      return;
+    }
+
+    downloadPdfMutation.mutate(statementDetailQuery.data);
   };
 
   const hasPreviousPage = statements.page > 1;
@@ -369,6 +401,19 @@ export function StatementsPage() {
               </div>
             </dl>
 
+            <div className="actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={onDownloadPdf}
+                disabled={downloadPdfMutation.isPending}
+              >
+                {downloadPdfMutation.isPending ? "Preparing PDF..." : "Download PDF"}
+              </button>
+            </div>
+
+            {downloadError ? <p className="inline-error" role="alert">{downloadError}</p> : null}
+
             <h4>Statement transactions</h4>
             {statementTransactionsQuery.isPending ? (
               <p className="hint-text">Loading statement transactions...</p>
@@ -418,5 +463,27 @@ function toReadableStatementTransactionType(item: TransactionItem): string {
       return "Transfer / standing order credit";
     default:
       return "Transaction";
+  }
+}
+
+function triggerPdfDownload(blob: Blob, fileName: string): void {
+  if (!window.URL || typeof window.URL.createObjectURL !== "function") {
+    throw new Error("PDF downloads are not supported in this browser.");
+  }
+
+  const objectUrl = window.URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  try {
+    link.href = objectUrl;
+    link.download = fileName;
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+  } finally {
+    if (link.parentNode) {
+      link.parentNode.removeChild(link);
+    }
+    window.URL.revokeObjectURL(objectUrl);
   }
 }

@@ -260,4 +260,90 @@ describe("StatementsPage", () => {
 
     expect(await screen.findByText(/No transactions were posted in this statement period/i)).toBeInTheDocument();
   });
+
+  it("downloads selected statement as PDF from details panel", async () => {
+    const fetchStatementsMock = statements.fetchStatements as jest.MockedFunction<typeof statements.fetchStatements>;
+    const fetchStatementMock = statements.fetchStatement as jest.MockedFunction<typeof statements.fetchStatement>;
+    const fetchStatementTransactionsMock = statements.fetchStatementTransactions as jest.MockedFunction<
+      typeof statements.fetchStatementTransactions
+    >;
+    const fetchStatementPdfMock = statements.fetchStatementPdf as jest.MockedFunction<typeof statements.fetchStatementPdf>;
+
+    fetchStatementsMock.mockResolvedValue({
+      items: [
+        {
+          statementId: "stmt-1",
+          accountId: "acc-1",
+          periodYearMonth: "2026-06",
+          artifactVersion: 1,
+          status: "GENERATED",
+          generatedAtUtc: "2026-06-30T00:05:00Z"
+        }
+      ],
+      page: 1,
+      pageSize: 20,
+      totalItems: 1,
+      totalPages: 1
+    });
+
+    fetchStatementMock.mockResolvedValue({
+      statementId: "stmt-1",
+      accountId: "acc-1",
+      periodYearMonth: "2026-06",
+      artifactVersion: 1,
+      openingBalance: 0,
+      closingBalance: 125,
+      currencyCode: "USD",
+      status: "GENERATED",
+      artifactUri: "/statements/stmt-1/artifact/v1.pdf",
+      generatedAtUtc: "2026-06-30T00:05:00Z"
+    });
+
+    fetchStatementTransactionsMock.mockResolvedValue([]);
+    fetchStatementPdfMock.mockResolvedValue({
+      blob: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
+      fileName: "statement-2026-06-v1.pdf"
+    });
+
+    const createObjectURLSpy = jest.fn(() => "blob:test-url");
+    const revokeObjectURLSpy = jest.fn();
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    Object.defineProperty(URL, "createObjectURL", { value: createObjectURLSpy, configurable: true });
+    Object.defineProperty(URL, "revokeObjectURL", { value: revokeObjectURLSpy, configurable: true });
+
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+
+    try {
+      renderPage();
+
+      await waitFor(() => {
+        expect(fetchStatementsMock).toHaveBeenCalled();
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: /View details/i }));
+
+      await waitFor(() => {
+        expect(fetchStatementMock).toHaveBeenCalledWith("stmt-1");
+      });
+
+      fireEvent.click(await screen.findByRole("button", { name: /Download PDF/i }));
+
+      await waitFor(() => {
+        expect(fetchStatementPdfMock).toHaveBeenCalledWith(expect.objectContaining({
+          statementId: "stmt-1",
+          artifactVersion: 1
+        }));
+      });
+
+      expect(createObjectURLSpy).toHaveBeenCalled();
+      expect(revokeObjectURLSpy).toHaveBeenCalled();
+      expect(clickSpy).toHaveBeenCalled();
+      expect(await screen.findByText(/Statement PDF download started/i)).toBeInTheDocument();
+    } finally {
+      clickSpy.mockRestore();
+      Object.defineProperty(URL, "createObjectURL", { value: originalCreateObjectURL, configurable: true });
+      Object.defineProperty(URL, "revokeObjectURL", { value: originalRevokeObjectURL, configurable: true });
+    }
+  });
 });

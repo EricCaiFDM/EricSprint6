@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { apiClient } from "./api";
 import * as transactions from "./transactions";
-import { fetchStatement, fetchStatementTransactions, fetchStatements, generateStatement } from "./statements";
+import { fetchStatement, fetchStatementPdf, fetchStatementTransactions, fetchStatements, generateStatement } from "./statements";
 
 describe("statements service", () => {
   beforeEach(() => {
@@ -183,5 +183,66 @@ describe("statements service", () => {
         periodYearMonth: "2026/06"
       })
     ).rejects.toThrow("Statement period is invalid. Expected YYYY-MM.");
+  });
+
+  it("downloads statement PDF artifact metadata and blob", async () => {
+    const getMock = jest.spyOn(apiClient, "get").mockResolvedValue({
+      data: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
+      headers: {
+        "content-disposition": "attachment; filename=\"statement-2026-06-v1.pdf\""
+      }
+    } as never);
+
+    const result = await fetchStatementPdf({
+      statementId: "stmt-2",
+      artifactVersion: 1,
+      artifactUri: "/statements/stmt-2/artifact/v1.pdf",
+      periodYearMonth: "2026-06"
+    });
+
+    expect(getMock).toHaveBeenCalledWith("/statements/stmt-2/artifact/v1.pdf", {
+      responseType: "blob"
+    });
+    expect(result.fileName).toBe("statement-2026-06-v1.pdf");
+    expect(result.blob).toBeInstanceOf(Blob);
+  });
+
+  it("builds fallback artifact path when artifactUri is missing", async () => {
+    const getMock = jest.spyOn(apiClient, "get").mockResolvedValue({
+      data: new Blob(["%PDF-1.4"], { type: "application/pdf" }),
+      headers: {}
+    } as never);
+
+    const result = await fetchStatementPdf({
+      statementId: "stmt-3",
+      artifactVersion: 2,
+      artifactUri: "",
+      periodYearMonth: "2026-06"
+    });
+
+    expect(getMock).toHaveBeenCalledWith("/statements/stmt-3/artifact/v2.pdf", {
+      responseType: "blob"
+    });
+    expect(result.fileName).toBe("statement-2026-06-v2.pdf");
+  });
+
+  it("returns a friendly message when statement PDF artifact is missing", async () => {
+    jest.spyOn(apiClient, "get").mockRejectedValue({
+      response: {
+        status: 404,
+        data: {
+          code: "STATEMENT_NOT_FOUND",
+          message: "Artifact not found"
+        }
+      }
+    });
+
+    await expect(
+      fetchStatementPdf({
+        statementId: "stmt-9",
+        artifactVersion: 1,
+        artifactUri: "/statements/stmt-9/artifact/v1.pdf"
+      })
+    ).rejects.toThrow("The statement PDF artifact is not available for download yet.");
   });
 });
