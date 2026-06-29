@@ -130,7 +130,7 @@ export async function deleteCustomerProfile(customerId?: string): Promise<Delete
   } catch (error) {
     const details = getApiErrorDetails(error);
     if (details.status === 403) {
-      throw new Error("Only admin accounts can delete customer profiles.");
+      throw new Error("This signed-in account is not authorized to delete the selected customer profile.");
     }
     if (details.status === 404) {
       throw new Error("The selected customer could not be found.");

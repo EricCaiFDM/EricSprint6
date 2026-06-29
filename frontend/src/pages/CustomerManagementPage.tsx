@@ -10,8 +10,9 @@ import {
   type CustomerProfile,
   type UpdateCustomerProfileInput
 } from "../services/customers";
-import { clearActiveCustomerId, getNormalizedTokenRole, setActiveCustomerId } from "../services/session";
+import { clearActiveCustomerId, clearAuthSession, getNormalizedTokenRole, setActiveCustomerId } from "../services/session";
 import { formatDate } from "../utils/formatting";
+import { useNavigate } from "react-router-dom";
 
 const initialCreate: CreateCustomerProfileInput = {
   externalCustomerKey: "",
@@ -29,13 +30,15 @@ const initialUpdate: UpdateCustomerProfileInput = {
 
 export function CustomerManagementPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
-  const [feedback, setFeedback] = useState("Create, retrieve, and update customer profiles. Admins can delete customers.");
+  const [feedback, setFeedback] = useState("Retrieve and update customer profiles. Admins can create and delete customers.");
   const [createForm, setCreateForm] = useState<CreateCustomerProfileInput>(initialCreate);
   const [updateForm, setUpdateForm] = useState<UpdateCustomerProfileInput>(initialUpdate);
+  const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
 
   const selfProfileQuery = useQuery({
     queryKey: ["customers", "self"],
@@ -81,6 +84,9 @@ export function CustomerManagementPage() {
       if (isAdmin) {
         setSelectedCustomerId("");
         clearActiveCustomerId();
+      } else {
+        clearAuthSession();
+        navigate("/login", { replace: true });
       }
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
@@ -106,10 +112,15 @@ export function CustomerManagementPage() {
       legalName: updateForm.legalName?.trim() || undefined,
       primaryEmail: updateForm.primaryEmail?.trim() || undefined,
       phoneNumber: updateForm.phoneNumber?.trim() || undefined,
-      status: updateForm.status
+      status: isAdmin ? updateForm.status : undefined
     };
 
-    const hasChanges = Boolean(payload.legalName || payload.primaryEmail || payload.phoneNumber || payload.status);
+    const hasChanges = Boolean(
+      payload.legalName ||
+      payload.primaryEmail ||
+      payload.phoneNumber ||
+      (isAdmin && payload.status)
+    );
     if (!hasChanges) {
       setFeedback("Provide at least one customer field to update.");
       return;
@@ -127,17 +138,28 @@ export function CustomerManagementPage() {
   };
 
   const onDeleteCustomer = () => {
-    if (!isAdmin) {
-      setFeedback("Only admin accounts can delete customer profiles.");
-      return;
-    }
-
     if (isAdmin && !selectedCustomerId.trim()) {
       setFeedback("Enter customer ID scope before deleting as admin.");
       return;
     }
 
     deleteMutation.mutate(isAdmin ? selectedCustomerId.trim() : undefined);
+  };
+
+  const onRequestCloseAccount = () => {
+    if (deleteMutation.isPending) {
+      return;
+    }
+    setIsCloseConfirmOpen(true);
+  };
+
+  const onCancelCloseAccount = () => {
+    setIsCloseConfirmOpen(false);
+  };
+
+  const onConfirmCloseAccount = () => {
+    setIsCloseConfirmOpen(false);
+    onDeleteCustomer();
   };
 
   const shownProfile = isAdmin ? selectedProfileQuery.data : selfProfileQuery.data;
@@ -147,7 +169,7 @@ export function CustomerManagementPage() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Customer management</h2>
-          <p className="page-subtitle">Create, retrieve, and update customer profiles for this role scope. Admins can delete.</p>
+          <p className="page-subtitle">Retrieve and update customer profiles for this role scope. Admins can create and delete.</p>
         </div>
       </header>
 
@@ -173,74 +195,76 @@ export function CustomerManagementPage() {
         </article>
       ) : null}
 
-      <section className="two-column-grid">
-        <article className="surface-card">
-          <h3>Create customer</h3>
-          <form className="form" onSubmit={onCreateCustomer}>
-            <label>
-              External customer key
-              <input
-                value={createForm.externalCustomerKey}
-                onChange={(event) =>
-                  setCreateForm((previous) => ({
-                    ...previous,
-                    externalCustomerKey: event.target.value
-                  }))
-                }
-                placeholder="ext-customer-001"
-                required
-              />
-            </label>
+      <section className={isAdmin ? "two-column-grid" : undefined}>
+        {isAdmin ? (
+          <article className="surface-card">
+            <h3>Create customer</h3>
+            <form className="form" onSubmit={onCreateCustomer}>
+              <label>
+                External customer key
+                <input
+                  value={createForm.externalCustomerKey}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      externalCustomerKey: event.target.value
+                    }))
+                  }
+                  placeholder="ext-customer-001"
+                  required
+                />
+              </label>
 
-            <label>
-              Legal name
-              <input
-                value={createForm.legalName}
-                onChange={(event) =>
-                  setCreateForm((previous) => ({
-                    ...previous,
-                    legalName: event.target.value
-                  }))
-                }
-                required
-              />
-            </label>
+              <label>
+                Legal name
+                <input
+                  value={createForm.legalName}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      legalName: event.target.value
+                    }))
+                  }
+                  required
+                />
+              </label>
 
-            <label>
-              Primary email
-              <input
-                type="email"
-                value={createForm.primaryEmail}
-                onChange={(event) =>
-                  setCreateForm((previous) => ({
-                    ...previous,
-                    primaryEmail: event.target.value
-                  }))
-                }
-                required
-              />
-            </label>
+              <label>
+                Primary email
+                <input
+                  type="email"
+                  value={createForm.primaryEmail}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      primaryEmail: event.target.value
+                    }))
+                  }
+                  required
+                />
+              </label>
 
-            <label>
-              Phone number
-              <input
-                value={createForm.phoneNumber}
-                onChange={(event) =>
-                  setCreateForm((previous) => ({
-                    ...previous,
-                    phoneNumber: event.target.value
-                  }))
-                }
-              />
-            </label>
+              <label>
+                Phone number
+                <input
+                  value={createForm.phoneNumber}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      phoneNumber: event.target.value
+                    }))
+                  }
+                />
+              </label>
 
-            <div className="actions">
-              <button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Creating..." : "Create customer"}
-              </button>
-            </div>
-          </form>
-        </article>
+              <div className="actions">
+                <button type="submit" disabled={createMutation.isPending}>
+                  {createMutation.isPending ? "Creating..." : "Create customer"}
+                </button>
+              </div>
+            </form>
+          </article>
+        ) : null}
 
         <article className="surface-card">
           <h3>Get customer details</h3>
@@ -313,25 +337,27 @@ export function CustomerManagementPage() {
               />
             </label>
 
-            <label>
-              Status
-              <select
-                value={updateForm.status ?? ""}
-                onChange={(event) =>
-                  setUpdateForm((previous) => ({
-                    ...previous,
-                    status: event.target.value
-                      ? (event.target.value as "ACTIVE" | "SUSPENDED" | "CLOSED")
-                      : undefined
-                  }))
-                }
-              >
-                <option value="">No change</option>
-                <option value="ACTIVE">Active</option>
-                <option value="SUSPENDED">Suspended</option>
-                <option value="CLOSED">Closed</option>
-              </select>
-            </label>
+            {isAdmin ? (
+              <label>
+                Status
+                <select
+                  value={updateForm.status ?? ""}
+                  onChange={(event) =>
+                    setUpdateForm((previous) => ({
+                      ...previous,
+                      status: event.target.value
+                        ? (event.target.value as "ACTIVE" | "SUSPENDED" | "CLOSED")
+                        : undefined
+                    }))
+                  }
+                >
+                  <option value="">No change</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="SUSPENDED">Suspended</option>
+                  <option value="CLOSED">Closed</option>
+                </select>
+              </label>
+            ) : null}
 
             <div className="actions">
               <button type="submit" disabled={updateMutation.isPending}>
@@ -356,6 +382,49 @@ export function CustomerManagementPage() {
           <p className="hint-text">{feedback}</p>
         </article>
       </section>
+
+      {!isAdmin ? (
+        <article className="surface-card customer-close-card">
+          <h3>Close your customer account</h3>
+          <p className="customer-close-note">
+            Closing your account removes customer profile access for this sign-in. This action may be irreversible.
+          </p>
+          <div className="actions">
+            <button
+              type="button"
+              className="button-danger"
+              onClick={onRequestCloseAccount}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Closing account..." : "Close my customer account"}
+            </button>
+          </div>
+        </article>
+      ) : null}
+
+      {!isAdmin && isCloseConfirmOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={onCancelCloseAccount}>
+          <div
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="close-account-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="close-account-confirm-title">Confirm account closure</h3>
+            <p>Are you sure you want to close your customer account?</p>
+            <p>You will be signed out immediately after the account is successfully closed.</p>
+            <div className="actions">
+              <button type="button" className="button-secondary" onClick={onCancelCloseAccount}>
+                Cancel
+              </button>
+              <button type="button" className="button-danger" onClick={onConfirmCloseAccount}>
+                Yes, close my account
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }

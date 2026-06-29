@@ -43,7 +43,7 @@ public class CustomerAccessPolicyService {
 
     public void enforceDeleteAccess(String role) {
         String normalizedRole = normalizeRole(role);
-        if ("ADMIN".equals(normalizedRole)) {
+        if ("CUSTOMER".equals(normalizedRole) || "ADMIN".equals(normalizedRole)) {
             return;
         }
         throw forbidden("delete");

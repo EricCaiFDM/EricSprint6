@@ -262,15 +262,20 @@ class CustomerControllerIntegrationTest {
     }
 
         @Test
-        void customerCannotDeleteOwnCustomerProfile() throws Exception {
+        void customerCanDeleteOwnCustomerProfile() throws Exception {
                 MvcResult createResult = createCustomer("owner-205b", "CUSTOMER", "ext-205b", "jane205b@example.com");
                 JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
                 String customerId = created.get("customerId").asText();
 
                 mockMvc.perform(delete("/customers/{customerId}", customerId)
                                 .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-205b").claim("role", "CUSTOMER"))))
-                                .andExpect(status().isForbidden())
-                                .andExpect(jsonPath("$.code").value("CUSTOMER_FORBIDDEN"));
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("DELETED"));
+
+                mockMvc.perform(get("/customers/{customerId}", customerId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-205b").claim("role", "CUSTOMER"))))
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.code").value("CUSTOMER_NOT_FOUND"));
         }
 
     @Test
