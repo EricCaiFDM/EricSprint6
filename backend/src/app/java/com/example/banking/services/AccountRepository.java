@@ -15,4 +15,8 @@ public interface AccountRepository {
     boolean existsByCustomerId(String customerId);
 
     boolean existsByAccountNumber(String accountNumber);
+
+    boolean existsByCustomerIdAndCheckingNumber(String customerId, int checkingNumber);
+
+    int nextCheckingNumber(String customerId);
 }

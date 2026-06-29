@@ -59,6 +59,9 @@ export function PaymentsPage() {
   const [feedback, setFeedback] = useState("Deposit, withdraw, transfer, and review all transactions in one place.");
   const [notificationFeedback, setNotificationFeedback] = useState<string | null>(null);
   const [lastOperation, setLastOperation] = useState<OperationReceipt | null>(null);
+  const [depositError, setDepositError] = useState<string | null>(null);
+  const [withdrawError, setWithdrawError] = useState<string | null>(null);
+  const [transferError, setTransferError] = useState<string | null>(null);
 
   const accountsQuery = useQuery({
     queryKey: ["accounts", "payments", isAdmin ? customerScopeId : "self"],
@@ -97,6 +100,11 @@ export function PaymentsPage() {
   const destinationOptions = useMemo(
     () => accounts.filter((item) => item.accountId !== transferSourceAccountId),
     [accounts, transferSourceAccountId]
+  );
+
+  const accountNameById = useMemo(
+    () => new Map(accounts.map((account) => [account.accountId, account.accountName])),
+    [accounts]
   );
 
   useEffect(() => {
@@ -211,6 +219,7 @@ export function PaymentsPage() {
   const depositMutation = useMutation({
     mutationFn: submitDeposit,
     onSuccess: async (receipt, variables) => {
+      setDepositError(null);
       applyBalancePatch([
         {
           accountId: variables.accountId,
@@ -225,12 +234,13 @@ export function PaymentsPage() {
         refreshNotificationFeed("Deposit Posted")
       ]);
     },
-    onError: (error) => setFeedback(`Deposit failed: ${(error as Error).message}`)
+    onError: (error) => setDepositError(`Deposit failed: ${(error as Error).message}`)
   });
 
   const withdrawMutation = useMutation({
     mutationFn: submitWithdrawal,
     onSuccess: async (receipt, variables) => {
+      setWithdrawError(null);
       applyBalancePatch([
         {
           accountId: variables.accountId,
@@ -242,12 +252,13 @@ export function PaymentsPage() {
       setWithdrawAmount("");
       await refreshAll();
     },
-    onError: (error) => setFeedback(`Withdrawal failed: ${(error as Error).message}`)
+    onError: (error) => setWithdrawError(`Withdrawal failed: ${(error as Error).message}`)
   });
 
   const transferMutation = useMutation({
     mutationFn: submitTransfer,
     onSuccess: async (receipt, variables) => {
+      setTransferError(null);
       applyBalancePatch([
         {
           accountId: variables.sourceAccountId,
@@ -266,11 +277,12 @@ export function PaymentsPage() {
         refreshNotificationFeed("Transfer Completed")
       ]);
     },
-    onError: (error) => setFeedback(`Transfer failed: ${(error as Error).message}`)
+    onError: (error) => setTransferError(`Transfer failed: ${(error as Error).message}`)
   });
 
   const onDepositSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setDepositError(null);
 
     depositMutation.mutate({
       accountId: depositAccountId,
@@ -281,6 +293,7 @@ export function PaymentsPage() {
 
   const onWithdrawSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setWithdrawError(null);
 
     withdrawMutation.mutate({
       accountId: withdrawAccountId,
@@ -291,6 +304,7 @@ export function PaymentsPage() {
 
   const onTransferSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setTransferError(null);
 
     transferMutation.mutate({
       sourceAccountId: transferSourceAccountId,
@@ -319,6 +333,11 @@ export function PaymentsPage() {
       .filter((item) => item.direction === "CREDIT")
       .reduce((total, item) => total + item.amount, 0),
     [currentHistory.items]
+  );
+
+  const finalTotalAccountBalance = useMemo(
+    () => accounts.reduce((total, account) => total + account.currentBalance, 0),
+    [accounts]
   );
 
   const baseCurrency = accounts[0]?.currency ?? "USD";
@@ -379,8 +398,8 @@ export function PaymentsPage() {
           <p className="summary-value">{formatCurrency(totalDebits, baseCurrency)}</p>
         </article>
         <article className="summary-card">
-          <p className="summary-label">Transactions in page</p>
-          <p className="summary-value">{currentHistory.items.length}</p>
+          <p className="summary-label">Final total account balance</p>
+          <p className="summary-value">{formatCurrency(finalTotalAccountBalance, baseCurrency)}</p>
         </article>
       </section>
 
@@ -422,6 +441,7 @@ export function PaymentsPage() {
                 {depositMutation.isPending ? "Depositing..." : "Submit deposit"}
               </button>
             </div>
+            {depositError ? <p className="inline-error" role="alert">{depositError}</p> : null}
           </form>
         </article>
 
@@ -462,6 +482,7 @@ export function PaymentsPage() {
                 {withdrawMutation.isPending ? "Withdrawing..." : "Submit withdrawal"}
               </button>
             </div>
+            {withdrawError ? <p className="inline-error" role="alert">{withdrawError}</p> : null}
           </form>
         </article>
 
@@ -519,6 +540,7 @@ export function PaymentsPage() {
                 {transferMutation.isPending ? "Transferring..." : "Submit transfer"}
               </button>
             </div>
+            {transferError ? <p className="inline-error" role="alert">{transferError}</p> : null}
           </form>
         </article>
       </section>
@@ -633,6 +655,9 @@ export function PaymentsPage() {
                 <div>
                   <p className="item-title">{toReadableType(item.transactionType)} · {item.description}</p>
                   <p className="item-meta">{formatDate(item.bookedAt)} · Ref {item.transactionId}</p>
+                  <p className="item-meta">
+                    {formatHistoryAccountLabel(item, accountNameById, historyScopeType, historyScopeId)}
+                  </p>
                 </div>
                 <p className={item.direction === "CREDIT" ? "amount-credit" : "amount-debit"}>
                   {item.direction === "CREDIT" ? "+" : "-"}
@@ -730,4 +755,24 @@ function toReadableOperation(kind: OperationReceipt["kind"]): string {
 
 function formatAccountLabel(account: BankAccount): string {
   return `${account.accountName} (${account.accountNumberMasked})`;
+}
+
+function formatHistoryAccountLabel(
+  item: TransactionItem,
+  accountNameById: Map<string, string>,
+  scopeType: "CUSTOMER" | "ACCOUNT",
+  scopeId: string
+): string {
+  const resolvedAccountId = item.accountId?.trim() || (scopeType === "ACCOUNT" ? scopeId.trim() : "");
+
+  if (!resolvedAccountId) {
+    return "Account: unavailable";
+  }
+
+  const resolvedName = accountNameById.get(resolvedAccountId);
+  if (!resolvedName) {
+    return `Account ID: ${resolvedAccountId}`;
+  }
+
+  return `Account: ${resolvedName} (${resolvedAccountId})`;
 }

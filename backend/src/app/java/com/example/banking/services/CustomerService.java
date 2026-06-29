@@ -249,7 +249,10 @@ public class CustomerService {
             lifecycleAuditService.recordSuccess(customerId, "DELETE_ATTEMPT", actorId, role);
 
             CustomerDeletionPolicyService.DeletionDecision decision = deletionPolicyService.evaluateDeletion(customer);
-            if ("BLOCK_DELETE".equals(decision.decision())) {
+            boolean blockedByPolicy = "BLOCK_DELETE".equals(decision.decision());
+            boolean allowSelfServiceClose = blockedByPolicy && "CUSTOMER".equalsIgnoreCase(role);
+
+            if (blockedByPolicy && !allowSelfServiceClose) {
                 lifecycleAuditService.recordFailure(
                         customerId,
                         "DELETE_BLOCKED",
@@ -257,8 +260,12 @@ public class CustomerService {
                         role,
                         "DELETION_POLICY_BLOCKED",
                         "{\"reasons\":\"" + String.join(",", decision.blockerReasons()) + "\"}");
+                deletionPolicyService.enforceDeletionAllowed(decision);
             }
-            deletionPolicyService.enforceDeletionAllowed(decision);
+
+            if (allowSelfServiceClose) {
+                lifecycleAuditService.recordSuccess(customerId, "DELETE_POLICY_OVERRIDE", actorId, role);
+            }
 
             customer.setDeletedAt(Instant.now());
             customer.setUpdatedAtUtc(Instant.now());

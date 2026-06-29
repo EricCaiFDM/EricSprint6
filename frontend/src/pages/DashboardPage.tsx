@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "../services/accounts";
-import { fetchRecentTransactions } from "../services/transactions";
+import { fetchRecentTransactions, type TransactionItem } from "../services/transactions";
 import { fetchStandingOrders } from "../services/standingOrders";
 import { formatCurrency, formatDate, formatDateTime } from "../utils/formatting";
 
@@ -83,6 +83,7 @@ export function DashboardPage() {
                 <div>
                   <p className="item-title">{transaction.description}</p>
                   <p className="item-meta">{formatDate(transaction.bookedAt)} · {transaction.category}</p>
+                  <p className="item-meta">{formatRecentActivityAccountLabel(transaction, accountNameById)}</p>
                 </div>
                 <p className={transaction.direction === "CREDIT" ? "amount-credit" : "amount-debit"}>
                   {transaction.direction === "CREDIT" ? "+" : "-"}
@@ -114,4 +115,18 @@ export function DashboardPage() {
       </section>
     </section>
   );
+}
+
+function formatRecentActivityAccountLabel(transaction: TransactionItem, accountNameById: Map<string, string>): string {
+  const accountId = transaction.accountId?.trim();
+  if (!accountId) {
+    return "Account: unavailable";
+  }
+
+  const accountName = accountNameById.get(accountId);
+  if (!accountName) {
+    return `Account ID: ${accountId}`;
+  }
+
+  return `Account: ${accountName} (${accountId})`;
 }

@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="20260629-monthly-statements-init" author="copilot">
+        <createTable tableName="monthly_statements">
+            <column name="statement_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="account_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_year_month" type="VARCHAR(7)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_start_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_end_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="opening_balance" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="closing_balance" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="artifact_version" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="artifact_uri" type="VARCHAR(512)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generation_mode" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addUniqueConstraint
+                tableName="monthly_statements"
+                columnNames="account_id,period_year_month,artifact_version"
+                constraintName="ux_monthly_statements_account_period_version"/>
+
+        <createIndex tableName="monthly_statements" indexName="ix_monthly_statements_account_generated">
+            <column name="account_id"/>
+            <column name="generated_at_utc"/>
+        </createIndex>
+
+        <createIndex tableName="monthly_statements" indexName="ix_monthly_statements_period">
+            <column name="period_year_month"/>
+            <column name="account_id"/>
+        </createIndex>
+
+        <createTable tableName="statement_activity_summaries">
+            <column name="activity_summary_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="statement_id" type="VARCHAR(36)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_statement_activity_statement"/>
+            </column>
+            <column name="debit_total" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="credit_total" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_count" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="included_event_start_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="included_event_end_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

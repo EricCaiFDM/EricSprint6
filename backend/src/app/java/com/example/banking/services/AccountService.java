@@ -60,6 +60,8 @@ public class AccountService {
             entity.setCustomerId(customerId);
             entity.setAccountNumber(generateUniqueAccountNumber());
             entity.setAccountType(accountType);
+            entity.setInterestRate(resolveInterestRate(accountType, request.interestRate()));
+            entity.setCheckingNumber(resolveCheckingNumber(customerId, accountType));
             entity.setStatus("ACTIVE");
             entity.setNickname(normalizeOptional(request.nickname()));
             entity.setBalance(BigDecimal.ZERO.setScale(2));
@@ -278,6 +280,38 @@ public class AccountService {
         do {
             candidate = "NB" + UUID.randomUUID().toString().replace("-", "").substring(0, 12).toUpperCase(Locale.ROOT);
         } while (accountRepository.existsByAccountNumber(candidate));
+        return candidate;
+    }
+
+    private BigDecimal resolveInterestRate(String accountType, BigDecimal requestedInterestRate) {
+        if ("CHECKING".equalsIgnoreCase(accountType)) {
+            return BigDecimal.ZERO.setScale(4);
+        }
+
+        BigDecimal normalized = requestedInterestRate == null
+                ? BigDecimal.ZERO
+                : requestedInterestRate;
+
+        if (normalized.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ApiErrorException(
+                    HttpStatus.BAD_REQUEST,
+                    "ACCOUNT_VALIDATION_ERROR",
+                    "interestRate must be greater than or equal to 0",
+                    "interestRate");
+        }
+
+        return normalized.setScale(4, java.math.RoundingMode.HALF_UP);
+    }
+
+    private Integer resolveCheckingNumber(String customerId, String accountType) {
+        if (!"CHECKING".equalsIgnoreCase(accountType)) {
+            return null;
+        }
+
+        int candidate = accountRepository.nextCheckingNumber(customerId);
+        while (accountRepository.existsByCustomerIdAndCheckingNumber(customerId, candidate)) {
+            candidate += 1;
+        }
         return candidate;
     }
 

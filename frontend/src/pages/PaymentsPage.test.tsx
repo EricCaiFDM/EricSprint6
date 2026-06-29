@@ -53,6 +53,8 @@ describe("PaymentsPage", () => {
         accountName: "Everyday",
         accountType: "Everyday",
         accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
         availableBalance: 1250,
         currentBalance: 1250,
         currency: "USD",
@@ -63,6 +65,8 @@ describe("PaymentsPage", () => {
         accountName: "Savings",
         accountType: "Savings",
         accountNumberMasked: "**** 5678",
+        checkingNumber: null,
+        interestRate: 2.5,
         availableBalance: 3000,
         currentBalance: 3000,
         currency: "USD",
@@ -106,6 +110,8 @@ describe("PaymentsPage", () => {
         accountName: "Everyday",
         accountType: "Everyday",
         accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
         availableBalance: 1250,
         currentBalance: 1250,
         currency: "USD",
@@ -116,6 +122,8 @@ describe("PaymentsPage", () => {
         accountName: "Savings",
         accountType: "Savings",
         accountNumberMasked: "**** 5678",
+        checkingNumber: null,
+        interestRate: 2.5,
         availableBalance: 3000,
         currentBalance: 3000,
         currency: "USD",
@@ -172,5 +180,65 @@ describe("PaymentsPage", () => {
 
     expect(await screen.findByText(/Deposit completed\. Reference txn-1\./i)).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent(/Notification sent: Deposit Posted\./i);
+  });
+
+  it("shows transaction account labels with IDs and final total account balance", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      },
+      {
+        accountId: "acc-2",
+        accountName: "Savings",
+        accountType: "Savings",
+        accountNumberMasked: "**** 5678",
+        checkingNumber: null,
+        interestRate: 2.5,
+        availableBalance: 3000,
+        currentBalance: 3000,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [
+        {
+          transactionId: "txn-100",
+          accountId: "acc-1",
+          transactionType: "DEPOSIT",
+          bookedAt: "2026-06-29T10:00:00Z",
+          description: "Payroll",
+          category: "Deposit",
+          amount: 500,
+          currency: "USD",
+          direction: "CREDIT",
+          status: "Completed"
+        }
+      ],
+      page: 1,
+      pageSize: 10,
+      totalItems: 1,
+      totalPages: 1
+    });
+
+    renderPage();
+
+    expect(await screen.findByText(/Deposit · Payroll/i)).toBeInTheDocument();
+    expect(screen.getByText(/Account: Everyday \(acc-1\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/Final total account balance/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$4,250\.00/i)).toBeInTheDocument();
   });
 });

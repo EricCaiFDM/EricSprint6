@@ -15,6 +15,8 @@ import com.example.banking.models.AccountEntity;
 public interface AccountJpaRepository extends JpaRepository<AccountEntity, String> {
     Optional<AccountEntity> findByAccountIdAndDeletedAtIsNull(String accountId);
 
+    List<AccountEntity> findByDeletedAtIsNull();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM AccountEntity a WHERE a.accountId = :accountId AND a.deletedAt IS NULL")
     Optional<AccountEntity> findByAccountIdAndDeletedAtIsNullForUpdate(@Param("accountId") String accountId);
@@ -26,6 +28,14 @@ public interface AccountJpaRepository extends JpaRepository<AccountEntity, Strin
 
     @Query("SELECT COUNT(a) > 0 FROM AccountEntity a WHERE a.customerId = :customerId AND a.deletedAt IS NULL")
     boolean existsByCustomerIdAndDeletedAtIsNull(@Param("customerId") String customerId);
+
+    @Query("SELECT COUNT(a) > 0 FROM AccountEntity a WHERE a.customerId = :customerId AND a.checkingNumber = :checkingNumber")
+    boolean existsByCustomerIdAndCheckingNumber(
+            @Param("customerId") String customerId,
+            @Param("checkingNumber") Integer checkingNumber);
+
+    @Query("SELECT COALESCE(MAX(a.checkingNumber), 0) FROM AccountEntity a WHERE a.customerId = :customerId")
+    Integer findMaxCheckingNumberByCustomerId(@Param("customerId") String customerId);
 
     boolean existsByAccountNumberIgnoreCase(String accountNumber);
 }

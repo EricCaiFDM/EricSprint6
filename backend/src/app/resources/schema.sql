@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     customer_id VARCHAR(36) NOT NULL,
     account_number VARCHAR(24) NOT NULL,
     account_type VARCHAR(16) NOT NULL,
+    interest_rate DECIMAL(8, 4) NULL,
+    checking_number INT NULL,
     status VARCHAR(16) NOT NULL,
     nickname VARCHAR(64),
     balance DECIMAL(18, 2) NOT NULL DEFAULT 0,
@@ -77,6 +79,9 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_account_number
     ON accounts(account_number);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_customer_checking_number
+    ON accounts(customer_id, checking_number);
 
 CREATE INDEX IF NOT EXISTS ix_accounts_customer_active
     ON accounts(customer_id, deleted_at);
@@ -296,3 +301,64 @@ CREATE TABLE IF NOT EXISTS notification_delivery_outcomes (
     reason_code VARCHAR(128),
     metadata TEXT
 );
+
+CREATE TABLE IF NOT EXISTS monthly_statements (
+    statement_id VARCHAR(36) PRIMARY KEY,
+    account_id VARCHAR(36) NOT NULL,
+    period_year_month VARCHAR(7) NOT NULL,
+    period_start_utc TIMESTAMP NOT NULL,
+    period_end_utc TIMESTAMP NOT NULL,
+    opening_balance DECIMAL(18, 2) NOT NULL,
+    closing_balance DECIMAL(18, 2) NOT NULL,
+    currency_code VARCHAR(3) NOT NULL,
+    artifact_version INT NOT NULL,
+    artifact_uri VARCHAR(512) NOT NULL,
+    generation_mode VARCHAR(16) NOT NULL,
+    generated_at_utc TIMESTAMP NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    CONSTRAINT ux_monthly_statements_account_period_version UNIQUE (account_id, period_year_month, artifact_version)
+);
+
+CREATE INDEX IF NOT EXISTS ix_monthly_statements_account_generated
+    ON monthly_statements(account_id, generated_at_utc);
+
+CREATE INDEX IF NOT EXISTS ix_monthly_statements_period
+    ON monthly_statements(period_year_month, account_id);
+
+CREATE TABLE IF NOT EXISTS statement_activity_summaries (
+    activity_summary_id VARCHAR(36) PRIMARY KEY,
+    statement_id VARCHAR(36) NOT NULL UNIQUE,
+    debit_total DECIMAL(18, 2) NOT NULL,
+    credit_total DECIMAL(18, 2) NOT NULL,
+    transaction_count INT NOT NULL,
+    included_event_start_utc TIMESTAMP NOT NULL,
+    included_event_end_utc TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS statement_generation_events (
+    generation_event_id VARCHAR(36) PRIMARY KEY,
+    statement_id VARCHAR(36),
+    account_id VARCHAR(36) NOT NULL,
+    period_year_month VARCHAR(7) NOT NULL,
+    event_type VARCHAR(32) NOT NULL,
+    occurred_at_utc TIMESTAMP NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    reason_code VARCHAR(128),
+    metadata TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_statement_generation_events_period
+    ON statement_generation_events(account_id, period_year_month);
+
+CREATE TABLE IF NOT EXISTS statement_retrieval_events (
+    retrieval_event_id VARCHAR(36) PRIMARY KEY,
+    statement_id VARCHAR(36) NOT NULL,
+    requester_user_id VARCHAR(36) NOT NULL,
+    requester_role VARCHAR(16) NOT NULL,
+    occurred_at_utc TIMESTAMP NOT NULL,
+    outcome VARCHAR(24) NOT NULL,
+    reason_code VARCHAR(128)
+);
+
+CREATE INDEX IF NOT EXISTS ix_statement_retrieval_events_statement
+    ON statement_retrieval_events(statement_id, occurred_at_utc);

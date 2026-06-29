@@ -51,3 +51,10 @@ notification:
   retry-delay-seconds: 30
   default-policy-code: STANDARD
   fallback-order: EMAIL,SMS,PUSH,IN_APP
+
+statement:
+  max-page-size: 100
+  scheduler-enabled: true
+  scheduler-cron: "0 5 0 1 * *"
+  generation-batch-size: 250
+  artifact-base-uri: /statements

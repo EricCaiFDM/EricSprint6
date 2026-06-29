@@ -21,11 +21,13 @@ export function AccountManagementPage() {
   const [feedback, setFeedback] = useState(
     "Create and list accounts in this workspace, then open a specific account to view and update it."
   );
+  const [createError, setCreateError] = useState<string | null>(null);
 
   const [openForm, setOpenForm] = useState<CreateCustomerAccountInput>({
     accountType: "CHECKING",
     currencyCode: "USD",
-    nickname: ""
+    nickname: "",
+    interestRate: 0
   });
 
   const accountsQuery = useQuery({
@@ -37,12 +39,13 @@ export function AccountManagementPage() {
   const createMutation = useMutation({
     mutationFn: createCustomerAccount,
     onSuccess: async (account) => {
+      setCreateError(null);
       setFeedback(`Account created: ${account.accountName} (${account.accountNumberMasked}).`);
       setOpenForm((previous) => ({ ...previous, nickname: "" }));
       await queryClient.invalidateQueries({ queryKey: ["accounts", "list"] });
     },
     onError: (error) => {
-      setFeedback(`Unable to create account: ${(error as Error).message}`);
+      setCreateError(`Unable to create account: ${(error as Error).message}`);
     }
   });
 
@@ -51,14 +54,24 @@ export function AccountManagementPage() {
 
     const normalizedCurrency = openForm.currencyCode.trim().toUpperCase();
     if (!/^[A-Z]{3}$/.test(normalizedCurrency)) {
-      setFeedback("Currency code must be a valid 3-letter code.");
+      setCreateError("Currency code must be a valid 3-letter code.");
       return;
     }
 
     if (isAdmin && !customerScopeId.trim()) {
-      setFeedback("Enter customer ID scope before creating accounts as admin.");
+      setCreateError("Enter customer ID scope before creating accounts as admin.");
       return;
     }
+
+    if (openForm.accountType === "SAVINGS") {
+      const interestRate = typeof openForm.interestRate === "number" ? openForm.interestRate : Number.NaN;
+      if (!Number.isFinite(interestRate) || interestRate < 0) {
+        setCreateError("Interest rate must be a non-negative number.");
+        return;
+      }
+    }
+
+    setCreateError(null);
 
     createMutation.mutate({
       ...openForm,
@@ -151,11 +164,30 @@ export function AccountManagementPage() {
               />
             </label>
 
+            {openForm.accountType === "SAVINGS" ? (
+              <label>
+                Interest rate (%)
+                <input
+                  type="number"
+                  min={0}
+                  step="0.0001"
+                  value={openForm.interestRate ?? 0}
+                  onChange={(event) =>
+                    setOpenForm((previous) => ({
+                      ...previous,
+                      interestRate: Number(event.target.value)
+                    }))
+                  }
+                />
+              </label>
+            ) : null}
+
             <div className="actions">
               <button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Creating..." : "Create account"}
               </button>
             </div>
+            {createError ? <p className="inline-error" role="alert">{createError}</p> : null}
           </form>
         </article>
 
@@ -180,6 +212,12 @@ export function AccountManagementPage() {
                     <div>
                       <p className="item-title">{account.accountName}</p>
                       <p className="item-meta">{account.accountType} · {account.accountNumberMasked}</p>
+                      {account.checkingNumber !== null ? (
+                        <p className="item-meta">Checking number: {account.checkingNumber}</p>
+                      ) : null}
+                      {account.accountType === "Savings" ? (
+                        <p className="item-meta">Interest rate: {account.interestRate.toFixed(4)}%</p>
+                      ) : null}
                       <p className="item-meta">ID: {account.accountId}</p>
                     </div>
                     <div className="stack-list-meta">

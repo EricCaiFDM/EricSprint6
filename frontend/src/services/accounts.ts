@@ -6,6 +6,8 @@ export type BankAccount = {
   accountName: string;
   accountType: "Everyday" | "Savings" | "Credit";
   accountNumberMasked: string;
+  checkingNumber: number | null;
+  interestRate: number;
   availableBalance: number;
   currentBalance: number;
   currency: string;
@@ -17,6 +19,7 @@ export type CreateCustomerAccountInput = {
   accountType: "CHECKING" | "SAVINGS";
   currencyCode: string;
   nickname?: string;
+  interestRate?: number;
 };
 
 export type UpdateCustomerAccountInput = {
@@ -60,7 +63,10 @@ export async function createCustomerAccount(input: CreateCustomerAccountInput): 
       customerId,
       accountType: input.accountType,
       currencyCode: input.currencyCode.trim().toUpperCase(),
-      nickname: input.nickname?.trim() || undefined
+      nickname: input.nickname?.trim() || undefined,
+      interestRate: input.accountType === "SAVINGS" && typeof input.interestRate === "number"
+        ? input.interestRate
+        : undefined
     });
 
     const mapped = mapAccount(response.data);
@@ -215,6 +221,8 @@ function mapAccount(payload: unknown): BankAccount | null {
     accountName: asString(data.nickname, asString(data.accountName, `${accountType} Account`)),
     accountType,
     accountNumberMasked: asString(data.accountNumberMasked, maskAccountNumber(accountNumber)),
+    checkingNumber: asNullableNumber(data.checkingNumber),
+    interestRate: asNumber(data.interestRate, 0),
     availableBalance: asNumber(data.availableBalance, balance),
     currentBalance: asNumber(data.currentBalance, balance),
     currency: asString(data.currencyCode, asString(data.currency, "USD")),
@@ -240,6 +248,17 @@ function asNumber(value: unknown, fallback: number): number {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
   return fallback;
+}
+
+function asNullableNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function asType(value: unknown): BankAccount["accountType"] {

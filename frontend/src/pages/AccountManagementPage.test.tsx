@@ -45,6 +45,8 @@ describe("AccountManagementPage", () => {
         accountName: "Daily Spend",
         accountType: "Everyday",
         accountNumberMasked: "**** 0100",
+        checkingNumber: 1,
+        interestRate: 0,
         availableBalance: 350.75,
         currentBalance: 350.75,
         currency: "USD",
@@ -60,6 +62,45 @@ describe("AccountManagementPage", () => {
 
     await waitFor(() => {
       expect(screen.getByText(/Account details route/i)).toBeInTheDocument();
+    });
+  });
+
+  it("submits savings interest rate when creating savings account", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const createCustomerAccountMock = accounts.createCustomerAccount as jest.MockedFunction<typeof accounts.createCustomerAccount>;
+
+    fetchAccountsMock.mockResolvedValue([]);
+    createCustomerAccountMock.mockResolvedValue({
+      accountId: "acc-200",
+      accountName: "Rainy Day",
+      accountType: "Savings",
+      accountNumberMasked: "**** 0200",
+      checkingNumber: null,
+      interestRate: 2.75,
+      availableBalance: 0,
+      currentBalance: 0,
+      currency: "USD",
+      status: "Active"
+    });
+
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/Account type/i), {
+      target: { value: "SAVINGS" }
+    });
+
+    fireEvent.change(screen.getByLabelText(/Interest rate \(%\)/i), {
+      target: { value: "2.75" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    await waitFor(() => {
+      expect(createCustomerAccountMock).toHaveBeenCalled();
+      expect(createCustomerAccountMock.mock.calls[0]?.[0]).toEqual(expect.objectContaining({
+        accountType: "SAVINGS",
+        interestRate: 2.75
+      }));
     });
   });
 });
