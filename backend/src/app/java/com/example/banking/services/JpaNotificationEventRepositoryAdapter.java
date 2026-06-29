@@ -1,7 +1,9 @@
 package com.example.banking.services;
 
+import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Repository;
 
 import com.example.banking.lib.NotificationEventJpaRepository;
@@ -23,5 +25,13 @@ public class JpaNotificationEventRepositoryAdapter implements NotificationEventR
     @Override
     public Optional<NotificationEventEntity> findById(String notificationEventId) {
         return notificationEventJpaRepository.findByNotificationEventId(notificationEventId);
+    }
+
+    @Override
+    public List<NotificationEventEntity> listRecent(int size) {
+        int normalizedSize = Math.max(1, Math.min(size, 100));
+        return notificationEventJpaRepository
+                .findAllByOrderByTriggeredAtUtcDesc(PageRequest.of(0, normalizedSize))
+                .getContent();
     }
 }

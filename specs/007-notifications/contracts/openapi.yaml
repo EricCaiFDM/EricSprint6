@@ -7,6 +7,28 @@ servers:
   - url: https://api.example.com
 paths:
   /notifications/events:
+    get:
+      summary: List recent notification feed items
+      parameters:
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 6
+      responses:
+        '200':
+          description: Recent notifications returned
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NotificationFeedItem'
+        '403':
+          description: Insufficient permission
     post:
       summary: Trigger notification event
       requestBody:
@@ -194,3 +216,20 @@ components:
           type: integer
         totalPages:
           type: integer
+    NotificationFeedItem:
+      type: object
+      required: [notificationId, title, message, occurredAt, level]
+      properties:
+        notificationId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        message:
+          type: string
+        occurredAt:
+          type: string
+          format: date-time
+        level:
+          type: string
+          enum: [Info, Warning]

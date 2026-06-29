@@ -85,6 +85,9 @@
 - [X] T031 Add structured notification telemetry fields in backend/src/main/java/com/example/banking/lib/observability/notification-log-fields.java
 - [X] T032 Update executable verification steps in specs/007-notifications/quickstart.md
 - [X] T033 Run quickstart scenario validation and record outcomes in specs/007-notifications/quickstart.md
+- [X] T034 Add GET /notifications/events feed endpoint and repository query support in backend/src/app/java/com/example/banking/api/notifications/routes/ListRecentNotificationsRoute.java
+- [X] T035 Add frontend live-alert banner behavior and polling in frontend/src/pages/NotificationsPage.tsx
+- [X] T036 Add backend/frontend regression tests for notifications feed and live-alert updates in backend/src/test/java/com/example/banking/api/notifications/NotificationControllerIntegrationTest.java
 
 ---
 

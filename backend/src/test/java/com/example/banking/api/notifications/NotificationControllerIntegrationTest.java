@@ -204,4 +204,63 @@ class NotificationControllerIntegrationTest {
                 .andExpect(jsonPath("$.items[0].status").value("RETRY_SCHEDULED"))
                 .andExpect(jsonPath("$.items[1].status").value("SUCCEEDED"));
     }
+
+    @Test
+    void recentEventsFeedReturnsCurrentUserScopeOnly() throws Exception {
+        String customerId = createCustomer("notif-owner-103", "103");
+        String otherCustomerId = createCustomer("notif-owner-104", "104");
+
+        String ownTriggerPayloadOne = "{" +
+                "\"eventType\":\"DEPOSIT_POSTED\"," +
+                "\"recipientScopeType\":\"CUSTOMER\"," +
+                "\"recipientScopeId\":\"" + customerId + "\"," +
+                "\"templateCode\":\"DEPOSIT_RECEIPT\"," +
+                "\"templateContext\":{\"title\":\"Deposit posted\"}" +
+                "}";
+
+        String ownTriggerPayloadTwo = "{" +
+                "\"eventType\":\"TRANSFER_COMPLETED\"," +
+                "\"recipientScopeType\":\"CUSTOMER\"," +
+                "\"recipientScopeId\":\"" + customerId + "\"," +
+                "\"templateCode\":\"TRANSFER_RECEIPT\"," +
+                "\"templateContext\":{\"title\":\"Transfer complete\"}" +
+                "}";
+
+        String otherTriggerPayload = "{" +
+                "\"eventType\":\"STANDING_ORDER_EXECUTED\"," +
+                "\"recipientScopeType\":\"CUSTOMER\"," +
+                "\"recipientScopeId\":\"" + otherCustomerId + "\"," +
+                "\"templateCode\":\"STANDING_ORDER_EXECUTED\"," +
+                "\"templateContext\":{\"title\":\"Standing order executed\"}" +
+                "}";
+
+        mockMvc.perform(post("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-103").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(ownTriggerPayloadOne))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(post("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-103").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(ownTriggerPayloadTwo))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(post("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-104").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(otherTriggerPayload))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-103").claim("role", "CUSTOMER")))
+                .param("size", "6"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].notificationId").isNotEmpty())
+                .andExpect(jsonPath("$[0].title").isNotEmpty())
+                .andExpect(jsonPath("$[0].message").isNotEmpty())
+                .andExpect(jsonPath("$[0].occurredAt").isNotEmpty())
+                .andExpect(jsonPath("$[0].level").isNotEmpty());
+    }
 }
