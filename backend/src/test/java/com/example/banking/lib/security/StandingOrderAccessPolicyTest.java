@@ -1,0 +1,132 @@
+package com.example.banking.lib.security;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import com.example.banking.api.common.ApiErrorException;
+import com.example.banking.lib.AccountJpaRepository;
+import com.example.banking.lib.CustomerJpaRepository;
+import com.example.banking.models.AccountEntity;
+import com.example.banking.models.CustomerEntity;
+import com.example.banking.models.StandingOrderEntity;
+
+class StandingOrderAccessPolicyTest {
+
+    private AccountJpaRepository accountJpaRepository;
+    private CustomerJpaRepository customerJpaRepository;
+    private StandingOrderAccessPolicy policy;
+
+    @BeforeEach
+    void setUp() {
+        accountJpaRepository = mock(AccountJpaRepository.class);
+        customerJpaRepository = mock(CustomerJpaRepository.class);
+        policy = new StandingOrderAccessPolicy(accountJpaRepository, customerJpaRepository);
+    }
+
+    @Test
+    void enforceManageAccessAllowsAdminAndCustomerButRejectsOthers() {
+        policy.enforceManageAccess("ADMIN");
+        policy.enforceManageAccess("customer");
+
+        ApiErrorException forbidden = assertThrows(ApiErrorException.class, () -> policy.enforceManageAccess("auditor"));
+        assertEquals("STANDING_ORDER_FORBIDDEN", forbidden.getCode());
+    }
+
+    @Test
+    void requireAccountScopeHandlesAdminOwnerInheritedOwnershipAndForbidden() {
+        AccountEntity account = account("acc-1", "cust-1", "owner-1", "creator-1");
+        when(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("acc-1")).thenReturn(Optional.of(account));
+
+        AccountEntity forAdmin = policy.requireAccountScope("acc-1", "ADMIN", "whoever", "accountId");
+        assertNotNull(forAdmin);
+
+        AccountEntity forOwner = policy.requireAccountScope("acc-1", "CUSTOMER", "owner-1", "accountId");
+        assertNotNull(forOwner);
+
+        CustomerEntity customer = customer("cust-1", "owner-2", "creator-2");
+        when(customerJpaRepository.findByCustomerIdAndDeletedAtIsNull("cust-1")).thenReturn(Optional.of(customer));
+        AccountEntity forCustomerOwner = policy.requireAccountScope("acc-1", "CUSTOMER", "owner-2", "accountId");
+        assertNotNull(forCustomerOwner);
+
+        ApiErrorException forbidden = assertThrows(
+                ApiErrorException.class,
+                () -> policy.requireAccountScope("acc-1", "CUSTOMER", "outsider", "accountId"));
+        assertEquals("STANDING_ORDER_FORBIDDEN", forbidden.getCode());
+    }
+
+    @Test
+    void requireAccountScopeThrowsWhenAccountMissing() {
+        when(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("missing")).thenReturn(Optional.empty());
+
+        ApiErrorException exception = assertThrows(
+                ApiErrorException.class,
+                () -> policy.requireAccountScope("missing", "CUSTOMER", "actor", "sourceAccountId"));
+        assertEquals("STANDING_ORDER_ACCOUNT_NOT_FOUND", exception.getCode());
+        assertEquals("sourceAccountId", exception.getField());
+    }
+
+    @Test
+    void requireStandingOrderScopeValidatesNullAndRespectsOwnership() {
+        ApiErrorException notFound = assertThrows(
+                ApiErrorException.class,
+                () -> policy.requireStandingOrderScope(null, "CUSTOMER", "actor", "read"));
+        assertEquals("STANDING_ORDER_NOT_FOUND", notFound.getCode());
+
+        StandingOrderEntity standingOrder = new StandingOrderEntity();
+        standingOrder.setSourceAccountId("acc-10");
+
+        policy.requireStandingOrderScope(standingOrder, "ADMIN", "actor", "read");
+
+        AccountEntity sourceAccount = account("acc-10", "cust-10", "owner-10", "creator-10");
+        when(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("acc-10")).thenReturn(Optional.of(sourceAccount));
+
+        policy.requireStandingOrderScope(standingOrder, "CUSTOMER", "owner-10", "read");
+
+        CustomerEntity customer = customer("cust-10", "owner-from-customer", "creator-from-customer");
+        when(customerJpaRepository.findByCustomerIdAndDeletedAtIsNull("cust-10")).thenReturn(Optional.of(customer));
+        policy.requireStandingOrderScope(standingOrder, "CUSTOMER", "owner-from-customer", "read");
+
+        ApiErrorException forbidden = assertThrows(
+                ApiErrorException.class,
+                () -> policy.requireStandingOrderScope(standingOrder, "CUSTOMER", "outsider", "read"));
+        assertEquals("STANDING_ORDER_FORBIDDEN", forbidden.getCode());
+    }
+
+    @Test
+    void requireStandingOrderScopeThrowsWhenSourceAccountMissing() {
+        StandingOrderEntity standingOrder = new StandingOrderEntity();
+        standingOrder.setSourceAccountId("acc-missing");
+        when(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("acc-missing")).thenReturn(Optional.empty());
+
+        ApiErrorException missingAccount = assertThrows(
+                ApiErrorException.class,
+                () -> policy.requireStandingOrderScope(standingOrder, "CUSTOMER", "actor", "read"));
+        assertEquals("STANDING_ORDER_ACCOUNT_NOT_FOUND", missingAccount.getCode());
+        assertEquals("sourceAccountId", missingAccount.getField());
+    }
+
+    private AccountEntity account(String accountId, String customerId, String ownerUserId, String createdByUserId) {
+        AccountEntity account = new AccountEntity();
+        account.setAccountId(accountId);
+        account.setCustomerId(customerId);
+        account.setOwnerUserId(ownerUserId);
+        account.setCreatedByUserId(createdByUserId);
+        return account;
+    }
+
+    private CustomerEntity customer(String customerId, String ownerUserId, String createdByUserId) {
+        CustomerEntity customer = new CustomerEntity();
+        customer.setCustomerId(customerId);
+        customer.setOwnerUserId(ownerUserId);
+        customer.setCreatedByUserId(createdByUserId);
+        return customer;
+    }
+}
