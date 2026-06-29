@@ -108,6 +108,14 @@ class TransactionControllerIntegrationTest {
                 BigDecimal.class,
                 accountId);
         org.junit.jupiter.api.Assertions.assertEquals(new BigDecimal("125.50"), balance);
+
+        Integer notificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notification_events WHERE event_type = ? AND recipient_scope_type = ? AND recipient_scope_id = ?",
+                Integer.class,
+                "DEPOSIT_POSTED",
+                "ACCOUNT",
+                accountId);
+        org.junit.jupiter.api.Assertions.assertEquals(1, notificationCount);
     }
 
     @Test
@@ -217,6 +225,14 @@ class TransactionControllerIntegrationTest {
 
         Integer transferLinks = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transfer_links", Integer.class);
         org.junit.jupiter.api.Assertions.assertEquals(1, transferLinks);
+
+        Integer transferNotificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notification_events WHERE event_type = ? AND recipient_scope_type = ? AND recipient_scope_id = ?",
+                Integer.class,
+                "TRANSFER_COMPLETED",
+                "ACCOUNT",
+                sourceAccountId);
+        org.junit.jupiter.api.Assertions.assertEquals(1, transferNotificationCount);
     }
 
     @Test
@@ -275,5 +291,31 @@ class TransactionControllerIntegrationTest {
                 .queryParam("pageSize", "20"))
                 .andExpect(status().isForbidden())
                 .andExpect(jsonPath("$.code").value("TRANSACTION_FORBIDDEN"));
+    }
+
+    @Test
+    void depositNotificationAppearsInRecentNotificationsFeed() throws Exception {
+        String customerId = createCustomer("tx-owner-105", "105");
+        String accountId = createAccount("tx-owner-105", customerId, "CHECKING");
+
+        String payload = "{" +
+                "\"accountId\":\"" + accountId + "\"," +
+                "\"amount\":\"50.00\"" +
+                "}";
+
+        mockMvc.perform(post("/transactions/deposit")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "tx-owner-105").claim("role", "CUSTOMER")))
+                .header("Idempotency-Key", "idem-notif-feed-105")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "tx-owner-105").claim("role", "CUSTOMER")))
+                .queryParam("size", "6"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("Deposit Posted"))
+                .andExpect(jsonPath("$[0].level").value("Info"));
     }
 }

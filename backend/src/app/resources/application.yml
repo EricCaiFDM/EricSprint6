@@ -44,3 +44,10 @@ standing-order:
   max-retry-attempts: 3
   retry-delay-minutes: 30
   default-retry-policy-code: STANDARD
+
+notification:
+  max-page-size: 100
+  max-retry-attempts: 2
+  retry-delay-seconds: 30
+  default-policy-code: STANDARD
+  fallback-order: EMAIL,SMS,PUSH,IN_APP

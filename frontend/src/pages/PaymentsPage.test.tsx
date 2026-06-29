@@ -3,9 +3,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { PaymentsPage } from "./PaymentsPage";
 import * as accounts from "../services/accounts";
+import * as notifications from "../services/notifications";
 import * as transactions from "../services/transactions";
 
 jest.mock("../services/accounts");
+jest.mock("../services/notifications");
 jest.mock("../services/transactions");
 
 describe("PaymentsPage", () => {
@@ -29,6 +31,16 @@ describe("PaymentsPage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>).mockResolvedValue([
+      {
+        notificationId: "notif-1",
+        title: "Deposit Posted",
+        message: "Delivered successfully",
+        occurredAt: "2026-06-29T09:30:00Z",
+        level: "Info"
+      }
+    ]);
   });
 
   it("renders all transaction operation controls", async () => {
@@ -159,5 +171,6 @@ describe("PaymentsPage", () => {
     expect(firstCall?.customerId).toBeUndefined();
 
     expect(await screen.findByText(/Deposit completed\. Reference txn-1\./i)).toBeInTheDocument();
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Notification sent: Deposit Posted\./i);
   });
 });

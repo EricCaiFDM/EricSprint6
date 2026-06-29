@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="20260625-notifications-init" author="copilot">
+        <createTable tableName="notification_events">
+            <column name="notification_event_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_scope_type" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="recipient_scope_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="template_code" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="template_context" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="triggered_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="correlation_id" type="VARCHAR(36)"/>
+            <column name="completed_at_utc" type="TIMESTAMP"/>
+        </createTable>
+
+        <createIndex tableName="notification_events" indexName="ix_notification_events_status_triggered">
+            <column name="status"/>
+            <column name="triggered_at_utc"/>
+        </createIndex>
+
+        <createIndex tableName="notification_events" indexName="ix_notification_events_scope">
+            <column name="recipient_scope_type"/>
+            <column name="recipient_scope_id"/>
+        </createIndex>
+
+        <createTable tableName="notification_preference_snapshots">
+            <column name="snapshot_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="notification_event_id" type="VARCHAR(36)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_notification_pref_event"/>
+            </column>
+            <column name="recipient_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="consent_status" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="allowed_channels" type="VARCHAR(160)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="restricted_channels" type="VARCHAR(160)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="captured_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createTable tableName="notification_dispatch_attempts">
+            <column name="attempt_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="notification_event_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="channel" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="attempt_number" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="queued_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at_utc" type="TIMESTAMP"/>
+            <column name="completed_at_utc" type="TIMESTAMP"/>
+            <column name="status" type="VARCHAR(48)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="provider_reference_id" type="VARCHAR(128)"/>
+            <column name="reason_code" type="VARCHAR(128)"/>
+        </createTable>
+
+        <createIndex tableName="notification_dispatch_attempts" indexName="ix_notification_attempts_event_attempt">
+            <column name="notification_event_id"/>
+            <column name="attempt_number"/>
+        </createIndex>
+
+        <createTable tableName="notification_delivery_outcomes">
+            <column name="outcome_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="notification_event_id" type="VARCHAR(36)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_notification_outcome_event"/>
+            </column>
+            <column name="final_status" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="delivered_channel" type="VARCHAR(16)"/>
+            <column name="completed_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_code" type="VARCHAR(128)"/>
+            <column name="metadata" type="TEXT"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

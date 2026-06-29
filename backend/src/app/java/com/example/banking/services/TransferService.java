@@ -32,6 +32,7 @@ public class TransferService {
     private final MonetaryIdempotencyOrchestrator idempotencyOrchestrator;
     private final TransactionLifecycleAuditService lifecycleAuditService;
     private final TransferResponseMapper transferResponseMapper;
+    private final NotificationAutoTriggerService notificationAutoTriggerService;
 
     public TransferService(
             MoneyPolicy moneyPolicy,
@@ -41,7 +42,8 @@ public class TransferService {
             TransferLinkService transferLinkService,
             MonetaryIdempotencyOrchestrator idempotencyOrchestrator,
             TransactionLifecycleAuditService lifecycleAuditService,
-            TransferResponseMapper transferResponseMapper) {
+            TransferResponseMapper transferResponseMapper,
+            NotificationAutoTriggerService notificationAutoTriggerService) {
         this.moneyPolicy = moneyPolicy;
         this.transactionAccessPolicy = transactionAccessPolicy;
         this.balanceConsistencyService = balanceConsistencyService;
@@ -50,6 +52,7 @@ public class TransferService {
         this.idempotencyOrchestrator = idempotencyOrchestrator;
         this.lifecycleAuditService = lifecycleAuditService;
         this.transferResponseMapper = transferResponseMapper;
+        this.notificationAutoTriggerService = notificationAutoTriggerService;
     }
 
     @Transactional
@@ -187,6 +190,14 @@ public class TransferService {
                 normalizeRole(role),
                 "{\"sourceAccountId\":\"" + source.getAccountId() + "\",\"destinationAccountId\":\""
                         + destination.getAccountId() + "\"}");
+
+        notificationAutoTriggerService.triggerTransferCompleted(
+            source.getAccountId(),
+            destination.getAccountId(),
+            amount.toPlainString(),
+            transferLink.getTransferId(),
+            actorUserId,
+            normalizeRole(role));
 
         return transferResponseMapper.toSchema(transferLink, savedDebit, savedCredit);
     }

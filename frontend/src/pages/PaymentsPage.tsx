@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAccounts, type BankAccount } from "../services/accounts";
+import { fetchRecentNotifications } from "../services/notifications";
 import {
   fetchTransactionHistory,
   submitDeposit,
@@ -56,6 +57,7 @@ export function PaymentsPage() {
   const [historyPageSize, setHistoryPageSize] = useState(10);
 
   const [feedback, setFeedback] = useState("Deposit, withdraw, transfer, and review all transactions in one place.");
+  const [notificationFeedback, setNotificationFeedback] = useState<string | null>(null);
   const [lastOperation, setLastOperation] = useState<OperationReceipt | null>(null);
 
   const accountsQuery = useQuery({
@@ -195,6 +197,17 @@ export function PaymentsPage() {
     ]);
   };
 
+  const refreshNotificationFeed = async (fallbackTitle: string) => {
+    try {
+      const latest = await fetchRecentNotifications();
+      queryClient.setQueryData(["notification-feed"], latest);
+      const title = latest[0]?.title ?? fallbackTitle;
+      setNotificationFeedback(`Notification sent: ${title}.`);
+    } catch {
+      setNotificationFeedback(`Notification sent: ${fallbackTitle}.`);
+    }
+  };
+
   const depositMutation = useMutation({
     mutationFn: submitDeposit,
     onSuccess: async (receipt, variables) => {
@@ -207,7 +220,10 @@ export function PaymentsPage() {
       setLastOperation({ kind: "deposit", receipt });
       setFeedback(`Deposit completed. Reference ${receipt.reference}.`);
       setDepositAmount("");
-      await refreshAll();
+      await Promise.all([
+        refreshAll(),
+        refreshNotificationFeed("Deposit Posted")
+      ]);
     },
     onError: (error) => setFeedback(`Deposit failed: ${(error as Error).message}`)
   });
@@ -245,7 +261,10 @@ export function PaymentsPage() {
       setLastOperation({ kind: "transfer", receipt });
       setFeedback(`Transfer completed. Reference ${receipt.reference}.`);
       setTransferAmount("");
-      await refreshAll();
+      await Promise.all([
+        refreshAll(),
+        refreshNotificationFeed("Transfer Completed")
+      ]);
     },
     onError: (error) => setFeedback(`Transfer failed: ${(error as Error).message}`)
   });
@@ -323,6 +342,15 @@ export function PaymentsPage() {
           <p className="page-subtitle">Deposit, withdraw, transfer funds, and retrieve full transaction history.</p>
         </div>
       </header>
+
+      {notificationFeedback ? (
+        <div className="in-page-alert" role="alert">
+          <span>{notificationFeedback}</span>
+          <button type="button" className="in-page-alert-dismiss" onClick={() => setNotificationFeedback(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       {isAdmin ? (
         <article className="surface-card">

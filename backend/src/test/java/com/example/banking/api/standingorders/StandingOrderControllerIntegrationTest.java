@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
@@ -39,6 +40,9 @@ class StandingOrderControllerIntegrationTest {
 
     @Autowired
     private StandingOrderExecutionOrchestrator executionOrchestrator;
+
+        @Autowired
+        private JdbcTemplate jdbcTemplate;
 
     private String createCustomer(String ownerUserId, String suffix) throws Exception {
         String payload = "{" +
@@ -163,6 +167,14 @@ class StandingOrderControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.items[0].status").value("SUCCEEDED"));
+
+        Integer notificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notification_events WHERE event_type = ? AND recipient_scope_type = ? AND recipient_scope_id = ?",
+                Integer.class,
+                "STANDING_ORDER_EXECUTED",
+                "ACCOUNT",
+                sourceAccountId);
+        org.junit.jupiter.api.Assertions.assertEquals(1, notificationCount);
     }
 
     @Test

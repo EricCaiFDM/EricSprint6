@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchNotificationPreferences,
@@ -15,7 +15,9 @@ export function NotificationsPage() {
   });
   const feedQuery = useQuery({
     queryKey: ["notification-feed"],
-    queryFn: fetchRecentNotifications
+    queryFn: fetchRecentNotifications,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true
   });
 
   const [preferences, setPreferences] = useState<NotificationPreferences>({
@@ -25,12 +27,31 @@ export function NotificationsPage() {
     marketingEnabled: false
   });
   const [feedback, setFeedback] = useState("Choose how you want to hear from us.");
+  const [liveAlert, setLiveAlert] = useState<string | null>(null);
+  const latestNotificationIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (preferencesQuery.data) {
       setPreferences(preferencesQuery.data);
     }
   }, [preferencesQuery.data]);
+
+  useEffect(() => {
+    const latest = feedQuery.data?.[0];
+    if (!latest) {
+      return;
+    }
+
+    if (latestNotificationIdRef.current === null) {
+      latestNotificationIdRef.current = latest.notificationId;
+      return;
+    }
+
+    if (latest.notificationId !== latestNotificationIdRef.current) {
+      latestNotificationIdRef.current = latest.notificationId;
+      setLiveAlert(`New alert: ${latest.title}`);
+    }
+  }, [feedQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: updateNotificationPreferences
@@ -53,6 +74,15 @@ export function NotificationsPage() {
           <p className="page-subtitle">Control how account alerts and service updates reach you.</p>
         </div>
       </header>
+
+      {liveAlert ? (
+        <div className="in-page-alert" role="alert">
+          <span>{liveAlert}</span>
+          <button type="button" className="in-page-alert-dismiss" onClick={() => setLiveAlert(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       <section className="two-column-grid">
         <article className="surface-card">

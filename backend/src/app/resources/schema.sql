@@ -241,3 +241,58 @@ CREATE TABLE IF NOT EXISTS standing_order_schedule_cursors (
 
 CREATE INDEX IF NOT EXISTS ix_so_cursor_worker_claimed
     ON standing_order_schedule_cursors(worker_id, claimed_at_utc);
+
+CREATE TABLE IF NOT EXISTS notification_events (
+    notification_event_id VARCHAR(36) PRIMARY KEY,
+    event_type VARCHAR(64) NOT NULL,
+    recipient_scope_type VARCHAR(16) NOT NULL,
+    recipient_scope_id VARCHAR(36) NOT NULL,
+    template_code VARCHAR(64) NOT NULL,
+    template_context TEXT NOT NULL,
+    triggered_at_utc TIMESTAMP NOT NULL,
+    status VARCHAR(16) NOT NULL,
+    correlation_id VARCHAR(36),
+    completed_at_utc TIMESTAMP NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_notification_events_status_triggered
+    ON notification_events(status, triggered_at_utc);
+
+CREATE INDEX IF NOT EXISTS ix_notification_events_scope
+    ON notification_events(recipient_scope_type, recipient_scope_id);
+
+CREATE TABLE IF NOT EXISTS notification_preference_snapshots (
+    snapshot_id VARCHAR(36) PRIMARY KEY,
+    notification_event_id VARCHAR(36) NOT NULL UNIQUE,
+    recipient_id VARCHAR(36) NOT NULL,
+    consent_status VARCHAR(16) NOT NULL,
+    allowed_channels VARCHAR(160) NOT NULL,
+    restricted_channels VARCHAR(160) NOT NULL,
+    captured_at_utc TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notification_dispatch_attempts (
+    attempt_id VARCHAR(36) PRIMARY KEY,
+    notification_event_id VARCHAR(36) NOT NULL,
+    channel VARCHAR(16) NOT NULL,
+    attempt_number INT NOT NULL,
+    queued_at_utc TIMESTAMP NOT NULL,
+    started_at_utc TIMESTAMP NULL,
+    completed_at_utc TIMESTAMP NULL,
+    status VARCHAR(48) NOT NULL,
+    provider_reference_id VARCHAR(128),
+    reason_code VARCHAR(128)
+);
+
+CREATE INDEX IF NOT EXISTS ix_notification_attempts_event_attempt
+    ON notification_dispatch_attempts(notification_event_id, attempt_number);
+
+CREATE TABLE IF NOT EXISTS notification_delivery_outcomes (
+    outcome_id VARCHAR(36) PRIMARY KEY,
+    notification_event_id VARCHAR(36) NOT NULL UNIQUE,
+    final_status VARCHAR(32) NOT NULL,
+    delivered_channel VARCHAR(16),
+    completed_at_utc TIMESTAMP NOT NULL,
+    reason_code VARCHAR(128),
+    metadata TEXT
+);
