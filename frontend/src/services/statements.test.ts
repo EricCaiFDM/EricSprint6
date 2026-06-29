@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { apiClient } from "./api";
-import { fetchStatement, fetchStatements, generateStatement } from "./statements";
+import * as transactions from "./transactions";
+import { fetchStatement, fetchStatementTransactions, fetchStatements, generateStatement } from "./statements";
 
 describe("statements service", () => {
   beforeEach(() => {
@@ -104,5 +105,83 @@ describe("statements service", () => {
       statementId: "stmt-3",
       generationStatus: "PROCESSING"
     });
+  });
+
+  it("collects all statement-period transactions across pages", async () => {
+    const historySpy = jest.spyOn(transactions, "fetchTransactionHistory")
+      .mockResolvedValueOnce({
+        items: [
+          {
+            transactionId: "txn-1",
+            transactionType: "DEPOSIT",
+            bookedAt: "2026-06-10T12:00:00Z",
+            description: "Deposit",
+            category: "Deposit",
+            amount: 50,
+            currency: "USD",
+            direction: "CREDIT",
+            status: "Completed"
+          }
+        ],
+        page: 1,
+        pageSize: 100,
+        totalItems: 2,
+        totalPages: 2
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            transactionId: "txn-2",
+            transactionType: "TRANSFER_DEBIT",
+            bookedAt: "2026-06-05T09:30:00Z",
+            description: "Transfer sent",
+            category: "Transfer",
+            amount: 20,
+            currency: "USD",
+            direction: "DEBIT",
+            status: "Completed"
+          }
+        ],
+        page: 2,
+        pageSize: 100,
+        totalItems: 2,
+        totalPages: 2
+      });
+
+    const items = await fetchStatementTransactions({
+      accountId: "acc-4",
+      periodYearMonth: "2026-06"
+    });
+
+    expect(historySpy).toHaveBeenNthCalledWith(1, {
+      scopeType: "ACCOUNT",
+      scopeId: "acc-4",
+      startDate: "2026-06-01",
+      endDate: "2026-06-30",
+      page: 1,
+      pageSize: 100
+    });
+
+    expect(historySpy).toHaveBeenNthCalledWith(2, {
+      scopeType: "ACCOUNT",
+      scopeId: "acc-4",
+      startDate: "2026-06-01",
+      endDate: "2026-06-30",
+      page: 2,
+      pageSize: 100
+    });
+
+    expect(items).toHaveLength(2);
+    expect(items[0].transactionId).toBe("txn-1");
+    expect(items[1].transactionId).toBe("txn-2");
+  });
+
+  it("rejects invalid statement period format", async () => {
+    await expect(
+      fetchStatementTransactions({
+        accountId: "acc-4",
+        periodYearMonth: "2026/06"
+      })
+    ).rejects.toThrow("Statement period is invalid. Expected YYYY-MM.");
   });
 });

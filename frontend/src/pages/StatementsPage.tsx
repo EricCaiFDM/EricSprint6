@@ -3,12 +3,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAccounts, type BankAccount } from "../services/accounts";
 import {
   fetchStatement,
+  fetchStatementTransactions,
   fetchStatements,
   generateStatement,
-  type StatementDetail,
   type StatementGenerationMode,
   type StatementListResult
 } from "../services/statements";
+import type { TransactionItem } from "../services/transactions";
 import { formatCurrency, formatDateTime } from "../utils/formatting";
 
 const emptyStatements: StatementListResult = {
@@ -68,6 +69,16 @@ export function StatementsPage() {
     enabled: Boolean(selectedStatementId)
   });
 
+  const statementTransactionsQuery = useQuery({
+    queryKey: ["statements", "detail", "transactions", selectedStatementId],
+    queryFn: () =>
+      fetchStatementTransactions({
+        accountId: statementDetailQuery.data?.accountId ?? "",
+        periodYearMonth: statementDetailQuery.data?.periodYearMonth ?? ""
+      }),
+    enabled: Boolean(statementDetailQuery.data?.statementId)
+  });
+
   const generateMutation = useMutation({
     mutationFn: generateStatement,
     onSuccess: async (result) => {
@@ -87,10 +98,27 @@ export function StatementsPage() {
     [accounts, accountId]
   );
 
-  const canGenerate = Boolean(accountId) && Boolean(periodYearMonth) && !generateMutation.isPending;
+  const canGenerate =
+    Boolean(accountId) &&
+    Boolean(periodYearMonth) &&
+    Boolean(selectedAccount) &&
+    !accountsQuery.isPending &&
+    !generateMutation.isPending;
 
-  const onGenerateSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const onGenerateSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    const refreshed = await accountsQuery.refetch();
+    const latestAccounts = refreshed.data ?? [];
+    const selectedStillExists = latestAccounts.some((account) => account.accountId === accountId);
+
+    if (!selectedStillExists) {
+      const fallbackAccountId = latestAccounts[0]?.accountId ?? "";
+      setAccountId(fallbackAccountId);
+      setFeedback("The selected account is no longer available. Please reselect an account and try again.");
+      return;
+    }
+
     generateMutation.mutate({
       accountId,
       periodYearMonth,
@@ -104,12 +132,9 @@ export function StatementsPage() {
     setSelectedStatementId("");
   };
 
-  const onDownload = (statement: StatementDetail) => {
-    if (!statement.artifactUri) {
-      setFeedback("Statement artifact link is unavailable for this version.");
-      return;
-    }
-    window.open(statement.artifactUri, "_blank", "noopener,noreferrer");
+  const onViewDetails = (statementId: string) => {
+    setSelectedStatementId(statementId);
+    setFeedback("Retrieving selected statement details and transactions...");
   };
 
   const hasPreviousPage = statements.page > 1;
@@ -284,7 +309,7 @@ export function StatementsPage() {
                 <button
                   type="button"
                   className="button-secondary"
-                  onClick={() => setSelectedStatementId(statement.statementId)}
+                  onClick={() => onViewDetails(statement.statementId)}
                 >
                   View details
                 </button>
@@ -344,11 +369,32 @@ export function StatementsPage() {
               </div>
             </dl>
 
-            <div className="actions">
-              <button type="button" onClick={() => onDownload(statementDetailQuery.data)}>
-                Download PDF
-              </button>
-            </div>
+            <h4>Statement transactions</h4>
+            {statementTransactionsQuery.isPending ? (
+              <p className="hint-text">Loading statement transactions...</p>
+            ) : null}
+            {statementTransactionsQuery.isError ? (
+              <p className="hint-text">Unable to load statement transactions: {(statementTransactionsQuery.error as Error).message}</p>
+            ) : null}
+            {!statementTransactionsQuery.isPending && !statementTransactionsQuery.isError && (statementTransactionsQuery.data?.length ?? 0) === 0 ? (
+              <p className="hint-text">No transactions were posted in this statement period.</p>
+            ) : null}
+            {statementTransactionsQuery.data && statementTransactionsQuery.data.length > 0 ? (
+              <ul className="activity-list">
+                {statementTransactionsQuery.data.map((item) => (
+                  <li key={item.transactionId} className="activity-item">
+                    <div>
+                      <p className="item-title">{toReadableStatementTransactionType(item)} · {item.description}</p>
+                      <p className="item-meta">{formatDateTime(item.bookedAt)} · Ref {item.transactionId}</p>
+                    </div>
+                    <p className={item.direction === "CREDIT" ? "amount-credit" : "amount-debit"}>
+                      {item.direction === "CREDIT" ? "+" : "-"}
+                      {formatCurrency(item.amount, item.currency)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </>
         ) : null}
       </article>
@@ -358,4 +404,19 @@ export function StatementsPage() {
 
 function formatAccountLabel(account: BankAccount): string {
   return `${account.accountName} (${account.accountNumberMasked})`;
+}
+
+function toReadableStatementTransactionType(item: TransactionItem): string {
+  switch (item.transactionType) {
+    case "DEPOSIT":
+      return "Deposit";
+    case "WITHDRAWAL":
+      return "Withdrawal";
+    case "TRANSFER_DEBIT":
+      return "Transfer / standing order debit";
+    case "TRANSFER_CREDIT":
+      return "Transfer / standing order credit";
+    default:
+      return "Transaction";
+  }
 }

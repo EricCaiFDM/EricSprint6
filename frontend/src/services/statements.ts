@@ -1,4 +1,5 @@
 import { apiClient, getApiErrorDetails } from "./api";
+import { fetchTransactionHistory, type TransactionItem } from "./transactions";
 
 export type StatementGenerationMode = "STANDARD" | "CORRECTION";
 
@@ -41,6 +42,11 @@ export type GenerateStatementInput = {
 export type GenerateStatementResult = {
   statementId: string;
   generationStatus: "QUEUED" | "PROCESSING";
+};
+
+export type StatementTransactionsQuery = {
+  accountId: string;
+  periodYearMonth: string;
 };
 
 export async function fetchStatements(params: {
@@ -121,11 +127,47 @@ export async function generateStatement(input: GenerateStatementInput): Promise<
     if (details.status === 403) {
       throw new Error("This signed-in account is not authorized to generate statements for the selected account.");
     }
-    if (details.status === 404) {
+    if (details.status === 404 && details.code === "STATEMENT_ACCOUNT_NOT_FOUND") {
       throw new Error("The selected account could not be found.");
+    }
+    if (details.status === 404) {
+      throw new Error(
+        "Statement generation endpoint is unavailable. Confirm the backend is running the latest monthly statements build."
+      );
     }
     throw new Error(details.message);
   }
+}
+
+export async function fetchStatementTransactions(query: StatementTransactionsQuery): Promise<TransactionItem[]> {
+  if (!query.accountId || query.accountId.trim().length === 0) {
+    throw new Error("Select an account to load statement transactions.");
+  }
+
+  const { startDate, endDate } = normalizeStatementPeriod(query.periodYearMonth);
+  const accountId = query.accountId.trim();
+  const pageSize = 100;
+
+  let page = 1;
+  let totalPages = 1;
+  const items: TransactionItem[] = [];
+
+  do {
+    const result = await fetchTransactionHistory({
+      scopeType: "ACCOUNT",
+      scopeId: accountId,
+      startDate,
+      endDate,
+      page,
+      pageSize
+    });
+
+    items.push(...result.items);
+    totalPages = Math.max(1, result.totalPages);
+    page += 1;
+  } while (page <= totalPages);
+
+  return items.sort((left, right) => Date.parse(right.bookedAt) - Date.parse(left.bookedAt));
 }
 
 function mapStatementList(payload: unknown): StatementListResult {
@@ -225,4 +267,22 @@ function asNumber(value: unknown, fallback: number): number {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
   return fallback;
+}
+
+function normalizeStatementPeriod(periodYearMonth: string): { startDate: string; endDate: string } {
+  const value = periodYearMonth?.trim() ?? "";
+  const match = value.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
+  if (!match) {
+    throw new Error("Statement period is invalid. Expected YYYY-MM.");
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const startDate = `${match[1]}-${match[2]}-01`;
+  const endDate = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+
+  return {
+    startDate,
+    endDate
+  };
 }

@@ -43,11 +43,16 @@ describe("StatementsPage", () => {
         status: "Active"
       }
     ]);
+
+    (statements.fetchStatementTransactions as jest.MockedFunction<typeof statements.fetchStatementTransactions>).mockResolvedValue([]);
   });
 
-  it("loads statement list and retrieves details", async () => {
+  it("loads statement list, retrieves details, and renders statement transactions", async () => {
     const fetchStatementsMock = statements.fetchStatements as jest.MockedFunction<typeof statements.fetchStatements>;
     const fetchStatementMock = statements.fetchStatement as jest.MockedFunction<typeof statements.fetchStatement>;
+    const fetchStatementTransactionsMock = statements.fetchStatementTransactions as jest.MockedFunction<
+      typeof statements.fetchStatementTransactions
+    >;
 
     fetchStatementsMock.mockResolvedValue({
       items: [
@@ -79,6 +84,31 @@ describe("StatementsPage", () => {
       generatedAtUtc: "2026-06-30T00:05:00Z"
     });
 
+    fetchStatementTransactionsMock.mockResolvedValue([
+      {
+        transactionId: "txn-1",
+        transactionType: "DEPOSIT",
+        bookedAt: "2026-06-10T12:00:00Z",
+        description: "Deposit",
+        category: "Deposit",
+        amount: 125,
+        currency: "USD",
+        direction: "CREDIT",
+        status: "Completed"
+      },
+      {
+        transactionId: "txn-2",
+        transactionType: "TRANSFER_DEBIT",
+        bookedAt: "2026-06-11T12:00:00Z",
+        description: "Transfer sent",
+        category: "Transfer",
+        amount: 30,
+        currency: "USD",
+        direction: "DEBIT",
+        status: "Completed"
+      }
+    ]);
+
     renderPage();
 
     await waitFor(() => {
@@ -94,11 +124,22 @@ describe("StatementsPage", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /View details/i }));
 
+    expect(screen.getByText(/Retrieving selected statement details/i)).toBeInTheDocument();
+
     await waitFor(() => {
       expect(fetchStatementMock).toHaveBeenCalledWith("stmt-1");
     });
 
+    await waitFor(() => {
+      expect(fetchStatementTransactionsMock).toHaveBeenCalledWith({
+        accountId: "acc-1",
+        periodYearMonth: "2026-06"
+      });
+    });
+
     expect(await screen.findByText(/\$125\.00/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Deposit · Deposit/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Transfer \/ standing order debit · Transfer sent/i)).toBeInTheDocument();
   });
 
   it("submits generation request with selected options", async () => {
@@ -157,5 +198,66 @@ describe("StatementsPage", () => {
     });
 
     expect(await screen.findByText(/Statement generation processing/i)).toBeInTheDocument();
+  });
+
+  it("shows a friendly message when statement period has no transactions", async () => {
+    const fetchStatementsMock = statements.fetchStatements as jest.MockedFunction<typeof statements.fetchStatements>;
+    const fetchStatementMock = statements.fetchStatement as jest.MockedFunction<typeof statements.fetchStatement>;
+    const fetchStatementTransactionsMock = statements.fetchStatementTransactions as jest.MockedFunction<
+      typeof statements.fetchStatementTransactions
+    >;
+
+    fetchStatementsMock.mockResolvedValue({
+      items: [
+        {
+          statementId: "stmt-1",
+          accountId: "acc-1",
+          periodYearMonth: "2026-06",
+          artifactVersion: 1,
+          status: "GENERATED",
+          generatedAtUtc: "2026-06-30T00:05:00Z"
+        }
+      ],
+      page: 1,
+      pageSize: 20,
+      totalItems: 1,
+      totalPages: 1
+    });
+
+    fetchStatementMock.mockResolvedValue({
+      statementId: "stmt-1",
+      accountId: "acc-1",
+      periodYearMonth: "2026-06",
+      artifactVersion: 1,
+      openingBalance: 0,
+      closingBalance: 125,
+      currencyCode: "USD",
+      status: "GENERATED",
+      artifactUri: "/statements/stmt-1/artifact/v1.pdf",
+      generatedAtUtc: "2026-06-30T00:05:00Z"
+    });
+
+    fetchStatementTransactionsMock.mockResolvedValue([]);
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(fetchStatementsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /View details/i }));
+
+    await waitFor(() => {
+      expect(fetchStatementMock).toHaveBeenCalledWith("stmt-1");
+    });
+
+    await waitFor(() => {
+      expect(fetchStatementTransactionsMock).toHaveBeenCalledWith({
+        accountId: "acc-1",
+        periodYearMonth: "2026-06"
+      });
+    });
+
+    expect(await screen.findByText(/No transactions were posted in this statement period/i)).toBeInTheDocument();
   });
 });
