@@ -1,6 +1,7 @@
 package com.example.banking.lib;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -14,6 +15,13 @@ import com.example.banking.models.TransactionType;
 
 public interface TransactionJpaRepository extends JpaRepository<TransactionEntity, String> {
     Optional<TransactionEntity> findByTransactionId(String transactionId);
+
+        List<TransactionEntity> findByAccountIdAndPostedAtUtcLessThanOrderByPostedAtUtcAsc(String accountId, Instant postedAtUtc);
+
+        List<TransactionEntity> findByAccountIdAndPostedAtUtcGreaterThanEqualAndPostedAtUtcLessThanOrderByPostedAtUtcAsc(
+                        String accountId,
+                        Instant periodStartUtc,
+                        Instant periodEndUtc);
 
     @Query("""
             SELECT t

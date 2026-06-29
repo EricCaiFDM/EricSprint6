@@ -15,6 +15,8 @@ import com.example.banking.models.AccountEntity;
 public interface AccountJpaRepository extends JpaRepository<AccountEntity, String> {
     Optional<AccountEntity> findByAccountIdAndDeletedAtIsNull(String accountId);
 
+    List<AccountEntity> findByDeletedAtIsNull();
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM AccountEntity a WHERE a.accountId = :accountId AND a.deletedAt IS NULL")
     Optional<AccountEntity> findByAccountIdAndDeletedAtIsNullForUpdate(@Param("accountId") String accountId);

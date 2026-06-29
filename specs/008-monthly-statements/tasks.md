@@ -12,9 +12,9 @@
 
 **Purpose**: Initialize monthly statements feature scaffolding and baseline configuration.
 
-- [ ] T001 Create monthly statement feature package structure in backend/src/main/java/com/example/banking/api/statements
-- [ ] T002 [P] Add statement module configuration and scheduler properties in backend/src/main/resources/application.yml
-- [ ] T003 [P] Add frontend statement service and page scaffolding in frontend/src/services/statements.ts and frontend/src/pages/StatementsPage.tsx
+- [X] T001 Create monthly statement feature package structure in backend/src/main/java/com/example/banking/api/statements
+- [X] T002 [P] Add statement module configuration and scheduler properties in backend/src/main/resources/application.yml
+- [X] T003 [P] Add frontend statement service and page scaffolding in frontend/src/services/statements.ts and frontend/src/pages/StatementsPage.tsx
 
 ---
 
@@ -24,11 +24,11 @@
 
 **CRITICAL**: No user story implementation should start until this phase is complete.
 
-- [ ] T004 Create statement persistence migrations for metadata and versioning tables in backend/src/main/resources/db/changelog/008-monthly-statements.xml
-- [ ] T005 [P] Create audit event persistence migrations for generation and retrieval events in backend/src/main/resources/db/changelog/009-statement-audit-events.xml
-- [ ] T006 [P] Implement shared RBAC access guard utilities for statement scope checks in backend/src/main/java/com/example/banking/lib/security/StatementAccessGuard.java
-- [ ] T007 Implement shared statement exception mapping and error responses in backend/src/main/java/com/example/banking/api/statements/StatementExceptionHandler.java
-- [ ] T008 Configure statement repositories and base domain models in backend/src/main/java/com/example/banking/models/statement
+- [X] T004 Create statement persistence migrations for metadata and versioning tables in backend/src/main/resources/db/changelog/008-monthly-statements.xml
+- [X] T005 [P] Create audit event persistence migrations for generation and retrieval events in backend/src/main/resources/db/changelog/009-statement-audit-events.xml
+- [X] T006 [P] Implement shared RBAC access guard utilities for statement scope checks in backend/src/main/java/com/example/banking/lib/security/StatementAccessGuard.java
+- [X] T007 Implement shared statement exception mapping and error responses in backend/src/main/java/com/example/banking/api/statements/StatementExceptionHandler.java
+- [X] T008 Configure statement repositories and base domain models in backend/src/main/java/com/example/banking/models/statement
 
 **Checkpoint**: Foundation complete. User story implementation can begin.
 
@@ -42,13 +42,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] Implement MonthlyStatement aggregate model and validation rules in backend/src/main/java/com/example/banking/models/statement/MonthlyStatement.java
-- [ ] T010 [P] [US1] Implement StatementActivitySummary and mapping model in backend/src/main/java/com/example/banking/models/statement/StatementActivitySummary.java
-- [ ] T011 [P] [US1] Implement StatementGenerationEvent model and persistence adapter in backend/src/main/java/com/example/banking/models/statement/StatementGenerationEvent.java and backend/src/main/java/com/example/banking/services/statement/StatementGenerationEventRepository.java
-- [ ] T012 [US1] Implement UTC boundary and event-time ledger aggregation service in backend/src/main/java/com/example/banking/services/statement/StatementComputationService.java
-- [ ] T013 [US1] Implement statement generation orchestration with correction-version flow in backend/src/main/java/com/example/banking/services/statement/StatementGenerationService.java
-- [ ] T014 [US1] Implement generation endpoint contract for POST /statements/generate in backend/src/main/java/com/example/banking/api/statements/StatementGenerationController.java
-- [ ] T015 [US1] Implement scheduled monthly generation job with account partitioning in backend/src/main/java/com/example/banking/jobs/MonthlyStatementGenerationJob.java
+- [X] T009 [P] [US1] Implement MonthlyStatement aggregate model and validation rules in backend/src/main/java/com/example/banking/models/statement/MonthlyStatement.java
+- [X] T010 [P] [US1] Implement StatementActivitySummary and mapping model in backend/src/main/java/com/example/banking/models/statement/StatementActivitySummary.java
+- [X] T011 [P] [US1] Implement StatementGenerationEvent model and persistence adapter in backend/src/main/java/com/example/banking/models/statement/StatementGenerationEvent.java and backend/src/main/java/com/example/banking/services/statement/StatementGenerationEventRepository.java
+- [X] T012 [US1] Implement UTC boundary and event-time ledger aggregation service in backend/src/main/java/com/example/banking/services/statement/StatementComputationService.java
+- [X] T013 [US1] Implement statement generation orchestration with correction-version flow in backend/src/main/java/com/example/banking/services/statement/StatementGenerationService.java
+- [X] T014 [US1] Implement generation endpoint contract for POST /statements/generate in backend/src/main/java/com/example/banking/api/statements/StatementGenerationController.java
+- [X] T015 [US1] Implement scheduled monthly generation job with account partitioning in backend/src/main/java/com/example/banking/jobs/MonthlyStatementGenerationJob.java
 
 **Checkpoint**: User Story 1 is independently functional and testable.
 
@@ -62,12 +62,12 @@
 
 ### Implementation for User Story 2
 
-- [ ] T016 [P] [US2] Implement StatementRetrievalEvent model and persistence adapter in backend/src/main/java/com/example/banking/models/statement/StatementRetrievalEvent.java and backend/src/main/java/com/example/banking/services/statement/StatementRetrievalEventRepository.java
-- [ ] T017 [P] [US2] Implement StatementAccessPolicy model and resolver in backend/src/main/java/com/example/banking/models/statement/StatementAccessPolicy.java and backend/src/main/java/com/example/banking/services/statement/StatementAccessPolicyService.java
-- [ ] T018 [US2] Implement retrieval authorization service using hybrid RBAC checks in backend/src/main/java/com/example/banking/services/statement/StatementAuthorizationService.java
-- [ ] T019 [US2] Implement retrieval endpoint contract for GET /statements/{statementId} in backend/src/main/java/com/example/banking/api/statements/StatementRetrievalController.java
-- [ ] T020 [US2] Implement listing endpoint contract for GET /statements with account and period filters in backend/src/main/java/com/example/banking/api/statements/StatementQueryController.java
-- [ ] T021 [US2] Implement frontend statement retrieval/listing integration and access error handling in frontend/src/services/statements.ts and frontend/src/pages/StatementsPage.tsx
+- [X] T016 [P] [US2] Implement StatementRetrievalEvent model and persistence adapter in backend/src/main/java/com/example/banking/models/statement/StatementRetrievalEvent.java and backend/src/main/java/com/example/banking/services/statement/StatementRetrievalEventRepository.java
+- [X] T017 [P] [US2] Implement StatementAccessPolicy model and resolver in backend/src/main/java/com/example/banking/models/statement/StatementAccessPolicy.java and backend/src/main/java/com/example/banking/services/statement/StatementAccessPolicyService.java
+- [X] T018 [US2] Implement retrieval authorization service using hybrid RBAC checks in backend/src/main/java/com/example/banking/services/statement/StatementAuthorizationService.java
+- [X] T019 [US2] Implement retrieval endpoint contract for GET /statements/{statementId} in backend/src/main/java/com/example/banking/api/statements/StatementRetrievalController.java
+- [X] T020 [US2] Implement listing endpoint contract for GET /statements with account and period filters in backend/src/main/java/com/example/banking/api/statements/StatementQueryController.java
+- [X] T021 [US2] Implement frontend statement retrieval/listing integration and access error handling in frontend/src/services/statements.ts and frontend/src/pages/StatementsPage.tsx
 
 **Checkpoint**: User Story 2 is independently functional and testable.
 
@@ -77,9 +77,9 @@
 
 **Purpose**: Finalize consistency, observability, and readiness across delivered stories.
 
-- [ ] T022 [P] Update OpenAPI examples and response schemas for generation and retrieval edge cases in specs/008-monthly-statements/contracts/openapi.yaml
-- [ ] T023 [P] Update quickstart validation steps for correction-version and unauthorized retrieval checks in specs/008-monthly-statements/quickstart.md
-- [ ] T024 Run full feature validation checklist and document outcomes in specs/008-monthly-statements/checklists/quality.md
+- [X] T022 [P] Update OpenAPI examples and response schemas for generation and retrieval edge cases in specs/008-monthly-statements/contracts/openapi.yaml
+- [X] T023 [P] Update quickstart validation steps for correction-version and unauthorized retrieval checks in specs/008-monthly-statements/quickstart.md
+- [X] T024 Run full feature validation checklist and document outcomes in specs/008-monthly-statements/checklists/quality.md
 
 ---
 
@@ -157,12 +157,12 @@
 
 ### Definition of Done (MANDATORY)
 
-- [ ] TXXX Verify specification completeness (business rules, acceptance criteria, negative scenarios, error codes, OpenAPI, allowed/forbidden libraries, guardrails)
-- [ ] TXXX Verify implementation matches OpenAPI exactly (no undocumented fields or behavior)
-- [ ] TXXX Verify test obligations (>=70% coverage, contract tests, negative tests, mock-server integration tests)
-- [ ] TXXX Verify guardrails (spec reference, secure dependencies, static analysis, secret scan, dependency audit)
+- [X] TXXX Verify specification completeness (business rules, acceptance criteria, negative scenarios, error codes, OpenAPI, allowed/forbidden libraries, guardrails)
+- [X] TXXX Verify implementation matches OpenAPI exactly (no undocumented fields or behavior)
+- [X] TXXX Verify test obligations (>=70% coverage, contract tests, negative tests, mock-server integration tests)
+- [X] TXXX Verify guardrails (spec reference, secure dependencies, static analysis, secret scan, dependency audit)
 - [ ] TXXX Verify git workflow evidence (feature branch, PR to develop, 2 approvals, passing CI, meaningful commits)
-- [ ] TXXX Verify documentation/demo readiness (OpenAPI, Swagger UI, README, examples, positive/negative demo)
+- [X] TXXX Verify documentation/demo readiness (OpenAPI, Swagger UI, README, examples, positive/negative demo)
 
 ## Notes
 

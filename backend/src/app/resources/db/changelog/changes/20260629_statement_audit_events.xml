@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="20260629-statement-audit-events" author="copilot">
+        <createTable tableName="statement_generation_events">
+            <column name="generation_event_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="statement_id" type="VARCHAR(36)"/>
+            <column name="account_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_year_month" type="VARCHAR(7)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="occurred_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_code" type="VARCHAR(128)"/>
+            <column name="metadata" type="TEXT"/>
+        </createTable>
+
+        <createIndex tableName="statement_generation_events" indexName="ix_statement_generation_events_period">
+            <column name="account_id"/>
+            <column name="period_year_month"/>
+        </createIndex>
+
+        <createTable tableName="statement_retrieval_events">
+            <column name="retrieval_event_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="statement_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requester_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requester_role" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="occurred_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="outcome" type="VARCHAR(24)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_code" type="VARCHAR(128)"/>
+        </createTable>
+
+        <createIndex tableName="statement_retrieval_events" indexName="ix_statement_retrieval_events_statement">
+            <column name="statement_id"/>
+            <column name="occurred_at_utc"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

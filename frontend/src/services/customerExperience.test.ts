@@ -904,7 +904,7 @@ describe("customer experience services", () => {
   it("throws when statement endpoint is unavailable", async () => {
     jest.spyOn(apiClient, "get").mockRejectedValue(new Error("offline"));
 
-    await expect(fetchStatements()).rejects.toThrow("offline");
+    await expect(fetchStatements({ accountId: "acc-main" })).rejects.toThrow("offline");
   });
 
   it("maps insight response and keeps customer confidence metadata", async () => {
