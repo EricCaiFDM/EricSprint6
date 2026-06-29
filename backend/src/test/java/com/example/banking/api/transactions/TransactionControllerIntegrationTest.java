@@ -108,6 +108,14 @@ class TransactionControllerIntegrationTest {
                 BigDecimal.class,
                 accountId);
         org.junit.jupiter.api.Assertions.assertEquals(new BigDecimal("125.50"), balance);
+
+        Integer notificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notification_events WHERE event_type = ? AND recipient_scope_type = ? AND recipient_scope_id = ?",
+                Integer.class,
+                "DEPOSIT_POSTED",
+                "ACCOUNT",
+                accountId);
+        org.junit.jupiter.api.Assertions.assertEquals(1, notificationCount);
     }
 
     @Test
@@ -217,6 +225,14 @@ class TransactionControllerIntegrationTest {
 
         Integer transferLinks = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transfer_links", Integer.class);
         org.junit.jupiter.api.Assertions.assertEquals(1, transferLinks);
+
+        Integer transferNotificationCount = jdbcTemplate.queryForObject(
+                "SELECT COUNT(*) FROM notification_events WHERE event_type = ? AND recipient_scope_type = ? AND recipient_scope_id = ?",
+                Integer.class,
+                "TRANSFER_COMPLETED",
+                "ACCOUNT",
+                sourceAccountId);
+        org.junit.jupiter.api.Assertions.assertEquals(1, transferNotificationCount);
     }
 
     @Test

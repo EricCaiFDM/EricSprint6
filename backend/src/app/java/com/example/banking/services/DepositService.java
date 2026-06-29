@@ -27,6 +27,7 @@ public class DepositService {
     private final TransactionRepository transactionRepository;
     private final MonetaryIdempotencyOrchestrator idempotencyOrchestrator;
     private final TransactionLifecycleAuditService lifecycleAuditService;
+    private final NotificationAutoTriggerService notificationAutoTriggerService;
 
     public DepositService(
             MoneyPolicy moneyPolicy,
@@ -34,13 +35,15 @@ public class DepositService {
             BalanceConsistencyService balanceConsistencyService,
             TransactionRepository transactionRepository,
             MonetaryIdempotencyOrchestrator idempotencyOrchestrator,
-            TransactionLifecycleAuditService lifecycleAuditService) {
+            TransactionLifecycleAuditService lifecycleAuditService,
+            NotificationAutoTriggerService notificationAutoTriggerService) {
         this.moneyPolicy = moneyPolicy;
         this.transactionAccessPolicy = transactionAccessPolicy;
         this.balanceConsistencyService = balanceConsistencyService;
         this.transactionRepository = transactionRepository;
         this.idempotencyOrchestrator = idempotencyOrchestrator;
         this.lifecycleAuditService = lifecycleAuditService;
+        this.notificationAutoTriggerService = notificationAutoTriggerService;
     }
 
     @Transactional
@@ -118,6 +121,12 @@ public class DepositService {
                 actorUserId,
                 normalizeRole(role),
                 "{\"accountId\":\"" + lockedAccount.getAccountId() + "\"}");
+
+        notificationAutoTriggerService.triggerDepositPosted(
+            lockedAccount.getAccountId(),
+            amount.toPlainString(),
+            actorUserId,
+            normalizeRole(role));
 
         return new PostingResponseSchema(
                 saved.getTransactionId(),

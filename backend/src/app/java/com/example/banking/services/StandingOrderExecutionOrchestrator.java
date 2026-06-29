@@ -32,6 +32,7 @@ public class StandingOrderExecutionOrchestrator {
     private final TransactionRepository transactionRepository;
     private final TransferLinkService transferLinkService;
     private final StandingOrderLifecycleAuditService lifecycleAuditService;
+    private final NotificationAutoTriggerService notificationAutoTriggerService;
 
     public StandingOrderExecutionOrchestrator(
             StandingOrderRepository standingOrderRepository,
@@ -41,7 +42,8 @@ public class StandingOrderExecutionOrchestrator {
             BalanceConsistencyService balanceConsistencyService,
             TransactionRepository transactionRepository,
             TransferLinkService transferLinkService,
-            StandingOrderLifecycleAuditService lifecycleAuditService) {
+            StandingOrderLifecycleAuditService lifecycleAuditService,
+            NotificationAutoTriggerService notificationAutoTriggerService) {
         this.standingOrderRepository = standingOrderRepository;
         this.executionEventRepository = executionEventRepository;
         this.retryPolicyService = retryPolicyService;
@@ -50,6 +52,7 @@ public class StandingOrderExecutionOrchestrator {
         this.transactionRepository = transactionRepository;
         this.transferLinkService = transferLinkService;
         this.lifecycleAuditService = lifecycleAuditService;
+        this.notificationAutoTriggerService = notificationAutoTriggerService;
     }
 
     @Transactional
@@ -111,6 +114,13 @@ public class StandingOrderExecutionOrchestrator {
                     null,
                     null,
                     "{}");
+
+                    notificationAutoTriggerService.triggerStandingOrderExecuted(
+                        standingOrder.getSourceAccountId(),
+                        standingOrder.getDestinationAccountId(),
+                        standingOrder.getAmount().toPlainString(),
+                        standingOrder.getStandingOrderId(),
+                        transfer.getTransferId());
 
             logOutcome(standingOrder.getStandingOrderId(), event, StandingOrderExecutionStatus.SUCCEEDED);
             return new ExecutionOutcome(StandingOrderExecutionStatus.SUCCEEDED, event.getExecutionEventId());
