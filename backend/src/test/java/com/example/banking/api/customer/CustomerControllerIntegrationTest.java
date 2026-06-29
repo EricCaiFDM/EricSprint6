@@ -261,6 +261,40 @@ class CustomerControllerIntegrationTest {
                 .andExpect(jsonPath("$.code").value("CUSTOMER_DELETE_BLOCKED"));
     }
 
+    @Test
+    void customerCanCloseOwnProfileWhenDependencyExists() throws Exception {
+        MvcResult createResult = createCustomer("owner-205c", "CUSTOMER", "ext-205c", "jane205c@example.com");
+        JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String customerId = created.get("customerId").asText();
+
+        jdbcTemplate.update(
+                "INSERT INTO accounts(account_id, customer_id, account_number, account_type, status, nickname, balance, currency_code, opened_at_utc, closed_at_utc, created_by_user_id, owner_user_id, updated_at_utc, deleted_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "00000000-0000-0000-0000-000000000011",
+                customerId,
+                "NBDEPEND000011",
+                "CHECKING",
+                "ACTIVE",
+                "Dependency Account",
+                50.00,
+                "USD",
+                Instant.now(),
+                null,
+                "owner-205c",
+                customerId,
+                Instant.now(),
+                null);
+
+        mockMvc.perform(delete("/customers/{customerId}", customerId)
+                        .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-205c").claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELETED"));
+
+        mockMvc.perform(get("/customers/{customerId}", customerId)
+                        .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-205c").claim("role", "CUSTOMER"))))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("CUSTOMER_NOT_FOUND"));
+    }
+
         @Test
         void customerCanDeleteOwnCustomerProfile() throws Exception {
                 MvcResult createResult = createCustomer("owner-205b", "CUSTOMER", "ext-205b", "jane205b@example.com");
