@@ -99,6 +99,11 @@ export function PaymentsPage() {
     [accounts, transferSourceAccountId]
   );
 
+  const accountNameById = useMemo(
+    () => new Map(accounts.map((account) => [account.accountId, account.accountName])),
+    [accounts]
+  );
+
   useEffect(() => {
     if (!destinationOptions.length) {
       setTransferDestinationAccountId("");
@@ -321,6 +326,11 @@ export function PaymentsPage() {
     [currentHistory.items]
   );
 
+  const finalTotalAccountBalance = useMemo(
+    () => accounts.reduce((total, account) => total + account.currentBalance, 0),
+    [accounts]
+  );
+
   const baseCurrency = accounts[0]?.currency ?? "USD";
 
   const canDeposit = hasAccounts && Boolean(depositAccountId) && Number(depositAmount) > 0 && !depositMutation.isPending;
@@ -379,8 +389,8 @@ export function PaymentsPage() {
           <p className="summary-value">{formatCurrency(totalDebits, baseCurrency)}</p>
         </article>
         <article className="summary-card">
-          <p className="summary-label">Transactions in page</p>
-          <p className="summary-value">{currentHistory.items.length}</p>
+          <p className="summary-label">Final total account balance</p>
+          <p className="summary-value">{formatCurrency(finalTotalAccountBalance, baseCurrency)}</p>
         </article>
       </section>
 
@@ -633,6 +643,9 @@ export function PaymentsPage() {
                 <div>
                   <p className="item-title">{toReadableType(item.transactionType)} · {item.description}</p>
                   <p className="item-meta">{formatDate(item.bookedAt)} · Ref {item.transactionId}</p>
+                  <p className="item-meta">
+                    {formatHistoryAccountLabel(item, accountNameById, historyScopeType, historyScopeId)}
+                  </p>
                 </div>
                 <p className={item.direction === "CREDIT" ? "amount-credit" : "amount-debit"}>
                   {item.direction === "CREDIT" ? "+" : "-"}
@@ -730,4 +743,24 @@ function toReadableOperation(kind: OperationReceipt["kind"]): string {
 
 function formatAccountLabel(account: BankAccount): string {
   return `${account.accountName} (${account.accountNumberMasked})`;
+}
+
+function formatHistoryAccountLabel(
+  item: TransactionItem,
+  accountNameById: Map<string, string>,
+  scopeType: "CUSTOMER" | "ACCOUNT",
+  scopeId: string
+): string {
+  const resolvedAccountId = item.accountId?.trim() || (scopeType === "ACCOUNT" ? scopeId.trim() : "");
+
+  if (!resolvedAccountId) {
+    return "Account: unavailable";
+  }
+
+  const resolvedName = accountNameById.get(resolvedAccountId);
+  if (!resolvedName) {
+    return `Account ID: ${resolvedAccountId}`;
+  }
+
+  return `Account: ${resolvedName} (${resolvedAccountId})`;
 }

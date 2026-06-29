@@ -7,6 +7,7 @@ export type HistoryScopeType = "CUSTOMER" | "ACCOUNT";
 
 export type TransactionItem = {
   transactionId: string;
+  accountId?: string;
   transactionType: TransactionType;
   bookedAt: string;
   description: string;
@@ -291,6 +292,7 @@ function mapTransactions(payload: unknown): TransactionItem[] {
 
       return {
         transactionId,
+        accountId: asString(data.accountId, "") || undefined,
         transactionType,
         bookedAt: asString(data.postedAtUtc, new Date().toISOString()),
         description: asString(data.description, mapDescription(transactionType)),
