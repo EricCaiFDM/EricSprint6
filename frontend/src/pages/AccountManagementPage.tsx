@@ -26,7 +26,8 @@ export function AccountManagementPage() {
   const [openForm, setOpenForm] = useState<CreateCustomerAccountInput>({
     accountType: "CHECKING",
     currencyCode: "USD",
-    nickname: ""
+    nickname: "",
+    interestRate: 0
   });
 
   const accountsQuery = useQuery({
@@ -60,6 +61,14 @@ export function AccountManagementPage() {
     if (isAdmin && !customerScopeId.trim()) {
       setCreateError("Enter customer ID scope before creating accounts as admin.");
       return;
+    }
+
+    if (openForm.accountType === "SAVINGS") {
+      const interestRate = typeof openForm.interestRate === "number" ? openForm.interestRate : Number.NaN;
+      if (!Number.isFinite(interestRate) || interestRate < 0) {
+        setCreateError("Interest rate must be a non-negative number.");
+        return;
+      }
     }
 
     setCreateError(null);
@@ -155,6 +164,24 @@ export function AccountManagementPage() {
               />
             </label>
 
+            {openForm.accountType === "SAVINGS" ? (
+              <label>
+                Interest rate (%)
+                <input
+                  type="number"
+                  min={0}
+                  step="0.0001"
+                  value={openForm.interestRate ?? 0}
+                  onChange={(event) =>
+                    setOpenForm((previous) => ({
+                      ...previous,
+                      interestRate: Number(event.target.value)
+                    }))
+                  }
+                />
+              </label>
+            ) : null}
+
             <div className="actions">
               <button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? "Creating..." : "Create account"}
@@ -185,6 +212,12 @@ export function AccountManagementPage() {
                     <div>
                       <p className="item-title">{account.accountName}</p>
                       <p className="item-meta">{account.accountType} · {account.accountNumberMasked}</p>
+                      {account.checkingNumber !== null ? (
+                        <p className="item-meta">Checking number: {account.checkingNumber}</p>
+                      ) : null}
+                      {account.accountType === "Savings" ? (
+                        <p className="item-meta">Interest rate: {account.interestRate.toFixed(4)}%</p>
+                      ) : null}
                       <p className="item-meta">ID: {account.accountId}</p>
                     </div>
                     <div className="stack-list-meta">

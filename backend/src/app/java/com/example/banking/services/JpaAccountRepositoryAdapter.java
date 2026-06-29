@@ -40,4 +40,16 @@ public class JpaAccountRepositoryAdapter implements AccountRepository {
     public boolean existsByAccountNumber(String accountNumber) {
         return accountJpaRepository.existsByAccountNumberIgnoreCase(accountNumber);
     }
+
+    @Override
+    public boolean existsByCustomerIdAndCheckingNumber(String customerId, int checkingNumber) {
+        return accountJpaRepository.existsByCustomerIdAndCheckingNumber(customerId, checkingNumber);
+    }
+
+    @Override
+    public int nextCheckingNumber(String customerId) {
+        Integer maxCheckingNumber = accountJpaRepository.findMaxCheckingNumberByCustomerId(customerId);
+        int base = maxCheckingNumber == null ? 0 : Math.max(0, maxCheckingNumber);
+        return base + 1;
+    }
 }

@@ -39,6 +39,8 @@ describe("DashboardPage", () => {
         accountName: "Everyday",
         accountType: "Everyday",
         accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
         availableBalance: 1250,
         currentBalance: 1250,
         currency: "AUD",

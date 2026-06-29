@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="20260629-account-interest-and-checking-sequence" author="copilot">
+        <addColumn tableName="accounts">
+            <column name="interest_rate" type="DECIMAL(8,4)"/>
+            <column name="checking_number" type="INT"/>
+        </addColumn>
+
+        <createIndex
+                tableName="accounts"
+                indexName="ux_accounts_customer_checking_number"
+                unique="true">
+            <column name="customer_id"/>
+            <column name="checking_number"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

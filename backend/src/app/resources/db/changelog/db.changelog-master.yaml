@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/changes/20260629_monthly_statements_init.xml
   - include:
       file: db/changelog/changes/20260629_statement_audit_events.xml
+  - include:
+      file: db/changelog/changes/20260629_account_interest_and_checking_sequence.xml

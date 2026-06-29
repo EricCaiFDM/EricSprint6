@@ -86,9 +86,48 @@ class AccountControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accountId").value(accountId))
                 .andExpect(jsonPath("$.accountType").value("CHECKING"))
+                .andExpect(jsonPath("$.checkingNumber").value(1))
+                .andExpect(jsonPath("$.interestRate").value("0.0000"))
                 .andExpect(jsonPath("$.balance").value("0.00"))
                 .andExpect(jsonPath("$.availableBalance").value("0.00"))
                 .andExpect(jsonPath("$.currentBalance").value("0.00"));
+    }
+
+    @Test
+    void savingsAccountCanSetInterestRate() throws Exception {
+        String customerId = createCustomer("owner-400b", "CUSTOMER", "400b");
+        String payload = "{" +
+                "\"customerId\":\"" + customerId + "\"," +
+                "\"accountType\":\"SAVINGS\"," +
+                "\"currencyCode\":\"USD\"," +
+                "\"interestRate\":2.7500" +
+                "}";
+
+        mockMvc.perform(post("/accounts")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-400b").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(payload))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.accountType").value("SAVINGS"))
+                .andExpect(jsonPath("$.interestRate").value("2.7500"))
+                .andExpect(jsonPath("$.checkingNumber").isEmpty());
+    }
+
+    @Test
+    void checkingNumberIncrementsPerCustomer() throws Exception {
+        String customerId = createCustomer("owner-400c", "CUSTOMER", "400c");
+        String firstAccountId = createAccount("owner-400c", "CUSTOMER", customerId, "CHECKING");
+        String secondAccountId = createAccount("owner-400c", "CUSTOMER", customerId, "CHECKING");
+
+        mockMvc.perform(get("/accounts/{accountId}", firstAccountId)
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-400c").claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.checkingNumber").value(1));
+
+        mockMvc.perform(get("/accounts/{accountId}", secondAccountId)
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-400c").claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.checkingNumber").value(2));
     }
 
     @Test

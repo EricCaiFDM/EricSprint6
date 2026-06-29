@@ -37,6 +37,8 @@ describe("StatementsPage", () => {
         accountName: "Everyday",
         accountType: "Everyday",
         accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
         availableBalance: 1000,
         currentBalance: 1000,
         currency: "USD",

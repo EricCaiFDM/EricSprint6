@@ -24,6 +24,12 @@ public class AccountEntity {
     @Column(name = "account_type", nullable = false, length = 16)
     private String accountType;
 
+    @Column(name = "interest_rate")
+    private BigDecimal interestRate;
+
+    @Column(name = "checking_number")
+    private Integer checkingNumber;
+
     @Column(name = "status", nullable = false, length = 16)
     private String status;
 
@@ -84,6 +90,22 @@ public class AccountEntity {
 
     public void setAccountType(String accountType) {
         this.accountType = accountType;
+    }
+
+    public BigDecimal getInterestRate() {
+        return interestRate;
+    }
+
+    public void setInterestRate(BigDecimal interestRate) {
+        this.interestRate = interestRate;
+    }
+
+    public Integer getCheckingNumber() {
+        return checkingNumber;
+    }
+
+    public void setCheckingNumber(Integer checkingNumber) {
+        this.checkingNumber = checkingNumber;
     }
 
     public String getStatus() {

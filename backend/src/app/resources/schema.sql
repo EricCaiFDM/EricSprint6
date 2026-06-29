@@ -63,6 +63,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     customer_id VARCHAR(36) NOT NULL,
     account_number VARCHAR(24) NOT NULL,
     account_type VARCHAR(16) NOT NULL,
+    interest_rate DECIMAL(8, 4) NULL,
+    checking_number INT NULL,
     status VARCHAR(16) NOT NULL,
     nickname VARCHAR(64),
     balance DECIMAL(18, 2) NOT NULL DEFAULT 0,
@@ -77,6 +79,9 @@ CREATE TABLE IF NOT EXISTS accounts (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_account_number
     ON accounts(account_number);
+
+CREATE UNIQUE INDEX IF NOT EXISTS ux_accounts_customer_checking_number
+    ON accounts(customer_id, checking_number);
 
 CREATE INDEX IF NOT EXISTS ix_accounts_customer_active
     ON accounts(customer_id, deleted_at);

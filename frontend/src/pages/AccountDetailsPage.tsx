@@ -327,6 +327,14 @@ function AccountDetailsSummary({ account }: { account: BankAccount }) {
         <dd>{account.accountType}</dd>
       </div>
       <div>
+        <dt>Checking number</dt>
+        <dd>{account.checkingNumber === null ? "N/A" : account.checkingNumber}</dd>
+      </div>
+      <div>
+        <dt>Interest rate</dt>
+        <dd>{account.interestRate.toFixed(4)}%</dd>
+      </div>
+      <div>
         <dt>Number</dt>
         <dd>{account.accountNumberMasked}</dd>
       </div>
