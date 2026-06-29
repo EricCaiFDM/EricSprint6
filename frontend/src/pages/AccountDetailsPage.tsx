@@ -41,6 +41,7 @@ export function AccountDetailsPage() {
 
   const [updateForm, setUpdateForm] = useState<AccountUpdateForm>(initialUpdateForm);
   const [feedback, setFeedback] = useState("Review account information and submit updates from this page.");
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
 
   const detailsQuery = useQuery({
     queryKey: ["accounts", "details", accountId],
@@ -74,17 +75,17 @@ export function AccountDetailsPage() {
 
   const deleteMutation = useMutation({
     mutationFn: deleteCustomerAccount,
-    onSuccess: async (result) => {
+    onSuccess: (result) => {
       setFeedback(`Account ${result.status.toLowerCase()}: ${result.message}`);
 
-      await Promise.all([
+      navigate(backPath, { replace: true });
+
+      void Promise.all([
         queryClient.invalidateQueries({ queryKey: ["accounts", "list"] }),
         queryClient.invalidateQueries({ queryKey: ["accounts", "details", accountId] }),
         queryClient.invalidateQueries({ queryKey: ["admin-dashboard", "accounts"] }),
         queryClient.invalidateQueries({ queryKey: ["admin-dashboard", "account-details", accountId] })
       ]);
-
-      navigate(backPath, { replace: true });
     },
     onError: (error) => {
       setFeedback(`Unable to delete account: ${(error as Error).message}`);
@@ -114,13 +115,34 @@ export function AccountDetailsPage() {
     });
   };
 
-  const onDeleteAccount = () => {
+  const executeDeleteAccount = () => {
     if (!accountId) {
       setFeedback("A valid account ID is required to delete this account.");
       return;
     }
 
     deleteMutation.mutate(accountId);
+  };
+
+  const onDeleteAccount = () => {
+    if (isAdminPath) {
+      executeDeleteAccount();
+      return;
+    }
+
+    setIsDeleteConfirmOpen(true);
+  };
+
+  const onCancelDeleteAccount = () => {
+    if (deleteMutation.isPending) {
+      return;
+    }
+    setIsDeleteConfirmOpen(false);
+  };
+
+  const onConfirmDeleteAccount = () => {
+    setIsDeleteConfirmOpen(false);
+    executeDeleteAccount();
   };
 
   const account = detailsQuery.data;
@@ -239,6 +261,40 @@ export function AccountDetailsPage() {
         <h3>Operation status</h3>
         <p className="hint-text">{feedback}</p>
       </article>
+
+      {!isAdminPath && isDeleteConfirmOpen ? (
+        <div className="modal-backdrop" role="presentation" onClick={onCancelDeleteAccount}>
+          <div
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-account-confirm-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="delete-account-confirm-title">Confirm account deletion</h3>
+            <p>Are you sure you want to delete this account?</p>
+            <p>This action closes account access from your profile and cannot be undone.</p>
+            <div className="actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={onCancelDeleteAccount}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="button-danger"
+                onClick={onConfirmDeleteAccount}
+                disabled={deleteMutation.isPending}
+              >
+                {deleteMutation.isPending ? "Deleting..." : "Yes, delete this account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
