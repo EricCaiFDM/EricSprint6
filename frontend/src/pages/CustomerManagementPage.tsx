@@ -24,7 +24,8 @@ const initialCreate: CreateCustomerProfileInput = {
   externalCustomerKey: "",
   legalName: "",
   primaryEmail: "",
-  phoneNumber: ""
+  phoneNumber: "",
+  password: ""
 };
 
 const initialUpdate: UpdateCustomerProfileInput = {
@@ -140,11 +141,18 @@ export function CustomerManagementPage() {
     event.preventDefault();
     setCreateError(null);
 
+    const normalizedPassword = createForm.password?.trim() ?? "";
+    if (isAdmin && normalizedPassword.length < 8) {
+      setCreateError("Password must be at least 8 characters for admin-created customer profiles.");
+      return;
+    }
+
     createMutation.mutate({
       externalCustomerKey: createForm.externalCustomerKey.trim(),
       legalName: createForm.legalName.trim(),
       primaryEmail: createForm.primaryEmail.trim(),
-      phoneNumber: createForm.phoneNumber.trim()
+      phoneNumber: createForm.phoneNumber.trim(),
+      password: isAdmin ? normalizedPassword : undefined
     });
   };
 
@@ -318,6 +326,23 @@ export function CustomerManagementPage() {
                       phoneNumber: event.target.value
                     }))
                   }
+                />
+              </label>
+
+              <label>
+                Temporary password
+                <input
+                  type="password"
+                  value={createForm.password ?? ""}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      password: event.target.value
+                    }))
+                  }
+                  placeholder="At least 8 characters"
+                  minLength={8}
+                  required
                 />
               </label>
 

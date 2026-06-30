@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.banking.api.common.ApiErrorException;
 import com.example.banking.api.customer.dto.CreateCustomerRequest;
@@ -24,20 +25,24 @@ public class CustomerService {
     private final CustomerAccessPolicyService accessPolicyService;
     private final CustomerLifecycleAuditService lifecycleAuditService;
     private final CustomerDeletionPolicyService deletionPolicyService;
+    private final AuthService authService;
 
     public CustomerService(
             CustomerRepository customerRepository,
             CustomerFieldMaskingService maskingService,
             CustomerAccessPolicyService accessPolicyService,
             CustomerLifecycleAuditService lifecycleAuditService,
-            CustomerDeletionPolicyService deletionPolicyService) {
+            CustomerDeletionPolicyService deletionPolicyService,
+            AuthService authService) {
         this.customerRepository = customerRepository;
         this.maskingService = maskingService;
         this.accessPolicyService = accessPolicyService;
         this.lifecycleAuditService = lifecycleAuditService;
         this.deletionPolicyService = deletionPolicyService;
+        this.authService = authService;
     }
 
+    @Transactional
     public CustomerResponse createCustomer(CreateCustomerRequest request, String actorUserId, String role) {
         String actorId = normalizeActor(actorUserId);
         try {
@@ -46,6 +51,9 @@ public class CustomerService {
             String normalizedExternalKey = normalizeRequired(request.externalCustomerKey(), "externalCustomerKey");
             String normalizedEmail = normalizeEmail(request.primaryEmail());
             ensureCreateUniqueness(normalizedExternalKey, normalizedEmail);
+                String ownerUserId = isAdminRole(role)
+                    ? provisionOwnerUserIdForAdmin(normalizedEmail, request.password())
+                    : actorId;
 
             Instant now = Instant.now();
             String customerId = UUID.randomUUID().toString();
@@ -60,7 +68,7 @@ public class CustomerService {
             entity.setCreatedAtUtc(now);
             entity.setUpdatedAtUtc(now);
             entity.setCreatedByUserId(actorId);
-            entity.setOwnerUserId(actorId);
+            entity.setOwnerUserId(ownerUserId);
             entity.setDeletedAt(null);
 
             CustomerEntity saved = customerRepository.save(entity);
@@ -319,6 +327,45 @@ public class CustomerService {
                     field);
         }
         return value.trim();
+    }
+
+    private boolean isAdminRole(String role) {
+        return "ADMIN".equalsIgnoreCase(role);
+    }
+
+    private String provisionOwnerUserIdForAdmin(String normalizedEmail, String password) {
+        if (password == null || password.isBlank()) {
+            throw new ApiErrorException(
+                    HttpStatus.BAD_REQUEST,
+                    "CUSTOMER_VALIDATION_ERROR",
+                    "password is required when admin creates a customer profile",
+                    "password");
+        }
+
+        if (password.length() < 8 || password.length() > 128) {
+            throw new ApiErrorException(
+                    HttpStatus.BAD_REQUEST,
+                    "CUSTOMER_VALIDATION_ERROR",
+                    "password must be between 8 and 128 characters",
+                    "password");
+        }
+
+        try {
+            UUID userId = authService.register(normalizedEmail, password, password, "CUSTOMER");
+            return userId.toString();
+        } catch (IllegalStateException exception) {
+            throw new ApiErrorException(
+                    HttpStatus.CONFLICT,
+                    "CUSTOMER_CONFLICT",
+                    exception.getMessage(),
+                    "primaryEmail");
+        } catch (IllegalArgumentException exception) {
+            throw new ApiErrorException(
+                    HttpStatus.BAD_REQUEST,
+                    "CUSTOMER_VALIDATION_ERROR",
+                    exception.getMessage(),
+                    "password");
+        }
     }
 
     private String normalizeEmail(String email) {

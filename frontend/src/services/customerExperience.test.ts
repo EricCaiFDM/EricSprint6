@@ -503,6 +503,36 @@ describe("customer experience services", () => {
     expect(retrieved.customerId).toBe("cust-800");
   });
 
+  it("creates customer profile with password when provided", async () => {
+    const postMock = jest.spyOn(apiClient, "post").mockResolvedValue({
+      data: {
+        customerId: "cust-901",
+        legalName: "Admin Created",
+        primaryEmail: "admin.created@example.com",
+        phoneNumber: "+61 401 555 111",
+        status: "ACTIVE",
+        createdAtUtc: "2024-03-12T00:00:00Z"
+      }
+    } as never);
+
+    const created = await createCustomerProfile({
+      externalCustomerKey: "ext-901",
+      legalName: "Admin Created",
+      primaryEmail: "admin.created@example.com",
+      phoneNumber: "+61 401 555 111",
+      password: "secret123"
+    });
+
+    expect(postMock).toHaveBeenCalledWith("/customers", {
+      externalCustomerKey: "ext-901",
+      legalName: "Admin Created",
+      primaryEmail: "admin.created@example.com",
+      phoneNumber: "+61 401 555 111",
+      password: "secret123"
+    });
+    expect(created.customerId).toBe("cust-901");
+  });
+
   it("updates and deletes customer by explicit id", async () => {
     const patchMock = jest.spyOn(apiClient, "patch").mockResolvedValue({
       data: {

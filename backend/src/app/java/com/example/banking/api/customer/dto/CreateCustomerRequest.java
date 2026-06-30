@@ -20,5 +20,8 @@ public record CreateCustomerRequest(
         String primaryEmail,
 
         @Pattern(regexp = "^[0-9+()\\-\\s]{7,32}$", message = "phoneNumber must be a valid phone number")
-        String phoneNumber) {
+        String phoneNumber,
+
+        @Size(min = 8, max = 128, message = "password must be between 8 and 128 characters")
+        String password) {
 }

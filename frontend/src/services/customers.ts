@@ -41,6 +41,7 @@ export type CreateCustomerProfileInput = {
   legalName: string;
   primaryEmail: string;
   phoneNumber: string;
+  password?: string;
 };
 
 export async function createCustomerProfile(input: CreateCustomerProfileInput): Promise<CustomerProfile> {
@@ -48,7 +49,8 @@ export async function createCustomerProfile(input: CreateCustomerProfileInput): 
     externalCustomerKey: input.externalCustomerKey,
     legalName: input.legalName,
     primaryEmail: input.primaryEmail,
-    phoneNumber: input.phoneNumber
+    phoneNumber: input.phoneNumber,
+    ...(input.password?.trim() ? { password: input.password.trim() } : {})
   });
 
   const profile = mapCustomerProfile(response.data);

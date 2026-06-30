@@ -164,6 +164,46 @@ describe("CustomerManagementPage", () => {
     });
   });
 
+  it("submits password when admin creates customer profile", async () => {
+    (sessionService.getNormalizedTokenRole as jest.MockedFunction<typeof sessionService.getNormalizedTokenRole>).mockReturnValue("ADMIN");
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/External customer key/i), {
+      target: { value: "ext-admin-900" }
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/^Legal name$/i)[0], {
+      target: { value: "Jamie Admin Created" }
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/Primary email/i)[0], {
+      target: { value: "jamie.created@example.com" }
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/Phone number/i)[0], {
+      target: { value: "+61 411 222 333" }
+    });
+
+    fireEvent.change(screen.getByLabelText(/Temporary password/i), {
+      target: { value: "secret123" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Create customer/i }));
+
+    await waitFor(() => {
+      expect(customersService.createCustomerProfile).toHaveBeenCalled();
+      const firstCall = (customersService.createCustomerProfile as jest.Mock).mock.calls[0]?.[0];
+      expect(firstCall).toEqual(expect.objectContaining({
+        externalCustomerKey: "ext-admin-900",
+        legalName: "Jamie Admin Created",
+        primaryEmail: "jamie.created@example.com",
+        phoneNumber: "+61 411 222 333",
+        password: "secret123"
+      }));
+    });
+  });
+
   it("allows admins to switch selected customers from dropdown without clearing search", async () => {
     (sessionService.getNormalizedTokenRole as jest.MockedFunction<typeof sessionService.getNormalizedTokenRole>).mockReturnValue("ADMIN");
 
