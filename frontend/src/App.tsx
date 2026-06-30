@@ -112,6 +112,7 @@ export default function App() {
         { to: "/admin/dashboard", label: "Admin Dashboard" },
         { to: "/admin/accounts", label: "Accounts" },
         { to: "/admin/payments", label: "Payments" },
+        { to: "/admin/statements", label: "Statements" },
         { to: "/admin/profile", label: "Customers" }
       ]
     : role === "CUSTOMER"
@@ -218,6 +219,7 @@ export default function App() {
             <Route path="/admin/accounts" element={withRole(["ADMIN"], <AccountManagementPage />)} />
             <Route path="/admin/accounts/:accountId" element={withRole(["ADMIN"], <AccountDetailsPage />)} />
             <Route path="/admin/payments" element={withRole(["ADMIN"], <PaymentsPage />)} />
+            <Route path="/admin/statements" element={withRole(["ADMIN"], <StatementsPage />)} />
             <Route path="/admin/profile" element={withRole(["ADMIN"], <CustomerManagementPage />)} />
 
             <Route path="/security/login" element={<LoginPage />} />

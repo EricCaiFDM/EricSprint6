@@ -198,6 +198,33 @@ class StatementControllerIntegrationTest {
         org.junit.jupiter.api.Assertions.assertNotEquals(versionOneStatementId, versionTwoStatementId);
     }
 
+        @Test
+        void adminCanGenerateAndListStatementsForCustomerAccount() throws Exception {
+                String periodYearMonth = YearMonth.now(ZoneOffset.UTC).toString();
+                String customerId = createCustomer("stmt-owner-103", "103");
+                String accountId = createAccount("stmt-owner-103", customerId, "CHECKING");
+
+                postDeposit("stmt-owner-103", accountId, "75.00", "idem-stmt-deposit-103");
+
+                String statementId = generateStatement("admin-103", "ADMIN", accountId, periodYearMonth, "STANDARD");
+
+                mockMvc.perform(get("/statements/{statementId}", statementId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-103").claim("role", "ADMIN"))))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.statementId").value(statementId))
+                                .andExpect(jsonPath("$.accountId").value(accountId));
+
+                mockMvc.perform(get("/statements")
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-103").claim("role", "ADMIN")))
+                                .queryParam("accountId", accountId)
+                                .queryParam("periodYearMonth", periodYearMonth)
+                                .queryParam("page", "1")
+                                .queryParam("pageSize", "20"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.items.length()").value(1))
+                                .andExpect(jsonPath("$.items[0].statementId").value(statementId));
+        }
+
     @Test
     void outOfScopeCustomerIsDeniedWhileAdminCanRetrieve() throws Exception {
         String periodYearMonth = YearMonth.now(ZoneOffset.UTC).toString();

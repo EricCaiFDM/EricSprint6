@@ -1,6 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { fetchAccounts, type BankAccount } from "../services/accounts";
+import { fetchCustomersForAdmin } from "../services/customers";
+import { getNormalizedTokenRole } from "../services/session";
 import {
   fetchStatement,
   fetchStatementPdf,
@@ -11,6 +14,11 @@ import {
   type StatementGenerationMode,
   type StatementListResult
 } from "../services/statements";
+import {
+  filterCustomersByNameOrId,
+  formatCustomerScopeOption,
+  resolveCustomerIdFromScopeInput
+} from "../utils/customerScope";
 import type { TransactionItem } from "../services/transactions";
 import { formatCurrency, formatDateTime } from "../utils/formatting";
 
@@ -24,24 +32,62 @@ const emptyStatements: StatementListResult = {
 
 export function StatementsPage() {
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
+  const role = getNormalizedTokenRole();
+  const isAdmin = role === "ADMIN";
+  const initialScopeId = isAdmin ? (searchParams.get("customerId") ?? "") : "";
   const [accountId, setAccountId] = useState("");
   const [periodYearMonth, setPeriodYearMonth] = useState("");
   const [generationMode, setGenerationMode] = useState<StatementGenerationMode>("STANDARD");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [selectedStatementId, setSelectedStatementId] = useState("");
+  const [customerScopeInput, setCustomerScopeInput] = useState(initialScopeId);
+  const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState(initialScopeId);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState("Generate and retrieve monthly statements for your accounts.");
+  const [feedback, setFeedback] = useState(
+    isAdmin
+      ? "Select a customer scope, then generate and retrieve monthly statements for that customer accounts."
+      : "Generate and retrieve monthly statements for your accounts."
+  );
+
+  const adminCustomersQuery = useQuery({
+    queryKey: ["customers", "admin", "statement-scope-options"],
+    queryFn: () => fetchCustomersForAdmin(1, 200),
+    enabled: isAdmin
+  });
+
+  const adminCustomers = adminCustomersQuery.data ?? [];
+
+  const inferredCustomerScopeId = useMemo(
+    () => resolveCustomerIdFromScopeInput(customerScopeInput, adminCustomers),
+    [customerScopeInput, adminCustomers]
+  );
+
+  const customerScopeId = selectedCustomerScopeId || inferredCustomerScopeId;
+
+  const matchingScopeCustomers = useMemo(
+    () => filterCustomersByNameOrId(adminCustomers, customerScopeInput),
+    [adminCustomers, customerScopeInput]
+  );
 
   const accountsQuery = useQuery({
-    queryKey: ["accounts", "statements", "scope"],
-    queryFn: () => fetchAccounts()
+    queryKey: ["accounts", "statements", "scope", isAdmin ? customerScopeId || "none" : "self"],
+    queryFn: () => fetchAccounts(isAdmin ? customerScopeId || undefined : undefined),
+    enabled: !isAdmin || Boolean(customerScopeId.trim())
   });
 
   const accounts = accountsQuery.data ?? [];
   const hasAccounts = accounts.length > 0;
 
   useEffect(() => {
+    if (isAdmin && !customerScopeId.trim()) {
+      setAccountId("");
+      setPage(1);
+      setSelectedStatementId("");
+      return;
+    }
+
     if (!hasAccounts) {
       setAccountId("");
       return;
@@ -52,7 +98,7 @@ export function StatementsPage() {
       setPage(1);
       setSelectedStatementId("");
     }
-  }, [accounts, hasAccounts, accountId]);
+  }, [accounts, hasAccounts, accountId, isAdmin, customerScopeId]);
 
   const statementsQuery = useQuery({
     queryKey: ["statements", accountId, periodYearMonth, page, pageSize],
@@ -131,6 +177,11 @@ export function StatementsPage() {
   const onGenerateSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (isAdmin && !customerScopeId.trim()) {
+      setFeedback("Select a customer scope before generating statements as admin.");
+      return;
+    }
+
     const refreshed = await accountsQuery.refetch();
     const latestAccounts = refreshed.data ?? [];
     const selectedStillExists = latestAccounts.some((account) => account.accountId === accountId);
@@ -185,6 +236,48 @@ export function StatementsPage() {
         </div>
       </header>
 
+      {isAdmin ? (
+        <article className="surface-card">
+          <h3>Admin scope</h3>
+          <form className="form" onSubmit={(event) => event.preventDefault()}>
+            <label>
+              Target customer name or ID
+              <input
+                value={customerScopeInput}
+                onChange={(event) => {
+                  setCustomerScopeInput(event.target.value);
+                  setSelectedCustomerScopeId("");
+                }}
+                placeholder="Search by customer name or ID"
+              />
+            </label>
+
+            <label>
+              Matching customers
+              <select
+                value={customerScopeId}
+                onChange={(event) => setSelectedCustomerScopeId(event.target.value)}
+                disabled={adminCustomersQuery.isPending || matchingScopeCustomers.length === 0}
+              >
+                <option value="">Select customer</option>
+                {matchingScopeCustomers.map((customer) => (
+                  <option key={customer.customerId} value={customer.customerId}>
+                    {formatCustomerScopeOption(customer)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </form>
+          <p className="hint-text">Provide a customer scope to load and generate monthly statements for that customer accounts.</p>
+          {adminCustomersQuery.isError ? (
+            <p className="hint-text">Unable to load customer scope options: {(adminCustomersQuery.error as Error).message}</p>
+          ) : null}
+          {customerScopeInput.trim() && !customerScopeId ? (
+            <p className="hint-text">Select a customer from suggestions or provide an exact customer ID.</p>
+          ) : null}
+        </article>
+      ) : null}
+
       <p className="output">{feedback}</p>
 
       <section className="summary-grid">
@@ -215,7 +308,7 @@ export function StatementsPage() {
                   setPage(1);
                   setSelectedStatementId("");
                 }}
-                disabled={accountsQuery.isPending || accountsQuery.isError || !hasAccounts}
+                disabled={accountsQuery.isPending || accountsQuery.isError || !hasAccounts || (isAdmin && !customerScopeId.trim())}
               >
                 <option value="">Select account</option>
                 {accounts.map((account) => (
@@ -304,7 +397,11 @@ export function StatementsPage() {
             </div>
 
             {!selectedAccount ? (
-              <p className="hint-text">Select an account before generating statements.</p>
+              <p className="hint-text">
+                {isAdmin && !customerScopeId.trim()
+                  ? "Select a customer scope and account before generating statements."
+                  : "Select an account before generating statements."}
+              </p>
             ) : (
               <p className="hint-text">
                 Statements are generated for {selectedAccount.accountName} in {summaryCurrency}.

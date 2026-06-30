@@ -95,12 +95,13 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: /^Admin Dashboard$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Accounts$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Payments$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Statements$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Customers$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Log out$/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Admin Pages$/i })).not.toBeInTheDocument();
   });
 
-  it("allows admin to access account, payments, and customer routes", async () => {
+  it("allows admin to access account, payments, statements, and customer routes", async () => {
     const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
     mockedCheckHealth.mockResolvedValue("OK");
 
@@ -118,6 +119,9 @@ describe("App", () => {
 
     renderApp("/admin/payments");
     expect(await screen.findByRole("heading", { name: /^Payments & transactions$/i })).toBeInTheDocument();
+
+    renderApp("/admin/statements");
+    expect(await screen.findByRole("heading", { name: /^Statements$/i })).toBeInTheDocument();
 
     renderApp("/admin/profile");
     expect(await screen.findByRole("heading", { name: /^Customer management$/i })).toBeInTheDocument();

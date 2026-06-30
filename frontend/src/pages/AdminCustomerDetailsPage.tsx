@@ -112,7 +112,7 @@ export function AdminCustomerDetailsPage() {
         <article className="surface-card">
           <p className="hint-text">No customer ID was provided in the route.</p>
           <div className="actions">
-            <Link className="button-secondary" to="/admin/dashboard">
+            <Link className="admin-customer-header-link" to="/admin/dashboard">
               Back to admin dashboard
             </Link>
           </div>
@@ -128,8 +128,14 @@ export function AdminCustomerDetailsPage() {
           <h2 className="page-title">Customer profile overview</h2>
           <p className="page-subtitle">Review profile, accounts, transactions, monthly statements, and spending insights in one place.</p>
         </div>
-        <div className="actions">
-          <Link className="button-secondary" to="/admin/dashboard">
+        <div className="actions admin-customer-header-actions">
+          <Link
+            className="admin-customer-header-link admin-customer-header-link--primary"
+            to={`/admin/statements?customerId=${encodeURIComponent(customerId)}`}
+          >
+            Open statements workspace
+          </Link>
+          <Link className="admin-customer-header-link" to="/admin/dashboard">
             Back to admin dashboard
           </Link>
         </div>

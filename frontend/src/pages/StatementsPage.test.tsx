@@ -4,10 +4,22 @@ import { MemoryRouter } from "react-router-dom";
 
 import { StatementsPage } from "./StatementsPage";
 import * as accounts from "../services/accounts";
+import * as customers from "../services/customers";
 import * as statements from "../services/statements";
 
 jest.mock("../services/accounts");
+jest.mock("../services/customers");
 jest.mock("../services/statements");
+
+function createMockJwt(claims: Record<string, string>): string {
+  const payload = window
+    .btoa(JSON.stringify(claims))
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+
+  return `header.${payload}.signature`;
+}
 
 describe("StatementsPage", () => {
   function renderPage() {
@@ -30,6 +42,7 @@ describe("StatementsPage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
 
     (accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>).mockResolvedValue([
       {
@@ -46,7 +59,60 @@ describe("StatementsPage", () => {
       }
     ]);
 
+    (customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>).mockResolvedValue([
+      {
+        customerId: "cust-1",
+        externalCustomerKey: "ext-1",
+        fullName: "Chris Admin Scope",
+        email: "scope@example.com",
+        mobile: "+61 400 000 111",
+        status: "ACTIVE",
+        joinedAt: "2026-01-01T00:00:00Z"
+      }
+    ]);
+
     (statements.fetchStatementTransactions as jest.MockedFunction<typeof statements.fetchStatementTransactions>).mockResolvedValue([]);
+  });
+
+  it("lets admin select a customer scope before loading statements", async () => {
+    const fetchStatementsMock = statements.fetchStatements as jest.MockedFunction<typeof statements.fetchStatements>;
+    fetchStatementsMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      totalItems: 0,
+      totalPages: 1
+    });
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "admin-001",
+        email: "admin@example.com",
+        role: "ADMIN"
+      })
+    );
+
+    renderPage();
+
+    expect(await screen.findByRole("heading", { name: /Admin scope/i })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Target customer name or ID/i), {
+      target: { value: "cust-1" }
+    });
+
+    await waitFor(() => {
+      expect(accounts.fetchAccounts).toHaveBeenCalledWith("cust-1");
+    });
+
+    await waitFor(() => {
+      expect(fetchStatementsMock).toHaveBeenCalledWith({
+        accountId: "acc-1",
+        periodYearMonth: undefined,
+        page: 1,
+        pageSize: 20
+      });
+    });
   });
 
   it("loads statement list, retrieves details, and renders statement transactions", async () => {
