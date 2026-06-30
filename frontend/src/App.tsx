@@ -132,7 +132,7 @@ export default function App() {
           { to: "/security/register", label: "Register" }
         ];
 
-  const showAdminSwitch = role !== "ADMIN";
+  const showAdminSwitch = !isAuthenticated;
 
   const onLogout = () => {
     clearAuthSession();

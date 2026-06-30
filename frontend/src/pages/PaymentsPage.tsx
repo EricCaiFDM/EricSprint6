@@ -803,7 +803,7 @@ function toReadableOperation(kind: OperationReceipt["kind"]): string {
 }
 
 function formatAccountLabel(account: BankAccount): string {
-  return `${account.accountName} (${account.accountNumberMasked})`;
+  return `${account.accountName} (${account.accountNumberMasked}) · Balance ${formatCurrency(account.currentBalance, account.currency)}`;
 }
 
 function formatHistoryAccountLabel(

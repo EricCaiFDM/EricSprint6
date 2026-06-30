@@ -255,6 +255,8 @@ describe("PaymentsPage", () => {
     renderPage();
 
     expect(await screen.findByText(/Deposit · Payroll/i)).toBeInTheDocument();
+    expect(screen.getAllByRole("option", { name: /Everyday \(\*\*\*\* 1234\) · Balance \$1,250\.00/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("option", { name: /Savings \(\*\*\*\* 5678\) · Balance \$3,000\.00/i }).length).toBeGreaterThan(0);
     expect(screen.getByText(/Account: Everyday \(acc-1\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Final total account balance/i)).toBeInTheDocument();
     expect(screen.getByText(/\$4,250\.00/i)).toBeInTheDocument();

@@ -110,7 +110,7 @@ export function StatementDetailsPage() {
             <p className="page-subtitle">Open statement details from the statements workspace.</p>
           </div>
           <div className="actions">
-            <Link className="button-secondary" to={backLink}>
+            <Link className="admin-customer-header-link" to={backLink}>
               Back to statements
             </Link>
           </div>
@@ -131,7 +131,7 @@ export function StatementDetailsPage() {
           <p className="page-subtitle">Review balances and posted activity for the selected monthly statement.</p>
         </div>
         <div className="actions">
-          <Link className="button-secondary" to={backLink}>
+          <Link className="admin-customer-header-link" to={backLink}>
             Back to statements
           </Link>
         </div>

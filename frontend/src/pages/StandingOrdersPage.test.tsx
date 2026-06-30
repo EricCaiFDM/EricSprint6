@@ -125,6 +125,10 @@ describe("StandingOrdersPage", () => {
     renderPage();
 
     expect(await screen.findByText(/Configured standing orders/i)).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getAllByRole("option", { name: /Everyday \(\*\*\*\* 0001\) · Balance \$200\.00/i }).length).toBeGreaterThan(0);
+      expect(screen.getAllByRole("option", { name: /Savings \(\*\*\*\* 0002\) · Balance \$500\.00/i }).length).toBeGreaterThan(0);
+    });
 
     fireEvent.change(screen.getByLabelText(/Amount/i), { target: { value: "45.50" } });
     fireEvent.change(screen.getByLabelText(/Cadence/i), { target: { value: "MONTHLY" } });

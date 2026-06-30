@@ -71,7 +71,7 @@ describe("App", () => {
 
     expect(await screen.findByRole("link", { name: /^Accounts$/i })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^Profile$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Admin Pages$/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /^Admin Pages$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Log out$/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Admin Dashboard$/i })).not.toBeInTheDocument();
   });
