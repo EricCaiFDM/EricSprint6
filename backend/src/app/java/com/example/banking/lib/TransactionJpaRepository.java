@@ -26,6 +26,23 @@ public interface TransactionJpaRepository extends JpaRepository<TransactionEntit
     @Query("""
             SELECT t
             FROM TransactionEntity t
+            WHERE t.accountId IN (
+                    SELECT a.accountId
+                    FROM AccountEntity a
+                    WHERE a.customerId = :customerId
+                      AND a.deletedAt IS NULL)
+              AND t.postedAtUtc >= :periodStartUtc
+              AND t.postedAtUtc < :periodEndUtc
+            ORDER BY t.postedAtUtc ASC
+            """)
+    List<TransactionEntity> findCustomerTransactionsForPeriod(
+            @Param("customerId") String customerId,
+            @Param("periodStartUtc") Instant periodStartUtc,
+            @Param("periodEndUtc") Instant periodEndUtc);
+
+    @Query("""
+            SELECT t
+            FROM TransactionEntity t
             WHERE t.accountId = :accountId
               AND (:startDateUtc IS NULL OR t.postedAtUtc >= :startDateUtc)
               AND (:endDateUtc IS NULL OR t.postedAtUtc <= :endDateUtc)

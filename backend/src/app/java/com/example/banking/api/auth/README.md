@@ -7,6 +7,7 @@ This package contains the runtime auth HTTP endpoints used by the frontend.
 - `POST /auth/register` creates a user in `auth_users`
 - `POST /auth/login` validates credentials against `auth_users` and issues JWT tokens
 - `POST /auth/password-reset/request` returns a generic reset acknowledgment
+- `POST /auth/password-reset/confirm` updates account credentials using reset input and returns a generic acknowledgment
 - `POST /auth/token/refresh` validates refresh token and rotates session tokens
 
 ## Persistence

@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="20260629-spending-insights-init" author="copilot">
+        <createTable tableName="spending_insight_requests">
+            <column name="request_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="scope_type" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scope_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_start_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_end_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category_filters" type="TEXT"/>
+            <column name="requested_by_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requested_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="spending_insight_requests" indexName="ix_spending_insight_requests_scope_period">
+            <column name="scope_type"/>
+            <column name="scope_id"/>
+            <column name="period_start_utc"/>
+            <column name="period_end_utc"/>
+        </createIndex>
+
+        <createTable tableName="spending_insights">
+            <column name="insight_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="request_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="taxonomy_version" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="generated_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="VARCHAR(24)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="total_spend_amount" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trend_direction" type="VARCHAR(24)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="trend_delta_percent" type="DECIMAL(8,3)"/>
+        </createTable>
+
+        <createIndex tableName="spending_insights" indexName="ix_spending_insights_request">
+            <column name="request_id"/>
+            <column name="generated_at_utc"/>
+        </createIndex>
+
+        <createTable tableName="insight_category_summaries">
+            <column name="summary_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="insight_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category_code" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="category_label" type="VARCHAR(96)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transaction_count" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="period_share_percent" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="insight_category_summaries" indexName="ix_insight_category_summaries_insight">
+            <column name="insight_id"/>
+            <column name="category_code"/>
+        </createIndex>
+
+        <createTable tableName="insight_confidence_metadata">
+            <column name="confidence_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="insight_id" type="VARCHAR(36)">
+                <constraints nullable="false" unique="true" uniqueConstraintName="ux_insight_confidence_insight"/>
+            </column>
+            <column name="coverage_ratio" type="DECIMAL(5,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="confidence_level" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="missing_category_count" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="minimum_threshold_satisfied" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="notes" type="VARCHAR(512)"/>
+        </createTable>
+
+        <createTable tableName="insight_retrieval_events">
+            <column name="event_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="request_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="insight_id" type="VARCHAR(36)"/>
+            <column name="requester_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="requester_role" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scope_type" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="scope_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="occurred_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="outcome" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_code" type="VARCHAR(128)"/>
+        </createTable>
+
+        <createIndex tableName="insight_retrieval_events" indexName="ix_insight_retrieval_events_scope">
+            <column name="scope_type"/>
+            <column name="scope_id"/>
+            <column name="occurred_at_utc"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

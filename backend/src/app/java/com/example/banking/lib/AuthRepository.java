@@ -49,6 +49,18 @@ public class AuthRepository {
                         entity.getAccountStatus()));
     }
 
+    public boolean updatePasswordHashByEmail(String email, String passwordHash) {
+        Optional<AuthUserEntity> candidate = authUserJpaRepository.findByEmail(normalizeEmail(email));
+        if (candidate.isEmpty()) {
+            return false;
+        }
+
+        AuthUserEntity authUserEntity = candidate.get();
+        authUserEntity.setPasswordHash(passwordHash);
+        authUserJpaRepository.save(authUserEntity);
+        return true;
+    }
+
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase();
     }

@@ -163,6 +163,49 @@ class AccountControllerIntegrationTest {
                 .andExpect(jsonPath("$.status").value("SUSPENDED"));
     }
 
+        @Test
+        void adminCanUpdateSavingsInterestRateAndBalance() throws Exception {
+                String customerId = createCustomer("owner-402b", "CUSTOMER", "402b");
+                String accountId = createAccount("owner-402b", "CUSTOMER", customerId, "SAVINGS");
+
+                mockMvc.perform(patch("/accounts/{accountId}", accountId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-402b").claim("role", "ADMIN")))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"interestRate\":3.1000,\"balance\":1250.50}"))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.interestRate").value("3.1000"))
+                                .andExpect(jsonPath("$.balance").value("1250.50"))
+                                .andExpect(jsonPath("$.availableBalance").value("1250.50"))
+                                .andExpect(jsonPath("$.currentBalance").value("1250.50"));
+        }
+
+        @Test
+        void customerCannotUpdateSavingsInterestRateOrBalance() throws Exception {
+                String customerId = createCustomer("owner-402c", "CUSTOMER", "402c");
+                String accountId = createAccount("owner-402c", "CUSTOMER", customerId, "SAVINGS");
+
+                mockMvc.perform(patch("/accounts/{accountId}", accountId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-402c").claim("role", "CUSTOMER")))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"interestRate\":2.2500,\"balance\":99.99}"))
+                                .andExpect(status().isForbidden())
+                                .andExpect(jsonPath("$.code").value("ACCOUNT_FORBIDDEN"));
+        }
+
+        @Test
+        void adminCannotUpdateInterestRateForCheckingAccounts() throws Exception {
+                String customerId = createCustomer("owner-402d", "CUSTOMER", "402d");
+                String accountId = createAccount("owner-402d", "CUSTOMER", customerId, "CHECKING");
+
+                mockMvc.perform(patch("/accounts/{accountId}", accountId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-402d").claim("role", "ADMIN")))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"interestRate\":1.0000}"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.code").value("ACCOUNT_VALIDATION_ERROR"))
+                                .andExpect(jsonPath("$.field").value("interestRate"));
+        }
+
     @Test
     void outOfScopeCustomerCannotReadAccount() throws Exception {
         String customerId = createCustomer("owner-403", "CUSTOMER", "403");

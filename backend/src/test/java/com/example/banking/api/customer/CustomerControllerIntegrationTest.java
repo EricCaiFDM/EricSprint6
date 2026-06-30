@@ -41,13 +41,19 @@ class CustomerControllerIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
-    private String createPayload(String externalCustomerKey, String legalName, String primaryEmail, String phoneNumber) {
-        return "{" +
-                "\"externalCustomerKey\":\"" + externalCustomerKey + "\"," +
-                "\"legalName\":\"" + legalName + "\"," +
-                "\"primaryEmail\":\"" + primaryEmail + "\"," +
-                "\"phoneNumber\":\"" + phoneNumber + "\"" +
-                "}";
+        private String createPayload(String externalCustomerKey, String legalName, String primaryEmail, String phoneNumber) {
+                return createPayload(externalCustomerKey, legalName, primaryEmail, phoneNumber, null);
+        }
+
+        private String createPayload(String externalCustomerKey, String legalName, String primaryEmail, String phoneNumber, String password) {
+                String passwordSegment = password == null ? "" : ",\"password\":\"" + password + "\"";
+                return "{" +
+                                "\"externalCustomerKey\":\"" + externalCustomerKey + "\"," +
+                                "\"legalName\":\"" + legalName + "\"," +
+                                "\"primaryEmail\":\"" + primaryEmail + "\"," +
+                                "\"phoneNumber\":\"" + phoneNumber + "\"" +
+                                passwordSegment +
+                                "}";
     }
 
     private MvcResult createCustomer(String actorUserId, String role, String externalKey, String email) throws Exception {
@@ -69,6 +75,48 @@ class CustomerControllerIntegrationTest {
                 .andExpect(jsonPath("$.externalCustomerKey").value("ext-100"))
                 .andExpect(jsonPath("$.primaryEmail").value("jane100@example.com"))
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
+    }
+
+    @Test
+    void adminCreateCustomerWithPasswordCreatesLoginReadyCustomerOwner() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-100").claim("role", "ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createPayload("ext-admin-100", "Admin Provisioned", "admin.provisioned@example.com", "+27123456789", "secret123")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.primaryEmail").value("admin.provisioned@example.com"))
+                .andExpect(jsonPath("$.createdByUserId").value("admin-100"))
+                .andExpect(jsonPath("$.ownerUserId").isString())
+                .andReturn();
+
+        JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String ownerUserId = created.get("ownerUserId").asText();
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identity\":\"admin.provisioned@example.com\",\"password\":\"secret123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString());
+
+        String storedRole = jdbcTemplate.queryForObject(
+                "SELECT role FROM auth_users WHERE email = ?",
+                String.class,
+                "admin.provisioned@example.com");
+
+        org.junit.jupiter.api.Assertions.assertEquals("CUSTOMER", storedRole);
+        org.junit.jupiter.api.Assertions.assertNotEquals("admin-100", ownerUserId);
+    }
+
+    @Test
+    void adminCreateCustomerRequiresPassword() throws Exception {
+        mockMvc.perform(post("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-101").claim("role", "ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createPayload("ext-admin-101", "Missing Password", "admin.missing.password@example.com", "+27123456789")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("CUSTOMER_VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.field").value("password"));
     }
 
     @Test

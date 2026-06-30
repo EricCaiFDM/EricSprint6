@@ -88,6 +88,27 @@ public class AuthService {
         authenticationAuditService.record("PASSWORD_RESET_REQUEST", normalizedIdentity, "SUCCESS", "ACCOUNT_NOT_FOUND");
     }
 
+    public void confirmPasswordReset(String identity, String password, String passwordConfirmation) {
+        String normalizedIdentity = normalizeIdentity(identity);
+
+        if (password == null || !password.equals(passwordConfirmation)) {
+            authenticationAuditService.record("PASSWORD_RESET_CONFIRM", normalizedIdentity, "FAILURE", "PASSWORD_MISMATCH");
+            throw new IllegalArgumentException("Password confirmation mismatch");
+        }
+
+        if (password.length() < 8 || password.length() > 128) {
+            authenticationAuditService.record("PASSWORD_RESET_CONFIRM", normalizedIdentity, "FAILURE", "PASSWORD_POLICY_VIOLATION");
+            throw new IllegalArgumentException("Password must be between 8 and 128 characters");
+        }
+
+        boolean updated = repository.updatePasswordHashByEmail(normalizedIdentity, hash(password));
+        authenticationAuditService.record(
+                "PASSWORD_RESET_CONFIRM",
+                normalizedIdentity,
+                "SUCCESS",
+                updated ? "ACCOUNT_UPDATED" : "ACCOUNT_NOT_FOUND");
+    }
+
     public LoginTokens refreshAccessToken(String refreshToken) {
         JwtTokenService.RefreshTokenPrincipal refreshTokenPrincipal;
         try {

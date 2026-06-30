@@ -1,8 +1,9 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createCustomerProfile,
   deleteCustomerProfile,
+  fetchCustomersForAdmin,
   fetchCustomerDetails,
   fetchCustomerProfile,
   updateCustomerProfile,
@@ -11,6 +12,11 @@ import {
   type UpdateCustomerProfileInput
 } from "../services/customers";
 import { clearActiveCustomerId, clearAuthSession, getNormalizedTokenRole, setActiveCustomerId } from "../services/session";
+import {
+  filterCustomersByNameOrId,
+  formatCustomerScopeOption,
+  resolveCustomerIdFromScopeInput
+} from "../utils/customerScope";
 import { formatDate } from "../utils/formatting";
 import { useNavigate } from "react-router-dom";
 
@@ -18,7 +24,8 @@ const initialCreate: CreateCustomerProfileInput = {
   externalCustomerKey: "",
   legalName: "",
   primaryEmail: "",
-  phoneNumber: ""
+  phoneNumber: "",
+  password: ""
 };
 
 const initialUpdate: UpdateCustomerProfileInput = {
@@ -34,7 +41,8 @@ export function CustomerManagementPage() {
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [selectedCustomerScopeInput, setSelectedCustomerScopeInput] = useState("");
+  const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState("");
   const [feedback, setFeedback] = useState("Retrieve and update customer profiles. Admins can create and delete customers.");
   const [createForm, setCreateForm] = useState<CreateCustomerProfileInput>(initialCreate);
   const [updateForm, setUpdateForm] = useState<UpdateCustomerProfileInput>(initialUpdate);
@@ -49,6 +57,32 @@ export function CustomerManagementPage() {
     enabled: !isAdmin
   });
 
+  const adminCustomersQuery = useQuery({
+    queryKey: ["customers", "admin", "profile-scope-options"],
+    queryFn: () => fetchCustomersForAdmin(1, 200),
+    enabled: isAdmin
+  });
+
+  const adminCustomers = adminCustomersQuery.data ?? [];
+
+  const inferredCustomerId = useMemo(
+    () => resolveCustomerIdFromScopeInput(selectedCustomerScopeInput, adminCustomers),
+    [selectedCustomerScopeInput, adminCustomers]
+  );
+
+  const selectedCustomerId = selectedCustomerScopeId || inferredCustomerId;
+
+  const matchingScopeCustomers = useMemo(
+    () => filterCustomersByNameOrId(adminCustomers, selectedCustomerScopeInput),
+    [adminCustomers, selectedCustomerScopeInput]
+  );
+
+  useEffect(() => {
+    if (isAdmin && selectedCustomerId) {
+      setActiveCustomerId(selectedCustomerId);
+    }
+  }, [isAdmin, selectedCustomerId]);
+
   const selectedProfileQuery = useQuery({
     queryKey: ["customers", "details", selectedCustomerId],
     queryFn: () => fetchCustomerDetails(selectedCustomerId),
@@ -61,7 +95,8 @@ export function CustomerManagementPage() {
       setCreateError(null);
       setFeedback(`Customer created: ${profile.customerId}.`);
       setCreateForm(initialCreate);
-      setSelectedCustomerId(profile.customerId);
+      setSelectedCustomerScopeInput(profile.customerId);
+      setSelectedCustomerScopeId(profile.customerId);
       await queryClient.invalidateQueries({ queryKey: ["customers"] });
     },
     onError: (error) => {
@@ -88,7 +123,8 @@ export function CustomerManagementPage() {
       setDeleteError(null);
       setFeedback(`Customer ${result.status.toLowerCase()}: ${result.message}`);
       if (isAdmin) {
-        setSelectedCustomerId("");
+        setSelectedCustomerScopeInput("");
+        setSelectedCustomerScopeId("");
         clearActiveCustomerId();
       } else {
         clearAuthSession();
@@ -105,11 +141,18 @@ export function CustomerManagementPage() {
     event.preventDefault();
     setCreateError(null);
 
+    const normalizedPassword = createForm.password?.trim() ?? "";
+    if (isAdmin && normalizedPassword.length < 8) {
+      setCreateError("Password must be at least 8 characters for admin-created customer profiles.");
+      return;
+    }
+
     createMutation.mutate({
       externalCustomerKey: createForm.externalCustomerKey.trim(),
       legalName: createForm.legalName.trim(),
       primaryEmail: createForm.primaryEmail.trim(),
-      phoneNumber: createForm.phoneNumber.trim()
+      phoneNumber: createForm.phoneNumber.trim(),
+      password: isAdmin ? normalizedPassword : undefined
     });
   };
 
@@ -135,7 +178,7 @@ export function CustomerManagementPage() {
     }
 
     if (isAdmin && !selectedCustomerId.trim()) {
-      setUpdateError("Enter customer ID scope before updating as admin.");
+      setUpdateError("Enter customer name or ID scope before updating as admin.");
       return;
     }
 
@@ -149,7 +192,7 @@ export function CustomerManagementPage() {
 
   const onDeleteCustomer = () => {
     if (isAdmin && !selectedCustomerId.trim()) {
-      setDeleteError("Enter customer ID scope before deleting as admin.");
+      setDeleteError("Enter customer name or ID scope before deleting as admin.");
       return;
     }
 
@@ -191,20 +234,36 @@ export function CustomerManagementPage() {
           <h3>Admin customer scope</h3>
           <form className="form" onSubmit={(event) => event.preventDefault()}>
             <label>
-              Target customer ID
+              Target customer name or ID
               <input
-                value={selectedCustomerId}
+                value={selectedCustomerScopeInput}
                 onChange={(event) => {
-                  const value = event.target.value;
-                  setSelectedCustomerId(value);
-                  if (value.trim()) {
-                    setActiveCustomerId(value.trim());
-                  }
+                  setSelectedCustomerScopeInput(event.target.value);
+                  setSelectedCustomerScopeId("");
                 }}
-                placeholder="customer UUID"
+                placeholder="Search by customer name or ID"
               />
             </label>
+
+            <label>
+              Matching customers
+              <select
+                value={selectedCustomerId}
+                onChange={(event) => setSelectedCustomerScopeId(event.target.value)}
+                disabled={adminCustomersQuery.isPending || matchingScopeCustomers.length === 0}
+              >
+                <option value="">Select customer</option>
+                {matchingScopeCustomers.map((customer) => (
+                  <option key={customer.customerId} value={customer.customerId}>
+                    {formatCustomerScopeOption(customer)}
+                  </option>
+                ))}
+              </select>
+            </label>
           </form>
+          {selectedCustomerScopeInput.trim() && !selectedCustomerId ? (
+            <p className="hint-text">Select a customer from suggestions or provide an exact customer ID.</p>
+          ) : null}
         </article>
       ) : null}
 
@@ -270,6 +329,23 @@ export function CustomerManagementPage() {
                 />
               </label>
 
+              <label>
+                Temporary password
+                <input
+                  type="password"
+                  value={createForm.password ?? ""}
+                  onChange={(event) =>
+                    setCreateForm((previous) => ({
+                      ...previous,
+                      password: event.target.value
+                    }))
+                  }
+                  placeholder="At least 8 characters"
+                  minLength={8}
+                  required
+                />
+              </label>
+
               <div className="actions">
                 <button type="submit" disabled={createMutation.isPending}>
                   {createMutation.isPending ? "Creating..." : "Create customer"}
@@ -291,7 +367,9 @@ export function CustomerManagementPage() {
                     : selectedProfileQuery.isError
                       ? (selectedProfileQuery.error as Error).message
                       : "No customer profile found for this scope."
-                  : "Enter a customer ID to retrieve details."
+                  : selectedCustomerScopeInput.trim()
+                    ? "Provide an exact customer name or ID to retrieve details."
+                    : "Enter a customer name or ID to retrieve details."
                 : selfProfileQuery.isLoading
                   ? "Loading your customer profile..."
                   : selfProfileQuery.isError

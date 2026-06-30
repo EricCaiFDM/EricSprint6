@@ -72,6 +72,28 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/GenericAcknowledge'
+  /auth/password-reset/confirm:
+    post:
+      summary: Complete password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+      responses:
+        '202':
+          description: Generic acknowledgment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericAcknowledge'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /auth/token/refresh:
     post:
       summary: Refresh access token
@@ -151,6 +173,21 @@ components:
       properties:
         identity:
           type: string
+    PasswordResetConfirmRequest:
+      type: object
+      required: [identity, password, passwordConfirmation]
+      properties:
+        identity:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        passwordConfirmation:
+          type: string
+          minLength: 8
+          maxLength: 128
     GenericAcknowledge:
       type: object
       required: [status, message]

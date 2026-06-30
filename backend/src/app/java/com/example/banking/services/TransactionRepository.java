@@ -22,6 +22,11 @@ public interface TransactionRepository {
             Instant periodStartUtc,
             Instant periodEndUtc);
 
+    List<TransactionEntity> findCustomerTransactionsForPeriod(
+            String customerId,
+            Instant periodStartUtc,
+            Instant periodEndUtc);
+
     Page<TransactionEntity> findAccountHistory(
             String accountId,
             Instant startDateUtc,

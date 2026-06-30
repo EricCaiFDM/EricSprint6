@@ -3,9 +3,11 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AccountManagementPage } from "./AccountManagementPage";
 import * as accounts from "../services/accounts";
+import * as customers from "../services/customers";
 import * as session from "../services/session";
 
 jest.mock("../services/accounts");
+jest.mock("../services/customers");
 jest.mock("../services/session");
 
 describe("AccountManagementPage", () => {
@@ -102,5 +104,115 @@ describe("AccountManagementPage", () => {
         interestRate: 2.75
       }));
     });
+  });
+
+  it("resolves admin scope by customer name for account creation", async () => {
+    const getRoleMock = session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>;
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchCustomersMock = customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>;
+    const createCustomerAccountMock = accounts.createCustomerAccount as jest.MockedFunction<typeof accounts.createCustomerAccount>;
+
+    getRoleMock.mockReturnValue("ADMIN");
+    fetchCustomersMock.mockResolvedValue([
+      {
+        customerId: "cust-44",
+        externalCustomerKey: "ext-44",
+        fullName: "Taylor Green",
+        email: "taylor@example.com",
+        mobile: "+61 411 111 111",
+        status: "ACTIVE",
+        joinedAt: "2026-06-01T00:00:00Z"
+      }
+    ]);
+    fetchAccountsMock.mockResolvedValue([]);
+    createCustomerAccountMock.mockResolvedValue({
+      accountId: "acc-301",
+      accountName: "Daily Spend",
+      accountType: "Everyday",
+      accountNumberMasked: "**** 0301",
+      checkingNumber: 1,
+      interestRate: 0,
+      availableBalance: 0,
+      currentBalance: 0,
+      currency: "USD",
+      status: "Active"
+    });
+
+    renderPage("/customer/accounts");
+
+    fireEvent.change(await screen.findByLabelText(/Target customer name or ID/i), {
+      target: { value: "Taylor Green" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-44");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    await waitFor(() => {
+      expect(createCustomerAccountMock).toHaveBeenCalled();
+      const firstCall = createCustomerAccountMock.mock.calls[0]?.[0];
+      expect(firstCall).toEqual(expect.objectContaining({
+        customerId: "cust-44"
+      }));
+    });
+  });
+
+  it("allows admins to switch selected customers from dropdown without clearing search", async () => {
+    const getRoleMock = session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>;
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchCustomersMock = customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>;
+
+    getRoleMock.mockReturnValue("ADMIN");
+    fetchCustomersMock.mockResolvedValue([
+      {
+        customerId: "cust-44",
+        externalCustomerKey: "ext-44",
+        fullName: "Taylor Green",
+        email: "taylor@example.com",
+        mobile: "+61 411 111 111",
+        status: "ACTIVE",
+        joinedAt: "2026-06-01T00:00:00Z"
+      },
+      {
+        customerId: "cust-45",
+        externalCustomerKey: "ext-45",
+        fullName: "Taylor Brown",
+        email: "tbrown@example.com",
+        mobile: "+61 422 222 222",
+        status: "ACTIVE",
+        joinedAt: "2026-06-02T00:00:00Z"
+      }
+    ]);
+    fetchAccountsMock.mockResolvedValue([]);
+
+    renderPage("/customer/accounts");
+
+    fireEvent.change(await screen.findByLabelText(/Target customer name or ID/i), {
+      target: { value: "Taylor" }
+    });
+
+    const matchingCustomers = screen.getByLabelText(/Matching customers/i);
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-44" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-44");
+    });
+
+    expect(screen.getByLabelText(/Target customer name or ID/i)).toHaveValue("Taylor");
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-45" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-45");
+    });
+
+    expect(screen.getByLabelText(/Target customer name or ID/i)).toHaveValue("Taylor");
   });
 });

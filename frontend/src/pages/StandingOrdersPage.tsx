@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchAccounts } from "../services/accounts";
+import { fetchAccounts, type BankAccount } from "../services/accounts";
 import {
   cancelStandingOrder,
   createStandingOrder,
@@ -224,7 +224,7 @@ export function StandingOrdersPage() {
                 {!hasAccounts && <option value="">No accounts available</option>}
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
-                    {account.accountName}
+                    {formatStandingOrderAccountLabel(account)}
                   </option>
                 ))}
               </select>
@@ -240,7 +240,7 @@ export function StandingOrdersPage() {
                 {!hasAccounts && <option value="">No accounts available</option>}
                 {accounts.map((account) => (
                   <option key={account.accountId} value={account.accountId}>
-                    {account.accountName}
+                    {formatStandingOrderAccountLabel(account)}
                   </option>
                 ))}
               </select>
@@ -384,4 +384,8 @@ export function StandingOrdersPage() {
       </section>
     </section>
   );
+}
+
+function formatStandingOrderAccountLabel(account: BankAccount): string {
+  return `${account.accountName} (${account.accountNumberMasked}) · Balance ${formatCurrency(account.currentBalance, account.currency)}`;
 }

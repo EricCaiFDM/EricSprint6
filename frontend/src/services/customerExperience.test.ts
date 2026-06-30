@@ -401,9 +401,50 @@ describe("customer experience services", () => {
 
     expect(patchMock).toHaveBeenCalledWith("/accounts/acc-909", {
       nickname: "Travel",
-      status: "SUSPENDED"
+      status: "SUSPENDED",
+      interestRate: undefined,
+      balance: undefined
     });
     expect(updated.status).toBe("Paused");
+  });
+
+  it("updates account financial fields for admin flows", async () => {
+    const patchMock = jest.spyOn(apiClient, "patch").mockResolvedValue({
+      data: {
+        accountId: "acc-910",
+        accountType: "SAVINGS",
+        accountNumber: "NB998877665545",
+        currencyCode: "USD",
+        nickname: "Reserve",
+        interestRate: "3.1000",
+        balance: "1200.00",
+        status: "ACTIVE",
+        availableBalance: "1200.00",
+        currentBalance: "1200.00"
+      }
+    } as never);
+
+    const updated = await updateCustomerAccount({
+      accountId: "acc-910",
+      balance: 1200,
+      interestRate: 3.1
+    });
+
+    expect(patchMock).toHaveBeenCalledWith("/accounts/acc-910", {
+      nickname: undefined,
+      status: undefined,
+      interestRate: 3.1,
+      balance: 1200
+    });
+    expect(updated.interestRate).toBe(3.1);
+    expect(updated.availableBalance).toBe(1200);
+  });
+
+  it("rejects account update when financial values are non-finite", async () => {
+    await expect(updateCustomerAccount({
+      accountId: "acc-911",
+      interestRate: Number.NaN
+    })).rejects.toThrow("Provide at least one account field to update.");
   });
 
   it("deletes account and maps delete response", async () => {
@@ -460,6 +501,36 @@ describe("customer experience services", () => {
     expect(getMock).toHaveBeenCalledWith("/customers/cust-800");
     expect(created.customerId).toBe("cust-800");
     expect(retrieved.customerId).toBe("cust-800");
+  });
+
+  it("creates customer profile with password when provided", async () => {
+    const postMock = jest.spyOn(apiClient, "post").mockResolvedValue({
+      data: {
+        customerId: "cust-901",
+        legalName: "Admin Created",
+        primaryEmail: "admin.created@example.com",
+        phoneNumber: "+61 401 555 111",
+        status: "ACTIVE",
+        createdAtUtc: "2024-03-12T00:00:00Z"
+      }
+    } as never);
+
+    const created = await createCustomerProfile({
+      externalCustomerKey: "ext-901",
+      legalName: "Admin Created",
+      primaryEmail: "admin.created@example.com",
+      phoneNumber: "+61 401 555 111",
+      password: "secret123"
+    });
+
+    expect(postMock).toHaveBeenCalledWith("/customers", {
+      externalCustomerKey: "ext-901",
+      legalName: "Admin Created",
+      primaryEmail: "admin.created@example.com",
+      phoneNumber: "+61 401 555 111",
+      password: "secret123"
+    });
+    expect(created.customerId).toBe("cust-901");
   });
 
   it("updates and deletes customer by explicit id", async () => {
@@ -794,7 +865,7 @@ describe("customer experience services", () => {
       pageSize: 20
     });
 
-    expect(getMock).toHaveBeenCalledWith("/customers/me");
+    expect(getMock).toHaveBeenCalledTimes(1);
     expect(getMock).toHaveBeenCalledWith("/transactions/history", {
       params: {
         scopeType: "ACCOUNT",
@@ -855,6 +926,51 @@ describe("customer experience services", () => {
     expect(history.totalItems).toBe(0);
   });
 
+  it("retrieves customer scoped history using explicit scopeId without resolving profile", async () => {
+    const getMock = jest.spyOn(apiClient, "get").mockImplementation((url: string, config?: unknown) => {
+      if (url === "/transactions/history") {
+        expect(config).toEqual({
+          params: {
+            scopeType: "CUSTOMER",
+            scopeId: "cust-scope-10",
+            page: 1,
+            pageSize: 15
+          }
+        });
+
+        return Promise.resolve({
+          data: {
+            items: [],
+            page: 1,
+            pageSize: 15,
+            totalItems: 0,
+            totalPages: 1
+          }
+        } as never);
+      }
+
+      return Promise.reject(new Error(`Unexpected GET route: ${url}`));
+    });
+
+    const history = await fetchTransactionHistory({
+      scopeType: "CUSTOMER",
+      scopeId: "cust-scope-10",
+      page: 1,
+      pageSize: 15
+    });
+
+    expect(getMock).toHaveBeenCalledTimes(1);
+    expect(getMock).toHaveBeenCalledWith("/transactions/history", {
+      params: {
+        scopeType: "CUSTOMER",
+        scopeId: "cust-scope-10",
+        page: 1,
+        pageSize: 15
+      }
+    });
+    expect(history.totalPages).toBe(1);
+  });
+
   it("creates standing order and maps contract response", async () => {
     jest.spyOn(apiClient, "post").mockResolvedValue({
       data: {
@@ -907,21 +1023,65 @@ describe("customer experience services", () => {
     await expect(fetchStatements({ accountId: "acc-main" })).rejects.toThrow("offline");
   });
 
-  it("maps insight response and keeps customer confidence metadata", async () => {
-    jest.spyOn(apiClient, "get").mockResolvedValue({
-      data: {
-        periodLabel: "June 2026",
-        totalSpend: "1234.50",
-        currency: "AUD",
-        confidenceLabel: "Medium confidence",
-        categories: [{ category: "Travel", amount: 240, ratio: 0.19, trend: "up" }]
+  it("maps insight response and forwards optional query filters", async () => {
+    const getMock = jest.spyOn(apiClient, "get").mockImplementation((url: string, config?: unknown) => {
+      if (url === "/insights/spending") {
+        expect(config).toEqual({
+          params: {
+            scopeType: "ACCOUNT",
+            scopeId: "acc-777",
+            periodStartUtc: "2026-06-01T00:00:00Z",
+            periodEndUtc: "2026-06-30T23:59:59Z",
+            categoryFilters: "TRANSFER_OUT"
+          }
+        });
+
+        return Promise.resolve({
+          data: {
+            periodLabel: "June 2026",
+            periodStartUtc: "2026-06-01T00:00:00Z",
+            periodEndUtc: "2026-06-30T23:59:59Z",
+            scopeType: "CUSTOMER",
+            scopeId: "c7b7a03e-66e6-4bd2-9b22-8b44cf68f8ef",
+            totalSpend: "1234.50",
+            currency: "AUD",
+            confidenceLabel: "Medium confidence",
+            confidenceLevel: "MEDIUM",
+            coverageRatio: "82.50",
+            confidenceReason: "Insights are based on an adequate sample size.",
+            status: "GENERATED",
+            methodology: "Posted debit transactions are grouped using approved taxonomy mappings.",
+            categories: [{ category: "Travel", amount: 240, ratio: 0.19, trend: "up" }]
+          }
+        } as never);
       }
-    } as never);
 
-    const insights = await fetchSpendingInsights();
+      return Promise.reject(new Error(`Unexpected GET route: ${url}`));
+    });
 
+    const insights = await fetchSpendingInsights({
+      scopeType: "ACCOUNT",
+      scopeId: "acc-777",
+      periodStartUtc: "2026-06-01T00:00:00Z",
+      periodEndUtc: "2026-06-30T23:59:59Z",
+      categoryFilters: "TRANSFER_OUT"
+    });
+
+    expect(getMock).toHaveBeenCalledWith("/insights/spending", {
+      params: {
+        scopeType: "ACCOUNT",
+        scopeId: "acc-777",
+        periodStartUtc: "2026-06-01T00:00:00Z",
+        periodEndUtc: "2026-06-30T23:59:59Z",
+        categoryFilters: "TRANSFER_OUT"
+      }
+    });
     expect(insights.totalSpend).toBe(1234.5);
     expect(insights.confidenceLabel).toBe("Medium confidence");
+    expect(insights.confidenceLevel).toBe("MEDIUM");
+    expect(insights.coverageRatio).toBe(82.5);
+    expect(insights.status).toBe("GENERATED");
+    expect(insights.methodology).toContain("taxonomy mappings");
     expect(insights.categories[0].category).toBe("Travel");
     expect(insights.categories[0].trend).toBe("up");
   });

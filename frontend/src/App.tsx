@@ -13,6 +13,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ResetRequestPage } from "./pages/ResetRequestPage";
 import { TokenRefreshPage } from "./pages/TokenRefreshPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
+import { AdminCustomerDetailsPage } from "./pages/AdminCustomerDetailsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CustomerManagementPage } from "./pages/CustomerManagementPage";
 import { AccountManagementPage } from "./pages/AccountManagementPage";
@@ -21,6 +22,7 @@ import { PaymentsPage } from "./pages/PaymentsPage";
 import { StandingOrdersPage } from "./pages/StandingOrdersPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { StatementsPage } from "./pages/StatementsPage";
+import { StatementDetailsPage } from "./pages/StatementDetailsPage";
 import { SpendingInsightsPage } from "./pages/SpendingInsightsPage";
 
 type AuthState = {
@@ -111,6 +113,7 @@ export default function App() {
         { to: "/admin/dashboard", label: "Admin Dashboard" },
         { to: "/admin/accounts", label: "Accounts" },
         { to: "/admin/payments", label: "Payments" },
+        { to: "/admin/statements", label: "Statements" },
         { to: "/admin/profile", label: "Customers" }
       ]
     : role === "CUSTOMER"
@@ -129,7 +132,7 @@ export default function App() {
           { to: "/security/register", label: "Register" }
         ];
 
-  const showAdminSwitch = role !== "ADMIN";
+  const showAdminSwitch = !isAuthenticated;
 
   const onLogout = () => {
     clearAuthSession();
@@ -208,14 +211,18 @@ export default function App() {
             <Route path="/customer/scheduled" element={withRole(["CUSTOMER"], <StandingOrdersPage />)} />
             <Route path="/customer/notifications" element={withRole(["CUSTOMER"], <NotificationsPage />)} />
             <Route path="/customer/statements" element={withRole(["CUSTOMER"], <StatementsPage />)} />
+            <Route path="/customer/statements/:statementId" element={withRole(["CUSTOMER"], <StatementDetailsPage />)} />
             <Route path="/customer/insights" element={withRole(["CUSTOMER"], <SpendingInsightsPage />)} />
             <Route path="/customer/profile" element={withRole(["CUSTOMER"], <CustomerManagementPage />)} />
 
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={withRole(["ADMIN"], <AdminDashboardPage />)} />
+            <Route path="/admin/customers/:customerId" element={withRole(["ADMIN"], <AdminCustomerDetailsPage />)} />
             <Route path="/admin/accounts" element={withRole(["ADMIN"], <AccountManagementPage />)} />
             <Route path="/admin/accounts/:accountId" element={withRole(["ADMIN"], <AccountDetailsPage />)} />
             <Route path="/admin/payments" element={withRole(["ADMIN"], <PaymentsPage />)} />
+            <Route path="/admin/statements" element={withRole(["ADMIN"], <StatementsPage />)} />
+            <Route path="/admin/statements/:statementId" element={withRole(["ADMIN"], <StatementDetailsPage />)} />
             <Route path="/admin/profile" element={withRole(["ADMIN"], <CustomerManagementPage />)} />
 
             <Route path="/security/login" element={<LoginPage />} />

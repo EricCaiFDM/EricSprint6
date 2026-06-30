@@ -89,6 +89,29 @@ describe("AccountDetailsPage", () => {
     expect(await screen.findByText(/Account updated:/i)).toBeInTheDocument();
   });
 
+  it("does not show admin-only financial update fields on customer route", async () => {
+    const fetchAccountDetailsMock = accounts.fetchAccountDetails as jest.MockedFunction<typeof accounts.fetchAccountDetails>;
+
+    fetchAccountDetailsMock.mockResolvedValue({
+      accountId: "acc-101",
+      accountName: "Everyday",
+      accountType: "Everyday",
+      accountNumberMasked: "**** 0101",
+      checkingNumber: 2,
+      interestRate: 0,
+      availableBalance: 250,
+      currentBalance: 250,
+      currency: "USD",
+      status: "Active"
+    });
+
+    renderPage("/customer/accounts/acc-101");
+
+    expect(await screen.findByText("acc-101")).toBeInTheDocument();
+    expect(screen.queryByLabelText(/^Balance$/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Savings interest rate \(%\)/i)).not.toBeInTheDocument();
+  });
+
   it("returns to account list when clicking back", async () => {
     const fetchAccountDetailsMock = accounts.fetchAccountDetails as jest.MockedFunction<typeof accounts.fetchAccountDetails>;
 
@@ -224,5 +247,72 @@ describe("AccountDetailsPage", () => {
     });
 
     expect(await screen.findByText("riley.ops@example.com")).toBeInTheDocument();
+  });
+
+  it("shows admin-only financial update fields and submits interest rate and balance", async () => {
+    const fetchAccountDetailsMock = accounts.fetchAccountDetails as jest.MockedFunction<typeof accounts.fetchAccountDetails>;
+    const fetchCustomerDetailsMock = customers.fetchCustomerDetails as jest.MockedFunction<typeof customers.fetchCustomerDetails>;
+    const updateAccountMock = accounts.updateCustomerAccount as jest.MockedFunction<typeof accounts.updateCustomerAccount>;
+
+    fetchAccountDetailsMock.mockResolvedValue({
+      accountId: "acc-501",
+      accountName: "Admin Savings",
+      accountType: "Savings",
+      accountNumberMasked: "**** 0501",
+      checkingNumber: null,
+      interestRate: 2.1,
+      availableBalance: 1000,
+      currentBalance: 1000,
+      currency: "USD",
+      status: "Active"
+    });
+
+    fetchCustomerDetailsMock.mockResolvedValue({
+      customerId: "cust-501",
+      fullName: "Riley Ops",
+      email: "riley.ops@example.com",
+      mobile: "+61 400 000 002",
+      status: "ACTIVE",
+      joinedAt: "2024-05-11T00:00:00Z"
+    });
+
+    updateAccountMock.mockResolvedValue({
+      accountId: "acc-501",
+      accountName: "Admin Savings",
+      accountType: "Savings",
+      accountNumberMasked: "**** 0501",
+      checkingNumber: null,
+      interestRate: 2.4,
+      availableBalance: 1500,
+      currentBalance: 1500,
+      currency: "USD",
+      status: "Active"
+    });
+
+    renderPage("/admin/accounts/acc-501?customerId=cust-501");
+
+    expect(await screen.findByText(/Admin Savings/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Balance$/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Savings interest rate \(%\)/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/^Balance$/i), {
+      target: { value: "1500,50" }
+    });
+
+    fireEvent.change(screen.getByLabelText(/Savings interest rate \(%\)/i), {
+      target: { value: "2,4" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Update account/i }));
+
+    await waitFor(() => {
+      expect(updateAccountMock).toHaveBeenCalled();
+      const firstCall = updateAccountMock.mock.calls[0]?.[0];
+      expect(firstCall).toEqual(expect.objectContaining({
+        accountId: "acc-501",
+        balance: 1500.5,
+        interestRate: 2.4
+      }));
+    });
   });
 });

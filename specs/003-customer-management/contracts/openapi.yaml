@@ -217,6 +217,11 @@ components:
         phoneNumber:
           type: string
           nullable: true
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          description: Optional for customer self-provisioning. Required when ADMIN creates a customer profile intended for direct customer login.
     UpdateCustomerRequest:
       type: object
       minProperties: 1

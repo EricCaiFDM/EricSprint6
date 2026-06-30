@@ -35,6 +35,12 @@ export type PasswordResetRequest = {
   identity: string;
 };
 
+export type PasswordResetConfirmRequest = {
+  identity: string;
+  password: string;
+  passwordConfirmation: string;
+};
+
 export type RefreshRequest = {
   refreshToken: string;
 };
@@ -117,6 +123,10 @@ export async function login(payload: LoginRequest): Promise<LoginResponse> {
 
 export async function requestPasswordReset(payload: PasswordResetRequest): Promise<GenericAcknowledgeResponse> {
   return parseApiResponse(apiClient.post("/auth/password-reset/request", payload));
+}
+
+export async function confirmPasswordReset(payload: PasswordResetConfirmRequest): Promise<GenericAcknowledgeResponse> {
+  return parseApiResponse(apiClient.post("/auth/password-reset/confirm", payload));
 }
 
 export async function refreshToken(payload: RefreshRequest): Promise<RefreshResponse> {

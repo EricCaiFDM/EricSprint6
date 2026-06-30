@@ -47,6 +47,17 @@ public class JpaTransactionRepositoryAdapter implements TransactionRepository {
                         periodEndUtc);
     }
 
+                @Override
+                public List<TransactionEntity> findCustomerTransactionsForPeriod(
+                    String customerId,
+                    Instant periodStartUtc,
+                    Instant periodEndUtc) {
+                return transactionJpaRepository.findCustomerTransactionsForPeriod(
+                    customerId,
+                    periodStartUtc,
+                    periodEndUtc);
+                }
+
     @Override
     public Page<TransactionEntity> findAccountHistory(
             String accountId,
