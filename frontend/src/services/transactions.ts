@@ -10,6 +10,7 @@ export type TransactionItem = {
   accountId?: string;
   transactionType: TransactionType;
   bookedAt: string;
+  balanceAfter?: number;
   description: string;
   category: string;
   amount: number;
@@ -296,6 +297,7 @@ function mapTransactions(payload: unknown): TransactionItem[] {
 
       const transactionType = asTransactionType(data.transactionType);
       const amount = asNumber(data.amount, 0);
+      const balanceAfter = asOptionalNumber(data.balanceAfter);
       const direction: TransactionItem["direction"] =
         transactionType === "DEPOSIT" || transactionType === "TRANSFER_CREDIT" ? "CREDIT" : "DEBIT";
 
@@ -304,6 +306,7 @@ function mapTransactions(payload: unknown): TransactionItem[] {
         accountId: asString(data.accountId, "") || undefined,
         transactionType,
         bookedAt: asString(data.postedAtUtc, new Date().toISOString()),
+        ...(balanceAfter === undefined ? {} : { balanceAfter }),
         description: asString(data.description, mapDescription(transactionType)),
         category: asString(data.category, mapCategory(transactionType)),
         amount,
@@ -410,4 +413,17 @@ function asNumber(value: unknown, fallback: number): number {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
   return fallback;
+}
+
+function asOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
 }

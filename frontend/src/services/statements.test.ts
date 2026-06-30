@@ -3,6 +3,27 @@ import { apiClient } from "./api";
 import * as transactions from "./transactions";
 import { fetchStatement, fetchStatementPdf, fetchStatementTransactions, fetchStatements, generateStatement } from "./statements";
 
+function resolveExpectedHistoryDateRange(periodYearMonth: string): { startDate: string; endDate: string } {
+  const [yearPart, monthPart] = periodYearMonth.split("-");
+  const year = Number(yearPart);
+  const monthIndex = Number(monthPart) - 1;
+  const localPeriodStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const localPeriodEndExclusive = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
+  const localPeriodEndInclusive = new Date(localPeriodEndExclusive.getTime() - 1);
+
+  return {
+    startDate: localPeriodStart.toISOString().slice(0, 10),
+    endDate: localPeriodEndInclusive.toISOString().slice(0, 10)
+  };
+}
+
+function resolveLocalPeriodYearMonth(timestamp: string): string {
+  const localDate = new Date(timestamp);
+  const localYear = localDate.getFullYear();
+  const localMonth = `${localDate.getMonth() + 1}`.padStart(2, "0");
+  return `${localYear}-${localMonth}`;
+}
+
 describe("statements service", () => {
   beforeEach(() => {
     jest.restoreAllMocks();
@@ -108,6 +129,7 @@ describe("statements service", () => {
   });
 
   it("collects all statement-period transactions across pages", async () => {
+    const expectedRange = resolveExpectedHistoryDateRange("2026-06");
     const historySpy = jest.spyOn(transactions, "fetchTransactionHistory")
       .mockResolvedValueOnce({
         items: [
@@ -156,8 +178,8 @@ describe("statements service", () => {
     expect(historySpy).toHaveBeenNthCalledWith(1, {
       scopeType: "ACCOUNT",
       scopeId: "acc-4",
-      startDate: "2026-06-01",
-      endDate: "2026-06-30",
+      startDate: expectedRange.startDate,
+      endDate: expectedRange.endDate,
       page: 1,
       pageSize: 100
     });
@@ -165,8 +187,8 @@ describe("statements service", () => {
     expect(historySpy).toHaveBeenNthCalledWith(2, {
       scopeType: "ACCOUNT",
       scopeId: "acc-4",
-      startDate: "2026-06-01",
-      endDate: "2026-06-30",
+      startDate: expectedRange.startDate,
+      endDate: expectedRange.endDate,
       page: 2,
       pageSize: 100
     });
@@ -174,6 +196,72 @@ describe("statements service", () => {
     expect(items).toHaveLength(2);
     expect(items[0].transactionId).toBe("txn-1");
     expect(items[1].transactionId).toBe("txn-2");
+  });
+
+  it("groups boundary transactions into the user-local statement month", async () => {
+    const boundaryTimestamp = "2026-07-01T00:00:00.000Z";
+    const boundaryPeriod = resolveLocalPeriodYearMonth(boundaryTimestamp);
+    const comparisonPeriod = boundaryPeriod === "2026-07" ? "2026-06" : "2026-07";
+
+    jest.spyOn(transactions, "fetchTransactionHistory").mockResolvedValue({
+      items: [
+        {
+          transactionId: "txn-july-boundary",
+          transactionType: "DEPOSIT",
+          bookedAt: boundaryTimestamp,
+          description: "Boundary leak",
+          category: "Deposit",
+          amount: 10,
+          currency: "USD",
+          direction: "CREDIT",
+          status: "Completed"
+        },
+        {
+          transactionId: "txn-july-boundary-no-offset",
+          transactionType: "DEPOSIT",
+          bookedAt: "2026-07-01T00:00:00",
+          description: "Boundary leak without offset",
+          category: "Deposit",
+          amount: 12,
+          currency: "USD",
+          direction: "CREDIT",
+          status: "Completed"
+        },
+        {
+          transactionId: "txn-june-last-ms",
+          transactionType: "WITHDRAWAL",
+          bookedAt: "2026-06-30T23:59:59.999Z",
+          description: "Month-end withdrawal",
+          category: "Withdrawal",
+          amount: 5,
+          currency: "USD",
+          direction: "DEBIT",
+          status: "Completed"
+        }
+      ],
+      page: 1,
+      pageSize: 100,
+      totalItems: 3,
+      totalPages: 1
+    });
+
+    const matchingPeriodItems = await fetchStatementTransactions({
+      accountId: "acc-4",
+      periodYearMonth: boundaryPeriod
+    });
+
+    expect(matchingPeriodItems.map((item) => item.transactionId)).toEqual(
+      expect.arrayContaining(["txn-july-boundary", "txn-july-boundary-no-offset"])
+    );
+
+    const nonMatchingPeriodItems = await fetchStatementTransactions({
+      accountId: "acc-4",
+      periodYearMonth: comparisonPeriod
+    });
+
+    expect(nonMatchingPeriodItems.map((item) => item.transactionId)).not.toEqual(
+      expect.arrayContaining(["txn-july-boundary", "txn-july-boundary-no-offset"])
+    );
   });
 
   it("rejects invalid statement period format", async () => {

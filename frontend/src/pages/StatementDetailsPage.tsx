@@ -11,6 +11,18 @@ import { getNormalizedTokenRole } from "../services/session";
 import type { TransactionItem } from "../services/transactions";
 import { formatCurrency, formatDate, formatDateTime } from "../utils/formatting";
 
+type StatementLedgerRow = TransactionItem & {
+  debitAmount: number | null;
+  creditAmount: number | null;
+  runningBalance: number;
+};
+
+type StatementLedgerModel = {
+  openingBalance: number;
+  closingBalance: number;
+  rows: StatementLedgerRow[];
+};
+
 export function StatementDetailsPage() {
   const { statementId: routeStatementId } = useParams<{ statementId: string }>();
   const statementId = routeStatementId?.trim() ?? "";
@@ -64,9 +76,16 @@ export function StatementDetailsPage() {
 
   const statementTransactions = statementTransactionsQuery.data ?? [];
 
-  const ledgerRows = useMemo(() => {
+  const ledger = useMemo<StatementLedgerModel>(() => {
+    const defaultOpeningBalance = statementDetailQuery.data?.openingBalance ?? 0;
+    const defaultClosingBalance = statementDetailQuery.data?.closingBalance ?? defaultOpeningBalance;
+
     if (!statementDetailQuery.data || statementTransactions.length === 0) {
-      return [];
+      return {
+        openingBalance: defaultOpeningBalance,
+        closingBalance: defaultClosingBalance,
+        rows: []
+      };
     }
 
     const ordered = [...statementTransactions].sort((left, right) => {
@@ -79,10 +98,24 @@ export function StatementDetailsPage() {
       return left.transactionId.localeCompare(right.transactionId);
     });
 
-    let runningBalance = statementDetailQuery.data.openingBalance;
-    return ordered.map((item) => {
+    const firstTransaction = ordered[0];
+    const firstMovement = firstTransaction.direction === "CREDIT"
+      ? firstTransaction.amount
+      : -firstTransaction.amount;
+
+    const openingBalance = Number.isFinite(firstTransaction.balanceAfter)
+      ? roundCurrency((firstTransaction.balanceAfter as number) - firstMovement)
+      : defaultOpeningBalance;
+
+    let runningBalance = openingBalance;
+    const rows = ordered.map((item) => {
       const movement = item.direction === "CREDIT" ? item.amount : -item.amount;
-      runningBalance = roundCurrency(runningBalance + movement);
+
+      if (Number.isFinite(item.balanceAfter)) {
+        runningBalance = roundCurrency(item.balanceAfter as number);
+      } else {
+        runningBalance = roundCurrency(runningBalance + movement);
+      }
 
       return {
         ...item,
@@ -91,7 +124,19 @@ export function StatementDetailsPage() {
         runningBalance
       };
     });
+
+    const closingBalance = rows.length > 0
+      ? rows[rows.length - 1].runningBalance
+      : defaultClosingBalance;
+
+    return {
+      openingBalance,
+      closingBalance,
+      rows
+    };
   }, [statementDetailQuery.data, statementTransactions]);
+
+  const ledgerRows = ledger.rows;
 
   const onDownloadPdf = () => {
     if (!statementDetailQuery.data) {
@@ -224,7 +269,7 @@ export function StatementDetailsPage() {
                   <td data-label="Debit" className="statement-table-number">-</td>
                   <td data-label="Credit" className="statement-table-number">-</td>
                   <td data-label="Running balance" className="statement-table-number">
-                    {formatCurrency(statementDetailQuery.data.openingBalance, statementDetailQuery.data.currencyCode)}
+                    {formatCurrency(ledger.openingBalance, statementDetailQuery.data.currencyCode)}
                   </td>
                 </tr>
                 {ledgerRows.map((item) => (
@@ -253,7 +298,7 @@ export function StatementDetailsPage() {
                   <td data-label="Debit" className="statement-table-number">-</td>
                   <td data-label="Credit" className="statement-table-number">-</td>
                   <td data-label="Running balance" className="statement-table-number">
-                    {formatCurrency(statementDetailQuery.data.closingBalance, statementDetailQuery.data.currencyCode)}
+                    {formatCurrency(ledger.closingBalance, statementDetailQuery.data.currencyCode)}
                   </td>
                 </tr>
               </tbody>
