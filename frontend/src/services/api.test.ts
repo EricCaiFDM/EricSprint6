@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, jest } from "@jest/globals";
 import {
   apiClient,
   checkHealth,
+  confirmPasswordReset,
   login,
   refreshToken,
   register,
@@ -70,6 +71,24 @@ describe("api service", () => {
 
     expect(postMock).toHaveBeenCalledWith("/auth/password-reset/request", {
       identity: "jane@example.com"
+    });
+  });
+
+  it("confirmPasswordReset posts identity and new password payload", async () => {
+    const postMock = jest
+      .spyOn(apiClient, "post")
+      .mockResolvedValue({ data: { status: "ACCEPTED" } } as never);
+
+    await confirmPasswordReset({
+      identity: "jane@example.com",
+      password: "secret456",
+      passwordConfirmation: "secret456"
+    });
+
+    expect(postMock).toHaveBeenCalledWith("/auth/password-reset/confirm", {
+      identity: "jane@example.com",
+      password: "secret456",
+      passwordConfirmation: "secret456"
     });
   });
 

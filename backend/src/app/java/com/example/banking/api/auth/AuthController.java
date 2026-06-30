@@ -13,6 +13,7 @@ import com.example.banking.api.auth.dto.ErrorResponse;
 import com.example.banking.api.auth.dto.GenericAcknowledgeResponse;
 import com.example.banking.api.auth.dto.LoginRequest;
 import com.example.banking.api.auth.dto.LoginResponse;
+import com.example.banking.api.auth.dto.PasswordResetConfirmRequest;
 import com.example.banking.api.auth.dto.PasswordResetRequest;
 import com.example.banking.api.auth.dto.RefreshRequest;
 import com.example.banking.api.auth.dto.RefreshResponse;
@@ -67,6 +68,19 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(new GenericAcknowledgeResponse(
                 "ACCEPTED",
                 "If the account exists, reset instructions will be sent."));
+    }
+
+    @PostMapping("/password-reset/confirm")
+    public ResponseEntity<?> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request) {
+        try {
+            authService.confirmPasswordReset(request.identity(), request.password(), request.passwordConfirmation());
+            return ResponseEntity.status(HttpStatus.ACCEPTED).body(new GenericAcknowledgeResponse(
+                    "ACCEPTED",
+                    "If the account exists, account access has been reset."));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body(new ErrorResponse("VALIDATION_ERROR", ex.getMessage()));
+        }
     }
 
     @PostMapping("/token/refresh")

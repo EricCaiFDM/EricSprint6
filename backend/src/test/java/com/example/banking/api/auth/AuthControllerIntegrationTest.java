@@ -52,6 +52,14 @@ class AuthControllerIntegrationTest {
         return "{\"identity\":\"" + identity + "\"}";
     }
 
+        private static String passwordResetConfirmPayload(String identity, String password, String passwordConfirmation) {
+                return "{" +
+                                "\"identity\":\"" + identity + "\"," +
+                                "\"password\":\"" + password + "\"," +
+                                "\"passwordConfirmation\":\"" + passwordConfirmation + "\"" +
+                                "}";
+        }
+
     private static String refreshPayload(String refreshToken) {
         return "{\"refreshToken\":\"" + refreshToken + "\"}";
     }
@@ -214,6 +222,54 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status").value("ACCEPTED"))
                 .andExpect(jsonPath("$.message").value("If the account exists, reset instructions will be sent."));
+    }
+
+    @Test
+    void passwordResetConfirmUpdatesCredentialsAndAllowsLoginWithNewPassword() throws Exception {
+        mockMvc.perform(post("/auth/register")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(registerPayload("reset-known@example.com", "secret123", "secret123")))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/auth/password-reset/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(passwordResetConfirmPayload("reset-known@example.com", "newsecret123", "newsecret123")))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.message").value("If the account exists, account access has been reset."));
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginPayload("reset-known@example.com", "secret123")))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(loginPayload("reset-known@example.com", "newsecret123")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString());
+    }
+
+    @Test
+    void passwordResetConfirmReturnsGenericAcknowledgmentForUnknownIdentity() throws Exception {
+        mockMvc.perform(post("/auth/password-reset/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(passwordResetConfirmPayload("unknown-reset@example.com", "newsecret123", "newsecret123")))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.status").value("ACCEPTED"))
+                .andExpect(jsonPath("$.message").value("If the account exists, account access has been reset."));
+    }
+
+    @Test
+    void passwordResetConfirmRejectsPasswordMismatch() throws Exception {
+        mockMvc.perform(post("/auth/password-reset/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(passwordResetConfirmPayload("known@example.com", "secret123", "different123")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                .andExpect(jsonPath("$.message").value("Password confirmation mismatch"));
     }
 
     @Test
