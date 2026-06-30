@@ -385,14 +385,52 @@ function toStartOfDayUtc(value?: string): string | undefined {
   if (!value || !value.trim()) {
     return undefined;
   }
-  return `${value.trim()}T00:00:00.000Z`;
+
+  const parsed = parseLocalDate(value);
+  if (!parsed) {
+    return `${value.trim()}T00:00:00.000Z`;
+  }
+
+  parsed.setHours(0, 0, 0, 0);
+  return parsed.toISOString();
 }
 
 function toEndOfDayUtc(value?: string): string | undefined {
   if (!value || !value.trim()) {
     return undefined;
   }
-  return `${value.trim()}T23:59:59.999Z`;
+
+  const parsed = parseLocalDate(value);
+  if (!parsed) {
+    return `${value.trim()}T23:59:59.999Z`;
+  }
+
+  parsed.setHours(23, 59, 59, 999);
+  return parsed.toISOString();
+}
+
+function parseLocalDate(value: string): Date | null {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+
+  const parsed = new Date(year, monthIndex, day, 0, 0, 0, 0);
+  if (
+    Number.isNaN(parsed.getTime())
+    || parsed.getFullYear() !== year
+    || parsed.getMonth() !== monthIndex
+    || parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function buildIdempotencyKey(operation: string): string {

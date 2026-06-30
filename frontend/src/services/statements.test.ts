@@ -6,14 +6,12 @@ import { fetchStatement, fetchStatementPdf, fetchStatementTransactions, fetchSta
 function resolveExpectedHistoryDateRange(periodYearMonth: string): { startDate: string; endDate: string } {
   const [yearPart, monthPart] = periodYearMonth.split("-");
   const year = Number(yearPart);
-  const monthIndex = Number(monthPart) - 1;
-  const localPeriodStart = new Date(year, monthIndex, 1, 0, 0, 0, 0);
-  const localPeriodEndExclusive = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
-  const localPeriodEndInclusive = new Date(localPeriodEndExclusive.getTime() - 1);
+  const month = Number(monthPart);
+  const endDay = `${new Date(year, month, 0).getDate()}`.padStart(2, "0");
 
   return {
-    startDate: localPeriodStart.toISOString().slice(0, 10),
-    endDate: localPeriodEndInclusive.toISOString().slice(0, 10)
+    startDate: `${yearPart}-${monthPart}-01`,
+    endDate: `${yearPart}-${monthPart}-${endDay}`
   };
 }
 

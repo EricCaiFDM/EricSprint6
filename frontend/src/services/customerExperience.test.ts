@@ -28,6 +28,19 @@ import { fetchNotificationPreferences } from "./notifications";
 import { fetchStatements } from "./statements";
 import { fetchSpendingInsights } from "./insights";
 
+function toLocalBoundaryUtcIso(dateValue: string, boundary: "start" | "end"): string {
+  const [yearPart, monthPart, dayPart] = dateValue.split("-");
+  const year = Number(yearPart);
+  const monthIndex = Number(monthPart) - 1;
+  const day = Number(dayPart);
+
+  const local = boundary === "start"
+    ? new Date(year, monthIndex, day, 0, 0, 0, 0)
+    : new Date(year, monthIndex, day, 23, 59, 59, 999);
+
+  return local.toISOString();
+}
+
 describe("customer experience services", () => {
   beforeEach(() => {
     jest.restoreAllMocks();
@@ -806,6 +819,9 @@ describe("customer experience services", () => {
   });
 
   it("retrieves account scoped history with filters and paging", async () => {
+    const expectedStartDateUtc = toLocalBoundaryUtcIso("2026-06-01", "start");
+    const expectedEndDateUtc = toLocalBoundaryUtcIso("2026-06-30", "end");
+
     const getMock = jest.spyOn(apiClient, "get").mockImplementation((url: string, config?: unknown) => {
       if (url === "/customers/me") {
         return Promise.resolve({
@@ -828,8 +844,8 @@ describe("customer experience services", () => {
             page: 2,
             pageSize: 20,
             transactionType: "TRANSFER_DEBIT",
-            startDateUtc: "2026-06-01T00:00:00.000Z",
-            endDateUtc: "2026-06-30T23:59:59.999Z"
+            startDateUtc: expectedStartDateUtc,
+            endDateUtc: expectedEndDateUtc
           }
         });
 
@@ -873,8 +889,8 @@ describe("customer experience services", () => {
         page: 2,
         pageSize: 20,
         transactionType: "TRANSFER_DEBIT",
-        startDateUtc: "2026-06-01T00:00:00.000Z",
-        endDateUtc: "2026-06-30T23:59:59.999Z"
+        startDateUtc: expectedStartDateUtc,
+        endDateUtc: expectedEndDateUtc
       }
     });
     expect(history.page).toBe(2);

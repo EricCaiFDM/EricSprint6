@@ -702,7 +702,7 @@ export function PaymentsPage() {
             {currentHistory.items.map((item) => (
               <li key={item.transactionId} className="activity-item">
                 <div>
-                  <p className="item-title">{toReadableType(item.transactionType)} · {item.description}</p>
+                  <p className="item-title">{formatHistoryTitle(item)}</p>
                   <p className="item-meta">{formatDate(item.bookedAt)} · Ref {item.transactionId}</p>
                   <p className="item-meta">
                     {formatHistoryAccountLabel(item, accountNameById, historyScopeType, historyScopeId)}
@@ -800,6 +800,21 @@ function toReadableOperation(kind: OperationReceipt["kind"]): string {
     default:
       return kind;
   }
+}
+
+function formatHistoryTitle(item: TransactionItem): string {
+  const typeLabel = toReadableType(item.transactionType);
+  const description = item.description?.trim() ?? "";
+
+  if (!description) {
+    return typeLabel;
+  }
+
+  if (description.toLocaleLowerCase() === typeLabel.toLocaleLowerCase()) {
+    return typeLabel;
+  }
+
+  return `${typeLabel} · ${description}`;
 }
 
 function formatAccountLabel(account: BankAccount): string {

@@ -399,12 +399,9 @@ function normalizeStatementPeriod(
   const year = Number(match[1]);
   const month = Number(match[2]);
   const localMonthIndex = month - 1;
-  const localPeriodStart = new Date(year, localMonthIndex, 1, 0, 0, 0, 0);
-  const localPeriodEndExclusive = new Date(year, localMonthIndex + 1, 1, 0, 0, 0, 0);
-  const localPeriodEndInclusive = new Date(localPeriodEndExclusive.getTime() - 1);
-
-  const startDate = toUtcDatePortion(localPeriodStart);
-  const endDate = toUtcDatePortion(localPeriodEndInclusive);
+  const startDate = `${match[1]}-${match[2]}-01`;
+  const endDay = `${new Date(year, month, 0).getDate()}`.padStart(2, "0");
+  const endDate = `${match[1]}-${match[2]}-${endDay}`;
 
   return {
     startDate,
@@ -412,10 +409,6 @@ function normalizeStatementPeriod(
     localYear: year,
     localMonthIndex
   };
-}
-
-function toUtcDatePortion(value: Date): string {
-  return value.toISOString().slice(0, 10);
 }
 
 function parseTimestampAsUtcEpoch(value: string): number {

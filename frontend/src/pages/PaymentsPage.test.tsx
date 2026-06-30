@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { PaymentsPage } from "./PaymentsPage";
 import * as accounts from "../services/accounts";
@@ -260,6 +260,56 @@ describe("PaymentsPage", () => {
     expect(screen.getByText(/Account: Everyday \(acc-1\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Final total account balance/i)).toBeInTheDocument();
     expect(screen.getByText(/\$4,250\.00/i)).toBeInTheDocument();
+  });
+
+  it("does not duplicate transaction type and description in history title", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [
+        {
+          transactionId: "txn-withdrawal-1",
+          accountId: "acc-1",
+          transactionType: "WITHDRAWAL",
+          bookedAt: "2026-06-29T10:00:00Z",
+          description: "Withdrawal",
+          category: "Withdrawal",
+          amount: 40,
+          currency: "USD",
+          direction: "DEBIT",
+          status: "Completed"
+        }
+      ],
+      page: 1,
+      pageSize: 10,
+      totalItems: 1,
+      totalPages: 1
+    });
+
+    renderPage();
+
+    const historyItem = await screen.findByText(/Ref txn-withdrawal-1/i);
+    const historyRow = historyItem.closest("li");
+
+    expect(historyRow).not.toBeNull();
+    expect(within(historyRow as HTMLElement).getByText(/^Withdrawal$/i)).toBeInTheDocument();
+    expect(within(historyRow as HTMLElement).queryByText(/Withdrawal · Withdrawal/i)).not.toBeInTheDocument();
   });
 
   it("resolves admin customer scope by name for deposits", async () => {
