@@ -2,7 +2,6 @@ package com.example.banking.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Map;
 import java.util.Optional;
@@ -47,21 +46,15 @@ class ListNotificationAttemptsServiceTest {
 
     @Test
     void listValidatesNotificationEventIdInput() {
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.list(null, 1, 10, "actor", "ADMIN"));
+        ApiErrorException missing = captureListError(null, 1, 10, "actor", "ADMIN");
         assertEquals("NOTIFICATION_VALIDATION_ERROR", missing.getCode());
         assertEquals("notificationEventId", missing.getField());
 
-        ApiErrorException blank = assertThrows(
-            ApiErrorException.class,
-            () -> service.list("   ", 1, 10, "actor", "ADMIN"));
+        ApiErrorException blank = captureListError("   ", 1, 10, "actor", "ADMIN");
         assertEquals("NOTIFICATION_VALIDATION_ERROR", blank.getCode());
         assertEquals("notificationEventId", blank.getField());
 
-        ApiErrorException invalid = assertThrows(
-                ApiErrorException.class,
-                () -> service.list("not-a-uuid", 1, 10, "actor", "ADMIN"));
+        ApiErrorException invalid = captureListError("not-a-uuid", 1, 10, "actor", "ADMIN");
         assertEquals("NOTIFICATION_VALIDATION_ERROR", invalid.getCode());
         assertEquals("notificationEventId", invalid.getField());
     }
@@ -70,9 +63,7 @@ class ListNotificationAttemptsServiceTest {
     void listThrowsNotFoundWhenNotificationEventDoesNotExist() {
         String missingId = UUID.randomUUID().toString();
 
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.list(missingId, 1, 10, "actor", "ADMIN"));
+        ApiErrorException notFound = captureListError(missingId, 1, 10, "actor", "ADMIN");
 
         assertEquals("NOTIFICATION_EVENT_NOT_FOUND", notFound.getCode());
     }
@@ -121,11 +112,24 @@ class ListNotificationAttemptsServiceTest {
         events.put(eventId, event(eventId, NotificationRecipientScopeType.CUSTOMER, "scope-3"));
         accessPolicy.throwForbidden = true;
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.list(eventId, 1, 10, "actor", "CUSTOMER"));
+        ApiErrorException forbidden = captureListError(eventId, 1, 10, "actor", "CUSTOMER");
 
         assertEquals("NOTIFICATION_FORBIDDEN", forbidden.getCode());
+    }
+
+    private ApiErrorException captureListError(
+            String notificationEventId,
+            int page,
+            int pageSize,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.list(notificationEventId, page, pageSize, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     private NotificationEventEntity event(String id, NotificationRecipientScopeType scopeType, String scopeId) {

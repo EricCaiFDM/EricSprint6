@@ -2,7 +2,7 @@ package com.example.banking.lib.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -33,10 +33,11 @@ class StandingOrderAccessPolicyTest {
 
     @Test
     void enforceManageAccessAllowsAdminAndCustomerButRejectsOthers() {
-        policy.enforceManageAccess("ADMIN");
-        policy.enforceManageAccess("customer");
+        assertNull(captureManageAccessError("ADMIN"));
+        assertNull(captureManageAccessError("customer"));
 
-        ApiErrorException forbidden = assertThrows(ApiErrorException.class, () -> policy.enforceManageAccess("auditor"));
+        ApiErrorException forbidden = captureManageAccessError("auditor");
+        assertNotNull(forbidden);
         assertEquals("STANDING_ORDER_FORBIDDEN", forbidden.getCode());
     }
 
@@ -56,9 +57,10 @@ class StandingOrderAccessPolicyTest {
         AccountEntity forCustomerOwner = policy.requireAccountScope("acc-1", "CUSTOMER", "owner-2", "accountId");
         assertNotNull(forCustomerOwner);
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireAccountScope("acc-1", "CUSTOMER", "outsider", "accountId"));
+        assertNull(captureRequireAccountScopeError("acc-1", "ADMIN", "whoever", "accountId"));
+
+        ApiErrorException forbidden = captureRequireAccountScopeError("acc-1", "CUSTOMER", "outsider", "accountId");
+        assertNotNull(forbidden);
         assertEquals("STANDING_ORDER_FORBIDDEN", forbidden.getCode());
     }
 
@@ -66,18 +68,16 @@ class StandingOrderAccessPolicyTest {
     void requireAccountScopeThrowsWhenAccountMissing() {
         when(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("missing")).thenReturn(Optional.empty());
 
-        ApiErrorException exception = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireAccountScope("missing", "CUSTOMER", "actor", "sourceAccountId"));
+        ApiErrorException exception = captureRequireAccountScopeError("missing", "CUSTOMER", "actor", "sourceAccountId");
+        assertNotNull(exception);
         assertEquals("STANDING_ORDER_ACCOUNT_NOT_FOUND", exception.getCode());
         assertEquals("sourceAccountId", exception.getField());
     }
 
     @Test
     void requireStandingOrderScopeValidatesNullAndRespectsOwnership() {
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireStandingOrderScope(null, "CUSTOMER", "actor", "read"));
+        ApiErrorException notFound = captureRequireStandingOrderScopeError(null, "CUSTOMER", "actor", "read");
+        assertNotNull(notFound);
         assertEquals("STANDING_ORDER_NOT_FOUND", notFound.getCode());
 
         StandingOrderEntity standingOrder = new StandingOrderEntity();
@@ -94,9 +94,10 @@ class StandingOrderAccessPolicyTest {
         when(customerJpaRepository.findByCustomerIdAndDeletedAtIsNull("cust-10")).thenReturn(Optional.of(customer));
         policy.requireStandingOrderScope(standingOrder, "CUSTOMER", "owner-from-customer", "read");
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireStandingOrderScope(standingOrder, "CUSTOMER", "outsider", "read"));
+        assertNull(captureRequireStandingOrderScopeError(standingOrder, "ADMIN", "actor", "read"));
+
+        ApiErrorException forbidden = captureRequireStandingOrderScopeError(standingOrder, "CUSTOMER", "outsider", "read");
+        assertNotNull(forbidden);
         assertEquals("STANDING_ORDER_FORBIDDEN", forbidden.getCode());
     }
 
@@ -106,11 +107,48 @@ class StandingOrderAccessPolicyTest {
         standingOrder.setSourceAccountId("acc-missing");
         when(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("acc-missing")).thenReturn(Optional.empty());
 
-        ApiErrorException missingAccount = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireStandingOrderScope(standingOrder, "CUSTOMER", "actor", "read"));
+        ApiErrorException missingAccount = captureRequireStandingOrderScopeError(standingOrder, "CUSTOMER", "actor", "read");
+        assertNotNull(missingAccount);
         assertEquals("STANDING_ORDER_ACCOUNT_NOT_FOUND", missingAccount.getCode());
         assertEquals("sourceAccountId", missingAccount.getField());
+    }
+
+    private ApiErrorException captureManageAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            policy.enforceManageAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRequireAccountScopeError(
+            String accountId,
+            String role,
+            String actorUserId,
+            String accountField) {
+        ApiErrorException exception = null;
+        try {
+            policy.requireAccountScope(accountId, role, actorUserId, accountField);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRequireStandingOrderScopeError(
+            StandingOrderEntity standingOrder,
+            String role,
+            String actorUserId,
+            String operation) {
+        ApiErrorException exception = null;
+        try {
+            policy.requireStandingOrderScope(standingOrder, role, actorUserId, operation);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     private AccountEntity account(String accountId, String customerId, String ownerUserId, String createdByUserId) {

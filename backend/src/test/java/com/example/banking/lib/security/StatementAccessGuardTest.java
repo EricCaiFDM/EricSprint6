@@ -2,7 +2,6 @@ package com.example.banking.lib.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
@@ -38,14 +37,10 @@ class StatementAccessGuardTest {
         guard.enforceGenerationAccess("ROLE_admin");
         guard.enforceRetrievalAccess(" customer ");
 
-        ApiErrorException generationForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> guard.enforceGenerationAccess(null));
+        ApiErrorException generationForbidden = captureGenerationAccessError(null);
         assertEquals("STATEMENT_FORBIDDEN", generationForbidden.getCode());
 
-        ApiErrorException retrievalForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> guard.enforceRetrievalAccess(null));
+        ApiErrorException retrievalForbidden = captureRetrievalAccessError(null);
         assertEquals("STATEMENT_FORBIDDEN", retrievalForbidden.getCode());
     }
 
@@ -68,17 +63,13 @@ class StatementAccessGuardTest {
         AccountEntity customerCreatorAccess = guard.requireAccountScope("acc-1", "CUSTOMER", "customer-creator", "read");
         assertNotNull(customerCreatorAccess);
 
-        ApiErrorException forbiddenWithNullActor = assertThrows(
-                ApiErrorException.class,
-                () -> guard.requireAccountScope("acc-1", "CUSTOMER", null, "read"));
+        ApiErrorException forbiddenWithNullActor = captureRequireAccountScopeError("acc-1", "CUSTOMER", null, "read");
         assertEquals("STATEMENT_FORBIDDEN", forbiddenWithNullActor.getCode());
     }
 
     @Test
     void requireStatementScopeThrowsWhenStatementMissing() {
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> guard.requireStatementScope(null, "CUSTOMER", "actor-1", "read"));
+        ApiErrorException missing = captureRequireStatementScopeError(null, "CUSTOMER", "actor-1", "read");
 
         assertEquals("STATEMENT_NOT_FOUND", missing.getCode());
         assertEquals("statementId", missing.getField());
@@ -214,5 +205,53 @@ class StatementAccessGuardTest {
         } catch (ReflectiveOperationException exception) {
             throw new AssertionError(exception);
         }
+    }
+
+    private ApiErrorException captureGenerationAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            guard.enforceGenerationAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRetrievalAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            guard.enforceRetrievalAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRequireAccountScopeError(
+            String accountId,
+            String role,
+            String actorUserId,
+            String operation) {
+        ApiErrorException exception = null;
+        try {
+            guard.requireAccountScope(accountId, role, actorUserId, operation);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRequireStatementScopeError(
+            MonthlyStatement statement,
+            String role,
+            String actorUserId,
+            String operation) {
+        ApiErrorException exception = null;
+        try {
+            guard.requireStatementScope(statement, role, actorUserId, operation);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 }

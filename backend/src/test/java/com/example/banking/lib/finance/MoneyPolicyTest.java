@@ -1,7 +1,6 @@
 package com.example.banking.lib.finance;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.math.BigDecimal;
 
@@ -16,29 +15,21 @@ class MoneyPolicyTest {
 
     @Test
     void parsePositiveAmountValidatesBlankAndDecimalFormat() {
-        ApiErrorException required = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.parsePositiveAmount(" ", "amount"));
+        ApiErrorException required = captureParsePositiveAmountError(" ", "amount");
         assertEquals("TRANSACTION_VALIDATION_ERROR", required.getCode());
         assertEquals("amount", required.getField());
 
-        ApiErrorException decimal = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.parsePositiveAmount("abc", "amount"));
+        ApiErrorException decimal = captureParsePositiveAmountError("abc", "amount");
         assertEquals("TRANSACTION_VALIDATION_ERROR", decimal.getCode());
         assertEquals("amount", decimal.getField());
     }
 
     @Test
     void normalizePositiveAmountRequiresPositiveValueAndRoundsHalfEven() {
-        ApiErrorException required = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.normalizePositiveAmount(null, "amount"));
+        ApiErrorException required = captureNormalizePositiveAmountError(null, "amount");
         assertEquals("TRANSACTION_VALIDATION_ERROR", required.getCode());
 
-        ApiErrorException positive = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.normalizePositiveAmount(new BigDecimal("0.00"), "amount"));
+        ApiErrorException positive = captureNormalizePositiveAmountError(new BigDecimal("0.00"), "amount");
         assertEquals("TRANSACTION_VALIDATION_ERROR", positive.getCode());
 
         BigDecimal rounded = moneyPolicy.normalizePositiveAmount(new BigDecimal("1.005"), "amount");
@@ -58,9 +49,7 @@ class MoneyPolicyTest {
                 new BigDecimal("4.89"),
                 moneyPolicy.debit(new BigDecimal("10.11"), new BigDecimal("5.22")));
 
-        ApiErrorException insufficient = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.debit(new BigDecimal("1.00"), new BigDecimal("2.00")));
+        ApiErrorException insufficient = captureDebitError(new BigDecimal("1.00"), new BigDecimal("2.00"));
         assertEquals("TRANSACTION_INSUFFICIENT_FUNDS", insufficient.getCode());
     }
 
@@ -68,30 +57,82 @@ class MoneyPolicyTest {
     void currencyNormalizationAndSupportChecks() {
         assertEquals("USD", moneyPolicy.normalizeCurrency(" usd ", "currency"));
 
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.normalizeCurrency("", "currency"));
+        ApiErrorException missing = captureNormalizeCurrencyError("", "currency");
         assertEquals("TRANSACTION_VALIDATION_ERROR", missing.getCode());
 
-        ApiErrorException malformed = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.normalizeCurrency("US", "currency"));
+        ApiErrorException malformed = captureNormalizeCurrencyError("US", "currency");
         assertEquals("TRANSACTION_VALIDATION_ERROR", malformed.getCode());
 
         moneyPolicy.ensureSupportedCurrency("USD", "currency");
 
-        ApiErrorException unsupported = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.ensureSupportedCurrency("EUR", "currency"));
+        ApiErrorException unsupported = captureEnsureSupportedCurrencyError("EUR", "currency");
         assertEquals("TRANSACTION_VALIDATION_ERROR", unsupported.getCode());
 
         moneyPolicy.ensureSameCurrency("usd", "USD", "currency");
 
-        ApiErrorException mismatch = assertThrows(
-                ApiErrorException.class,
-                () -> moneyPolicy.ensureSameCurrency("USD", "EUR", "currency"));
+                ApiErrorException mismatch = captureEnsureSameCurrencyError("USD", "EUR", "currency");
         assertEquals("TRANSACTION_VALIDATION_ERROR", mismatch.getCode());
     }
+
+        private ApiErrorException captureParsePositiveAmountError(String rawAmount, String field) {
+                ApiErrorException exception = null;
+                try {
+                        moneyPolicy.parsePositiveAmount(rawAmount, field);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
+
+        private ApiErrorException captureNormalizePositiveAmountError(BigDecimal amount, String field) {
+                ApiErrorException exception = null;
+                try {
+                        moneyPolicy.normalizePositiveAmount(amount, field);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
+
+        private ApiErrorException captureDebitError(BigDecimal currentBalance, BigDecimal amount) {
+                ApiErrorException exception = null;
+                try {
+                        moneyPolicy.debit(currentBalance, amount);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
+
+        private ApiErrorException captureNormalizeCurrencyError(String currency, String field) {
+                ApiErrorException exception = null;
+                try {
+                        moneyPolicy.normalizeCurrency(currency, field);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
+
+        private ApiErrorException captureEnsureSupportedCurrencyError(String currency, String field) {
+                ApiErrorException exception = null;
+                try {
+                        moneyPolicy.ensureSupportedCurrency(currency, field);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
+
+        private ApiErrorException captureEnsureSameCurrencyError(String sourceCurrency, String targetCurrency, String field) {
+                ApiErrorException exception = null;
+                try {
+                        moneyPolicy.ensureSameCurrency(sourceCurrency, targetCurrency, field);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
 
     private TransactionModuleConfig config(String currency) {
         TransactionModuleConfig config = new TransactionModuleConfig();

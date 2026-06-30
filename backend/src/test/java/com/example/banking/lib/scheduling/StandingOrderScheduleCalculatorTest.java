@@ -2,7 +2,6 @@ package com.example.banking.lib.scheduling;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
 
@@ -76,21 +75,19 @@ class StandingOrderScheduleCalculatorTest {
         Instant now = Instant.parse("2026-06-29T10:00:00Z");
         Instant effectiveFrom = Instant.parse("2026-06-29T09:00:00Z");
 
-        ApiErrorException cadenceError = assertThrows(
-                ApiErrorException.class,
-                () -> calculator.calculateInitialNextExecutionAt(effectiveFrom, null, null, now));
+        assertNull(captureInitialNextExecutionValidationError(effectiveFrom, null, StandingOrderCadence.DAILY, now));
+
+        ApiErrorException cadenceError = captureInitialNextExecutionValidationError(effectiveFrom, null, null, now);
         assertEquals("STANDING_ORDER_VALIDATION_ERROR", cadenceError.getCode());
 
-        ApiErrorException missingFrom = assertThrows(
-                ApiErrorException.class,
-                () -> calculator.validateEffectiveWindow(null, null));
+        assertNull(captureEffectiveWindowValidationError(effectiveFrom, null));
+
+        ApiErrorException missingFrom = captureEffectiveWindowValidationError(null, null);
         assertEquals("STANDING_ORDER_VALIDATION_ERROR", missingFrom.getCode());
 
-        ApiErrorException invalidRange = assertThrows(
-                ApiErrorException.class,
-                () -> calculator.validateEffectiveWindow(
-                        Instant.parse("2026-06-30T10:00:00Z"),
-                        Instant.parse("2026-06-29T10:00:00Z")));
+        ApiErrorException invalidRange = captureEffectiveWindowValidationError(
+                Instant.parse("2026-06-30T10:00:00Z"),
+                Instant.parse("2026-06-29T10:00:00Z"));
         assertEquals("STANDING_ORDER_VALIDATION_ERROR", invalidRange.getCode());
     }
 
@@ -110,4 +107,28 @@ class StandingOrderScheduleCalculatorTest {
                 Instant.parse("2026-06-29T20:00:00Z"));
         assertNull(blockedByEnd);
     }
+
+        private ApiErrorException captureInitialNextExecutionValidationError(
+                        Instant effectiveFrom,
+                        Instant effectiveTo,
+                        StandingOrderCadence cadence,
+                        Instant now) {
+                ApiErrorException exception = null;
+                try {
+                        calculator.calculateInitialNextExecutionAt(effectiveFrom, effectiveTo, cadence, now);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
+
+        private ApiErrorException captureEffectiveWindowValidationError(Instant effectiveFrom, Instant effectiveTo) {
+                ApiErrorException exception = null;
+                try {
+                        calculator.validateEffectiveWindow(effectiveFrom, effectiveTo);
+                } catch (ApiErrorException captured) {
+                        exception = captured;
+                }
+                return exception;
+        }
 }

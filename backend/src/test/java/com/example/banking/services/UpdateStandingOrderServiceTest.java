@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -146,17 +145,21 @@ class UpdateStandingOrderServiceTest {
 
     @Test
     void updateValidatesIdentifierAndRejectsMissingMutations() {
-        ApiErrorException invalidId = assertThrows(
-                ApiErrorException.class,
-                () -> service.update("bad-id", new UpdateStandingOrderSchema(null, null, null, null, null), "owner-1", "CUSTOMER"));
+        ApiErrorException invalidId = captureUpdateError(
+            "bad-id",
+            new UpdateStandingOrderSchema(null, null, null, null, null),
+            "owner-1",
+            "CUSTOMER");
         assertEquals("standingOrderId", invalidId.getField());
 
         String id = UUID.randomUUID().toString();
         repository.put(baseStandingOrder(id));
 
-        ApiErrorException noFields = assertThrows(
-                ApiErrorException.class,
-                () -> service.update(id, new UpdateStandingOrderSchema(null, null, null, null, null), "owner-1", "CUSTOMER"));
+        ApiErrorException noFields = captureUpdateError(
+            id,
+            new UpdateStandingOrderSchema(null, null, null, null, null),
+            "owner-1",
+            "CUSTOMER");
         assertEquals("STANDING_ORDER_VALIDATION_ERROR", noFields.getCode());
     }
 
@@ -165,21 +168,41 @@ class UpdateStandingOrderServiceTest {
         String id = UUID.randomUUID().toString();
         repository.put(baseStandingOrder(id));
 
-        ApiErrorException cadenceError = assertThrows(
-                ApiErrorException.class,
-                () -> service.update(id, new UpdateStandingOrderSchema("10.00", "YEARLY", null, null, null), "owner-1", "CUSTOMER"));
+        ApiErrorException cadenceError = captureUpdateError(
+            id,
+            new UpdateStandingOrderSchema("10.00", "YEARLY", null, null, null),
+            "owner-1",
+            "CUSTOMER");
         assertEquals("cadence", cadenceError.getField());
 
-        ApiErrorException fromError = assertThrows(
-                ApiErrorException.class,
-                () -> service.update(id, new UpdateStandingOrderSchema("10.00", null, "bad", null, null), "owner-1", "CUSTOMER"));
+        ApiErrorException fromError = captureUpdateError(
+            id,
+            new UpdateStandingOrderSchema("10.00", null, "bad", null, null),
+            "owner-1",
+            "CUSTOMER");
         assertEquals("effectiveFromUtc", fromError.getField());
 
-        ApiErrorException toError = assertThrows(
-                ApiErrorException.class,
-                () -> service.update(id, new UpdateStandingOrderSchema("10.00", null, null, "bad", null), "owner-1", "CUSTOMER"));
+        ApiErrorException toError = captureUpdateError(
+            id,
+            new UpdateStandingOrderSchema("10.00", null, null, "bad", null),
+            "owner-1",
+            "CUSTOMER");
         assertEquals("effectiveToUtc", toError.getField());
     }
+
+        private ApiErrorException captureUpdateError(
+            String standingOrderId,
+            UpdateStandingOrderSchema request,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.update(standingOrderId, request, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+        }
 
     @Test
     void proxyRepositoriesCoverAllInvocationHandlerBranches() {

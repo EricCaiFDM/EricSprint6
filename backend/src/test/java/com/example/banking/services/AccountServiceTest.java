@@ -5,7 +5,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
@@ -113,60 +112,48 @@ class AccountServiceTest {
                 "ADMIN");
         assertEquals("1.2346", roundedRate.interestRate());
 
-        ApiErrorException negativeRate = assertThrows(
-                ApiErrorException.class,
-                () -> service.createAccount(
-                        new CreateAccountRequest(customerId, "SAVINGS", "USD", null, new BigDecimal("-0.01")),
-                        "actor-2",
-                        "ADMIN"));
+        ApiErrorException negativeRate = captureCreateAccountError(
+            new CreateAccountRequest(customerId, "SAVINGS", "USD", null, new BigDecimal("-0.01")),
+            "actor-2",
+            "ADMIN");
         assertEquals("ACCOUNT_VALIDATION_ERROR", negativeRate.getCode());
         assertEquals("interestRate", negativeRate.getField());
     }
 
     @Test
     void createAccountValidatesInputsAndRecordsFailures() {
-        ApiErrorException nullCustomerId = assertThrows(
-            ApiErrorException.class,
-            () -> service.createAccount(
-                new CreateAccountRequest(null, "CHECKING", "USD", null, null),
-                "actor",
-                "CUSTOMER"));
+        ApiErrorException nullCustomerId = captureCreateAccountError(
+            new CreateAccountRequest(null, "CHECKING", "USD", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", nullCustomerId.getCode());
         assertEquals("customerId", nullCustomerId.getField());
 
-        ApiErrorException missingCustomerId = assertThrows(
-                ApiErrorException.class,
-                () -> service.createAccount(
-                        new CreateAccountRequest(" ", "CHECKING", "USD", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException missingCustomerId = captureCreateAccountError(
+            new CreateAccountRequest(" ", "CHECKING", "USD", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", missingCustomerId.getCode());
         assertEquals("customerId", missingCustomerId.getField());
 
-        ApiErrorException invalidCustomerId = assertThrows(
-                ApiErrorException.class,
-                () -> service.createAccount(
-                        new CreateAccountRequest("not-a-uuid", "CHECKING", "USD", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException invalidCustomerId = captureCreateAccountError(
+            new CreateAccountRequest("not-a-uuid", "CHECKING", "USD", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", invalidCustomerId.getCode());
         assertEquals("customerId", invalidCustomerId.getField());
 
-        ApiErrorException missingType = assertThrows(
-                ApiErrorException.class,
-                () -> service.createAccount(
-                        new CreateAccountRequest(UUID.randomUUID().toString(), " ", "USD", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException missingType = captureCreateAccountError(
+            new CreateAccountRequest(UUID.randomUUID().toString(), " ", "USD", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", missingType.getCode());
         assertEquals("accountType", missingType.getField());
 
-        ApiErrorException nullType = assertThrows(
-            ApiErrorException.class,
-            () -> service.createAccount(
-                new CreateAccountRequest(UUID.randomUUID().toString(), null, "USD", null, null),
-                "actor",
-                "CUSTOMER"));
+        ApiErrorException nullType = captureCreateAccountError(
+            new CreateAccountRequest(UUID.randomUUID().toString(), null, "USD", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", nullType.getCode());
         assertEquals("accountType", nullType.getField());
 
@@ -178,32 +165,26 @@ class AccountServiceTest {
         String customerId = UUID.randomUUID().toString();
 
         accessPolicyService.createException = forbidden("create");
-        ApiErrorException createForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.createAccount(
-                        new CreateAccountRequest(customerId, "CHECKING", "USD", null, null),
-                        null,
-                        "CUSTOMER"));
+        ApiErrorException createForbidden = captureCreateAccountError(
+            new CreateAccountRequest(customerId, "CHECKING", "USD", null, null),
+            null,
+            "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", createForbidden.getCode());
         accessPolicyService.createException = null;
 
         eligibilityService.exception = new ApiErrorException(HttpStatus.CONFLICT, "ACCOUNT_CONFLICT", "eligibility", "accountType");
-        ApiErrorException eligibility = assertThrows(
-                ApiErrorException.class,
-                () -> service.createAccount(
-                        new CreateAccountRequest(customerId, "CHECKING", "USD", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException eligibility = captureCreateAccountError(
+            new CreateAccountRequest(customerId, "CHECKING", "USD", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_CONFLICT", eligibility.getCode());
         eligibilityService.exception = null;
 
         accessPolicyService.listScopeException = forbidden("list");
-        ApiErrorException scope = assertThrows(
-                ApiErrorException.class,
-                () -> service.createAccount(
-                        new CreateAccountRequest(customerId, "CHECKING", "USD", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException scope = captureCreateAccountError(
+            new CreateAccountRequest(customerId, "CHECKING", "USD", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", scope.getCode());
     }
 
@@ -222,34 +203,24 @@ class AccountServiceTest {
 
     @Test
     void getAccountByIdValidationAndAccessFailuresAreCovered() {
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.getAccountById(" ", "actor", "CUSTOMER"));
+        ApiErrorException missing = captureGetAccountByIdError(" ", "actor", "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", missing.getCode());
 
-        ApiErrorException invalid = assertThrows(
-                ApiErrorException.class,
-                () -> service.getAccountById("bad-id", "actor", "CUSTOMER"));
+        ApiErrorException invalid = captureGetAccountByIdError("bad-id", "actor", "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", invalid.getCode());
 
         String accountId = UUID.randomUUID().toString();
         accessPolicyService.readException = forbidden("read");
-        ApiErrorException readForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.getAccountById(accountId, "actor", "CUSTOMER"));
+        ApiErrorException readForbidden = captureGetAccountByIdError(accountId, "actor", "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", readForbidden.getCode());
         accessPolicyService.readException = null;
 
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.getAccountById(accountId, "actor", "CUSTOMER"));
+        ApiErrorException notFound = captureGetAccountByIdError(accountId, "actor", "CUSTOMER");
         assertEquals("ACCOUNT_NOT_FOUND", notFound.getCode());
 
         accountRepository.byId.put(accountId, account(accountId, UUID.randomUUID().toString(), "NB1234", "CHECKING", "ACTIVE", new BigDecimal("0.00"), "owner-1"));
         accessPolicyService.ownershipException = forbidden("read");
-        ApiErrorException ownershipForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.getAccountById(accountId, "other", "CUSTOMER"));
+        ApiErrorException ownershipForbidden = captureGetAccountByIdError(accountId, "other", "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", ownershipForbidden.getCode());
     }
 
@@ -282,21 +253,15 @@ class AccountServiceTest {
         String customerId = UUID.randomUUID().toString();
 
         accessPolicyService.listException = forbidden("list");
-        ApiErrorException listForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.listAccounts(customerId, 1, 10, null, null, "actor", "CUSTOMER"));
+        ApiErrorException listForbidden = captureListAccountsError(customerId, 1, 10, null, null, "actor", "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", listForbidden.getCode());
         accessPolicyService.listException = null;
 
-        ApiErrorException invalidCustomerId = assertThrows(
-                ApiErrorException.class,
-                () -> service.listAccounts("bad-id", 1, 10, null, null, "actor", "CUSTOMER"));
+        ApiErrorException invalidCustomerId = captureListAccountsError("bad-id", 1, 10, null, null, "actor", "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", invalidCustomerId.getCode());
 
         accessPolicyService.listScopeException = forbidden("list");
-        ApiErrorException scopeForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.listAccounts(customerId, 1, 10, null, null, "actor", "CUSTOMER"));
+        ApiErrorException scopeForbidden = captureListAccountsError(customerId, 1, 10, null, null, "actor", "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", scopeForbidden.getCode());
     }
 
@@ -306,9 +271,11 @@ class AccountServiceTest {
         AccountEntity account = account(accountId, UUID.randomUUID().toString(), "NB-U1", "CHECKING", "ACTIVE", new BigDecimal("40.00"), "owner");
         accountRepository.byId.put(accountId, account);
 
-        ApiErrorException noField = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(accountId, new UpdateAccountRequest(null, null, null, null), "owner", "CUSTOMER"));
+        ApiErrorException noField = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest(null, null, null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", noField.getCode());
 
         AccountResponse updated = service.updateAccount(
@@ -350,9 +317,11 @@ class AccountServiceTest {
         assertEquals("CLOSED", service.updateAccount(accountId, new UpdateAccountRequest(null, "CLOSED", null, null), "owner", "CUSTOMER").status());
 
         account.setStatus("CLOSED");
-        ApiErrorException invalid = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(accountId, new UpdateAccountRequest(null, "ACTIVE", null, null), "owner", "CUSTOMER"));
+        ApiErrorException invalid = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest(null, "ACTIVE", null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", invalid.getCode());
     }
 
@@ -363,15 +332,19 @@ class AccountServiceTest {
         accountRepository.byId.put(accountId, checking);
 
         accessPolicyService.adminFinancialUpdateException = forbidden("update");
-        ApiErrorException financialForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(accountId, new UpdateAccountRequest(null, null, new BigDecimal("1.00"), null), "owner", "CUSTOMER"));
+        ApiErrorException financialForbidden = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest(null, null, new BigDecimal("1.00"), null),
+            "owner",
+            "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", financialForbidden.getCode());
         accessPolicyService.adminFinancialUpdateException = null;
 
-        ApiErrorException wrongType = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(accountId, new UpdateAccountRequest(null, null, new BigDecimal("1.00"), null), "owner", "ADMIN"));
+        ApiErrorException wrongType = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest(null, null, new BigDecimal("1.00"), null),
+            "owner",
+            "ADMIN");
         assertEquals("ACCOUNT_VALIDATION_ERROR", wrongType.getCode());
         assertEquals("interestRate", wrongType.getField());
 
@@ -387,9 +360,11 @@ class AccountServiceTest {
                 "ADMIN");
         assertEquals("1.2346", interestUpdated.interestRate());
 
-        ApiErrorException negative = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(savingsId, new UpdateAccountRequest(null, null, new BigDecimal("-0.01"), null), "owner", "ADMIN"));
+        ApiErrorException negative = captureUpdateAccountError(
+            savingsId,
+            new UpdateAccountRequest(null, null, new BigDecimal("-0.01"), null),
+            "owner",
+            "ADMIN");
         assertEquals("ACCOUNT_VALIDATION_ERROR", negative.getCode());
         assertEquals("interestRate", negative.getField());
 
@@ -403,34 +378,44 @@ class AccountServiceTest {
 
     @Test
     void updateAccountValidationLookupAndOwnershipFailuresAreCovered() {
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(" ", new UpdateAccountRequest("A", null, null, null), "actor", "CUSTOMER"));
+        ApiErrorException missing = captureUpdateAccountError(
+            " ",
+            new UpdateAccountRequest("A", null, null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", missing.getCode());
 
-        ApiErrorException invalidUuid = assertThrows(
-            ApiErrorException.class,
-            () -> service.updateAccount("bad-id", new UpdateAccountRequest("A", null, null, null), "actor", "CUSTOMER"));
+        ApiErrorException invalidUuid = captureUpdateAccountError(
+            "bad-id",
+            new UpdateAccountRequest("A", null, null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", invalidUuid.getCode());
 
         String accountId = UUID.randomUUID().toString();
         accessPolicyService.updateException = forbidden("update");
-        ApiErrorException updateForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(accountId, new UpdateAccountRequest("A", null, null, null), "actor", "CUSTOMER"));
+        ApiErrorException updateForbidden = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest("A", null, null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", updateForbidden.getCode());
         accessPolicyService.updateException = null;
 
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(accountId, new UpdateAccountRequest("A", null, null, null), "actor", "CUSTOMER"));
+        ApiErrorException notFound = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest("A", null, null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("ACCOUNT_NOT_FOUND", notFound.getCode());
 
         accountRepository.byId.put(accountId, account(accountId, UUID.randomUUID().toString(), "NB-U5", "CHECKING", "ACTIVE", new BigDecimal("0.00"), "owner"));
         accessPolicyService.ownershipException = forbidden("update");
-        ApiErrorException ownershipForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateAccount(accountId, new UpdateAccountRequest("A", null, null, null), "other", "CUSTOMER"));
+        ApiErrorException ownershipForbidden = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest("A", null, null, null),
+            "other",
+            "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", ownershipForbidden.getCode());
     }
 
@@ -440,9 +425,11 @@ class AccountServiceTest {
         AccountEntity account = account(accountId, UUID.randomUUID().toString(), "NB-U6", "CHECKING", "ACTIVE", new BigDecimal("0.00"), "owner");
         accountRepository.byId.put(accountId, account);
 
-        ApiErrorException invalid = assertThrows(
-            ApiErrorException.class,
-            () -> service.updateAccount(accountId, new UpdateAccountRequest(null, "PAUSED", null, null), "owner", "CUSTOMER"));
+        ApiErrorException invalid = captureUpdateAccountError(
+            accountId,
+            new UpdateAccountRequest(null, "PAUSED", null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", invalid.getCode());
         assertEquals("status", invalid.getField());
         }
@@ -611,38 +598,28 @@ class AccountServiceTest {
         deletionPolicyService.nextDecision = new AccountDeletionPolicyService.DeletionDecision(true, false, List.of("BALANCE_NOT_ZERO"), "BLOCK_DELETE");
         deletionPolicyService.enforceException = new ApiErrorException(HttpStatus.CONFLICT, "ACCOUNT_DELETE_BLOCKED", "blocked", null);
 
-        ApiErrorException blocked = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteAccount(accountId, "owner", "ADMIN"));
+        ApiErrorException blocked = captureDeleteAccountError(accountId, "owner", "ADMIN");
         assertEquals("ACCOUNT_DELETE_BLOCKED", blocked.getCode());
         assertTrue(lifecycleAuditService.failureCalls.stream().anyMatch(call -> "DELETE_BLOCKED".equals(call.eventType())));
     }
 
     @Test
     void deleteAccountValidationAndAccessFailuresAreCovered() {
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteAccount(" ", "actor", "CUSTOMER"));
+        ApiErrorException missing = captureDeleteAccountError(" ", "actor", "CUSTOMER");
         assertEquals("ACCOUNT_VALIDATION_ERROR", missing.getCode());
 
         String accountId = UUID.randomUUID().toString();
         accessPolicyService.deleteException = forbidden("delete");
-        ApiErrorException deleteForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteAccount(accountId, "actor", "CUSTOMER"));
+        ApiErrorException deleteForbidden = captureDeleteAccountError(accountId, "actor", "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", deleteForbidden.getCode());
         accessPolicyService.deleteException = null;
 
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteAccount(accountId, "actor", "CUSTOMER"));
+        ApiErrorException notFound = captureDeleteAccountError(accountId, "actor", "CUSTOMER");
         assertEquals("ACCOUNT_NOT_FOUND", notFound.getCode());
 
         accountRepository.byId.put(accountId, account(accountId, UUID.randomUUID().toString(), "NB-D4", "CHECKING", "ACTIVE", new BigDecimal("0.00"), "owner"));
         accessPolicyService.ownershipException = forbidden("delete");
-        ApiErrorException ownership = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteAccount(accountId, "other", "CUSTOMER"));
+        ApiErrorException ownership = captureDeleteAccountError(accountId, "other", "CUSTOMER");
         assertEquals("ACCOUNT_FORBIDDEN", ownership.getCode());
     }
 
@@ -679,6 +656,73 @@ class AccountServiceTest {
                 "ACCOUNT_FORBIDDEN",
                 "Insufficient privileges to " + operation + " account",
                 null);
+    }
+
+    private ApiErrorException captureCreateAccountError(
+            CreateAccountRequest request,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.createAccount(request, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureGetAccountByIdError(
+            String accountId,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.getAccountById(accountId, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureListAccountsError(
+            String customerId,
+            int page,
+            int pageSize,
+            String accountType,
+            String status,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.listAccounts(customerId, page, pageSize, accountType, status, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureUpdateAccountError(
+            String accountId,
+            UpdateAccountRequest request,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.updateAccount(accountId, request, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureDeleteAccountError(String accountId, String actorUserId, String role) {
+        ApiErrorException exception = null;
+        try {
+            service.deleteAccount(accountId, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     private record SuccessAuditCall(String accountId, String eventType, String actorUserId, String actorRole) {

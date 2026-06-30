@@ -1,11 +1,9 @@
 package com.example.banking.services.statement;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
@@ -110,9 +108,7 @@ class StatementGenerationServiceTest {
     void generateThrowsConflictForDuplicateStandardAndRecordsFailureEvent() {
         monthlyStatementRepository.latest = Optional.of(existingStatement(1));
 
-        ApiErrorException conflict = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException conflict = captureGenerateError(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN");
 
         assertEquals("STATEMENT_CONFLICT", conflict.getCode());
         assertEquals("periodYearMonth", conflict.getField());
@@ -129,9 +125,7 @@ class StatementGenerationServiceTest {
     void generateThrowsValidationForCorrectionWithoutExistingStatementAndRecordsFailureEvent() {
         monthlyStatementRepository.latest = Optional.empty();
 
-        ApiErrorException validation = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, PERIOD, "CORRECTION", "actor", "ADMIN"));
+        ApiErrorException validation = captureGenerateError(ACCOUNT_ID, PERIOD, "CORRECTION", "actor", "ADMIN");
 
         assertEquals("STATEMENT_VALIDATION_ERROR", validation.getCode());
         assertEquals("generationMode", validation.getField());
@@ -151,9 +145,7 @@ class StatementGenerationServiceTest {
                 "field");
         computationService.apiException = failure;
 
-        ApiErrorException thrown = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException thrown = captureGenerateError(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN");
 
         assertSame(failure, thrown);
 
@@ -167,9 +159,7 @@ class StatementGenerationServiceTest {
     void generateWrapsUnexpectedExceptionAsDependencyFailureAndUsesUnknownMessageWhenNull() {
         computationService.runtimeException = new RuntimeException((String) null);
 
-        ApiErrorException dependencyFailure = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException dependencyFailure = captureGenerateError(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN");
 
         assertEquals("STATEMENT_DEPENDENCY_FAILURE", dependencyFailure.getCode());
 
@@ -181,63 +171,45 @@ class StatementGenerationServiceTest {
 
     @Test
     void generateValidatesAccountIdInput() {
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(null, PERIOD, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException missing = captureGenerateError(null, PERIOD, "STANDARD", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", missing.getCode());
         assertEquals("accountId", missing.getField());
 
-        ApiErrorException blank = assertThrows(
-            ApiErrorException.class,
-            () -> service.generate("   ", PERIOD, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException blank = captureGenerateError("   ", PERIOD, "STANDARD", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", blank.getCode());
         assertEquals("accountId", blank.getField());
 
-        ApiErrorException invalid = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate("not-a-uuid", PERIOD, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException invalid = captureGenerateError("not-a-uuid", PERIOD, "STANDARD", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", invalid.getCode());
         assertEquals("accountId", invalid.getField());
     }
 
     @Test
     void generateValidatesPeriodInput() {
-        ApiErrorException missingNull = assertThrows(
-            ApiErrorException.class,
-            () -> service.generate(ACCOUNT_ID, null, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException missingNull = captureGenerateError(ACCOUNT_ID, null, "STANDARD", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", missingNull.getCode());
         assertEquals("periodYearMonth", missingNull.getField());
 
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, " ", "STANDARD", "actor", "ADMIN"));
+        ApiErrorException missing = captureGenerateError(ACCOUNT_ID, " ", "STANDARD", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", missing.getCode());
         assertEquals("periodYearMonth", missing.getField());
 
-        ApiErrorException invalid = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, "202606", "STANDARD", "actor", "ADMIN"));
+        ApiErrorException invalid = captureGenerateError(ACCOUNT_ID, "202606", "STANDARD", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", invalid.getCode());
         assertEquals("periodYearMonth", invalid.getField());
     }
 
     @Test
     void generateValidatesGenerationModeInput() {
-        ApiErrorException missingNull = assertThrows(
-            ApiErrorException.class,
-            () -> service.generate(ACCOUNT_ID, PERIOD, null, "actor", "ADMIN"));
+        ApiErrorException missingNull = captureGenerateError(ACCOUNT_ID, PERIOD, null, "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", missingNull.getCode());
         assertEquals("generationMode", missingNull.getField());
 
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, PERIOD, " ", "actor", "ADMIN"));
+        ApiErrorException missing = captureGenerateError(ACCOUNT_ID, PERIOD, " ", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", missing.getCode());
         assertEquals("generationMode", missing.getField());
 
-        ApiErrorException invalid = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, PERIOD, "SNAPSHOT", "actor", "ADMIN"));
+        ApiErrorException invalid = captureGenerateError(ACCOUNT_ID, PERIOD, "SNAPSHOT", "actor", "ADMIN");
         assertEquals("STATEMENT_VALIDATION_ERROR", invalid.getCode());
         assertEquals("generationMode", invalid.getField());
     }
@@ -263,7 +235,7 @@ class StatementGenerationServiceTest {
     void generateForSchedulerSwallowsConflictAndUsesSystemIdentity() {
         monthlyStatementRepository.latest = Optional.of(existingStatement(1));
 
-        assertDoesNotThrow(() -> service.generateForScheduler(ACCOUNT_ID_UPPER, PERIOD));
+        assertNull(captureGenerateForSchedulerError(ACCOUNT_ID_UPPER, PERIOD));
 
         assertEquals("ADMIN", accessGuard.lastEnforcedRole);
         assertEquals("ADMIN", accessGuard.lastScopedRole);
@@ -274,7 +246,7 @@ class StatementGenerationServiceTest {
     void generateForSchedulerRunsSuccessfullyWhenNoConflictExists() {
         monthlyStatementRepository.latest = Optional.empty();
 
-        assertDoesNotThrow(() -> service.generateForScheduler(ACCOUNT_ID, PERIOD));
+        assertNull(captureGenerateForSchedulerError(ACCOUNT_ID, PERIOD));
         assertEquals("ADMIN", accessGuard.lastEnforcedRole);
     }
 
@@ -282,9 +254,7 @@ class StatementGenerationServiceTest {
     void generateForSchedulerRethrowsNonConflictApiErrors() {
         accessGuard.enforceException = StatementErrors.forbidden("generate");
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.generateForScheduler(ACCOUNT_ID, PERIOD));
+        ApiErrorException forbidden = captureGenerateForSchedulerError(ACCOUNT_ID, PERIOD);
 
         assertEquals("STATEMENT_FORBIDDEN", forbidden.getCode());
     }
@@ -293,9 +263,7 @@ class StatementGenerationServiceTest {
     void generateRethrowsScopeErrorsBeforeGenerationEventsAreWritten() {
         accessGuard.scopeException = StatementErrors.forbidden("generate");
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.generate(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN"));
+        ApiErrorException forbidden = captureGenerateError(ACCOUNT_ID, PERIOD, "STANDARD", "actor", "ADMIN");
 
         assertEquals("STATEMENT_FORBIDDEN", forbidden.getCode());
         assertEquals(0, generationEventRepository.saved.size());
@@ -365,6 +333,31 @@ class StatementGenerationServiceTest {
         statement.setPeriodYearMonth(PERIOD);
         statement.setAccountId(ACCOUNT_ID);
         return statement;
+    }
+
+    private ApiErrorException captureGenerateError(
+            String accountId,
+            String periodYearMonth,
+            String generationMode,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.generate(accountId, periodYearMonth, generationMode, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureGenerateForSchedulerError(String accountId, String periodYearMonth) {
+        ApiErrorException exception = null;
+        try {
+            service.generateForScheduler(accountId, periodYearMonth);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     private static final class CapturingStatementAccessGuard extends StatementAccessGuard {

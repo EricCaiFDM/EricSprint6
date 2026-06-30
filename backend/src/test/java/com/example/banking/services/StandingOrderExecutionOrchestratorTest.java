@@ -1,9 +1,9 @@
 package com.example.banking.services;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -133,14 +133,14 @@ class StandingOrderExecutionOrchestratorTest {
         assertEquals(0, lifecycleAuditService.calls.size());
 
         assertEquals(2, transactionRepository.lastSavedTransactions.size());
-        assertDoesNotThrow(() -> transactionRepository.lastSavedTransactions.stream()
+        assertTrue(transactionRepository.lastSavedTransactions.stream()
                 .filter(transaction -> transaction.getTransactionType() == TransactionType.TRANSFER_DEBIT)
-                .findFirst()
-                .orElseThrow());
-        assertDoesNotThrow(() -> transactionRepository.lastSavedTransactions.stream()
+            .findFirst()
+            .isPresent());
+        assertTrue(transactionRepository.lastSavedTransactions.stream()
                 .filter(transaction -> transaction.getTransactionType() == TransactionType.TRANSFER_CREDIT)
                 .findFirst()
-                .orElseThrow());
+            .isPresent());
     }
 
     @Test

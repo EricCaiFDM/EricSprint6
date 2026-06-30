@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
@@ -54,7 +55,10 @@ class CustomerPrincipalResolverTest {
                 .header("alg", "none")
                 .claim("sub", "user-2")
                 .build();
-        JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, List.of(() -> "ROLE_CUSTOMER"), "user-2");
+        JwtAuthenticationToken authentication = new JwtAuthenticationToken(
+            jwt,
+            List.of(new SimpleGrantedAuthority("ROLE_CUSTOMER")),
+            "user-2");
 
         CustomerPrincipal principal = resolver.resolve(authentication);
 

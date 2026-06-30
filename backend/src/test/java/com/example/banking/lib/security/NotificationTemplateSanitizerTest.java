@@ -1,7 +1,6 @@
 package com.example.banking.lib.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.LinkedHashMap;
@@ -40,9 +39,7 @@ class NotificationTemplateSanitizerTest {
 
     @Test
     void sanitizeRejectsForbiddenTemplateKeysCaseInsensitive() {
-        ApiErrorException exception = assertThrows(
-                ApiErrorException.class,
-                () -> sanitizer.sanitize(Map.of("AuthToken", "abc")));
+        ApiErrorException exception = captureSanitizeError(sanitizer, Map.of("AuthToken", "abc"));
 
         assertEquals("NOTIFICATION_VALIDATION_ERROR", exception.getCode());
         assertEquals("templateContext", exception.getField());
@@ -61,12 +58,20 @@ class NotificationTemplateSanitizerTest {
         };
         NotificationTemplateSanitizer failingSanitizer = new NotificationTemplateSanitizer(failingMapper);
 
-        ApiErrorException exception = assertThrows(
-                ApiErrorException.class,
-                () -> failingSanitizer.sanitize(Map.of("key", "value")));
+        ApiErrorException exception = captureSanitizeError(failingSanitizer, Map.of("key", "value"));
 
         assertEquals("NOTIFICATION_VALIDATION_ERROR", exception.getCode());
         assertEquals("templateContext", exception.getField());
         assertEquals("templateContext must be a valid object", exception.getMessage());
+    }
+
+    private ApiErrorException captureSanitizeError(NotificationTemplateSanitizer target, Map<String, Object> context) {
+        ApiErrorException exception = null;
+        try {
+            target.sanitize(context);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 }

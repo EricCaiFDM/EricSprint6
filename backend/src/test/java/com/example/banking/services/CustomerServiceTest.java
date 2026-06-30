@@ -1,10 +1,8 @@
 package com.example.banking.services;
 
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
@@ -97,40 +95,32 @@ class CustomerServiceTest {
 
     @Test
     void createCustomerAdminPasswordValidationCoversNullBlankShortAndLong() {
-        ApiErrorException nullPassword = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-003", "Null Password", "n1@example.com", null, null),
-                        "actor",
-                        "ADMIN"));
+        ApiErrorException nullPassword = captureCreateCustomerError(
+            createRequest("ext-003", "Null Password", "n1@example.com", null, null),
+            "actor",
+            "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", nullPassword.getCode());
         assertEquals("password", nullPassword.getField());
 
-        ApiErrorException blankPassword = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-004", "Blank Password", "n2@example.com", null, "  "),
-                        "actor",
-                        "ADMIN"));
+        ApiErrorException blankPassword = captureCreateCustomerError(
+            createRequest("ext-004", "Blank Password", "n2@example.com", null, "  "),
+            "actor",
+            "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", blankPassword.getCode());
         assertEquals("password", blankPassword.getField());
 
-        ApiErrorException shortPassword = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-005", "Short Password", "n3@example.com", null, "1234567"),
-                        "actor",
-                        "ADMIN"));
+        ApiErrorException shortPassword = captureCreateCustomerError(
+            createRequest("ext-005", "Short Password", "n3@example.com", null, "1234567"),
+            "actor",
+            "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", shortPassword.getCode());
         assertEquals("password", shortPassword.getField());
 
         String longPassword = "a".repeat(129);
-        ApiErrorException longPasswordError = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-006", "Long Password", "n4@example.com", null, longPassword),
-                        "actor",
-                        "ADMIN"));
+        ApiErrorException longPasswordError = captureCreateCustomerError(
+            createRequest("ext-006", "Long Password", "n4@example.com", null, longPassword),
+            "actor",
+            "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", longPasswordError.getCode());
         assertEquals("password", longPasswordError.getField());
     }
@@ -138,23 +128,19 @@ class CustomerServiceTest {
     @Test
     void createCustomerAdminAuthProvisionExceptionsAreMapped() {
         authService.illegalState = new IllegalStateException("duplicate identity");
-        ApiErrorException conflict = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-007", "Conflict", "dup@example.com", null, "Password#123"),
-                        "actor",
-                        "ADMIN"));
+        ApiErrorException conflict = captureCreateCustomerError(
+            createRequest("ext-007", "Conflict", "dup@example.com", null, "Password#123"),
+            "actor",
+            "ADMIN");
         assertEquals("CUSTOMER_CONFLICT", conflict.getCode());
         assertEquals("primaryEmail", conflict.getField());
 
         authService.illegalState = null;
         authService.illegalArgument = new IllegalArgumentException("policy violation");
-        ApiErrorException validation = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-008", "Validation", "bad@example.com", null, "Password#123"),
-                        "actor",
-                        "ADMIN"));
+        ApiErrorException validation = captureCreateCustomerError(
+            createRequest("ext-008", "Validation", "bad@example.com", null, "Password#123"),
+            "actor",
+            "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", validation.getCode());
         assertEquals("password", validation.getField());
     }
@@ -162,55 +148,45 @@ class CustomerServiceTest {
     @Test
     void createCustomerUniquenessAndDataIntegrityConflictsAreMapped() {
         customerRepository.externalKeys.add("dup-ext");
-        ApiErrorException externalConflict = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("dup-ext", "Dup Ext", "ext@example.com", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException externalConflict = captureCreateCustomerError(
+            createRequest("dup-ext", "Dup Ext", "ext@example.com", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("CUSTOMER_CONFLICT", externalConflict.getCode());
         assertEquals("externalCustomerKey", externalConflict.getField());
 
         customerRepository.externalKeys.clear();
         customerRepository.primaryEmails.add("dup@example.com");
-        ApiErrorException emailConflict = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-009", "Dup Email", "DUP@EXAMPLE.COM", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException emailConflict = captureCreateCustomerError(
+            createRequest("ext-009", "Dup Email", "DUP@EXAMPLE.COM", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("CUSTOMER_CONFLICT", emailConflict.getCode());
         assertEquals("primaryEmail", emailConflict.getField());
 
         customerRepository.primaryEmails.clear();
         customerRepository.throwDataIntegrityOnSave = true;
-        ApiErrorException saveConflict = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-010", "Save Conflict", "save@example.com", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException saveConflict = captureCreateCustomerError(
+            createRequest("ext-010", "Save Conflict", "save@example.com", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("CUSTOMER_CONFLICT", saveConflict.getCode());
         assertNull(saveConflict.getField());
     }
 
     @Test
     void createCustomerRequiredFieldValidationCoversNullAndBlank() {
-        ApiErrorException nullLegalName = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-011", null, "null-name@example.com", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException nullLegalName = captureCreateCustomerError(
+            createRequest("ext-011", null, "null-name@example.com", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("CUSTOMER_VALIDATION_ERROR", nullLegalName.getCode());
         assertEquals("legalName", nullLegalName.getField());
 
-        ApiErrorException blankLegalName = assertThrows(
-                ApiErrorException.class,
-                () -> service.createCustomer(
-                        createRequest("ext-012", "   ", "blank-name@example.com", null, null),
-                        "actor",
-                        "CUSTOMER"));
+        ApiErrorException blankLegalName = captureCreateCustomerError(
+            createRequest("ext-012", "   ", "blank-name@example.com", null, null),
+            "actor",
+            "CUSTOMER");
         assertEquals("CUSTOMER_VALIDATION_ERROR", blankLegalName.getCode());
         assertEquals("legalName", blankLegalName.getField());
     }
@@ -251,9 +227,7 @@ class CustomerServiceTest {
     void listCustomersRecordsFailureWhenAccessDenied() {
         accessPolicyService.listException = forbidden("list");
 
-        ApiErrorException exception = assertThrows(
-                ApiErrorException.class,
-                () -> service.listCustomers(1, 20, "actor", "CUSTOMER"));
+        ApiErrorException exception = captureListCustomersError(1, 20, "actor", "CUSTOMER");
 
         assertEquals("CUSTOMER_FORBIDDEN", exception.getCode());
         assertEquals("LIST", lifecycleAuditService.failureCalls.get(0).eventType());
@@ -285,28 +259,20 @@ class CustomerServiceTest {
 
     @Test
     void getCustomerByIdValidationAndLookupFailuresAreHandled() {
-        ApiErrorException blankId = assertThrows(
-                ApiErrorException.class,
-                () -> service.getCustomerById(" ", "actor", "CUSTOMER"));
+        ApiErrorException blankId = captureGetCustomerByIdError(" ", "actor", "CUSTOMER");
         assertEquals("CUSTOMER_VALIDATION_ERROR", blankId.getCode());
 
-        ApiErrorException invalidId = assertThrows(
-                ApiErrorException.class,
-                () -> service.getCustomerById("not-a-uuid", "actor", "CUSTOMER"));
+        ApiErrorException invalidId = captureGetCustomerByIdError("not-a-uuid", "actor", "CUSTOMER");
         assertEquals("CUSTOMER_VALIDATION_ERROR", invalidId.getCode());
 
         String missingId = UUID.randomUUID().toString();
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.getCustomerById(missingId, "actor", "CUSTOMER"));
+        ApiErrorException notFound = captureGetCustomerByIdError(missingId, "actor", "CUSTOMER");
         assertEquals("CUSTOMER_NOT_FOUND", notFound.getCode());
 
         String existingId = UUID.randomUUID().toString();
         customerRepository.byId.put(existingId, customer(existingId, "ext-015", "Owned", "owned@example.com", null, "ACTIVE", "owner", "creator"));
         accessPolicyService.ownershipException = forbidden("read");
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.getCustomerById(existingId, "other", "CUSTOMER"));
+        ApiErrorException forbidden = captureGetCustomerByIdError(existingId, "other", "CUSTOMER");
         assertEquals("CUSTOMER_FORBIDDEN", forbidden.getCode());
     }
 
@@ -356,15 +322,11 @@ class CustomerServiceTest {
         customerRepository.ownerLookup = Optional.empty();
         customerRepository.creatorLookup = Optional.empty();
 
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.getCurrentCustomer("actor-3", "CUSTOMER"));
+        ApiErrorException notFound = captureGetCurrentCustomerError("actor-3", "CUSTOMER");
         assertEquals("CUSTOMER_NOT_FOUND", notFound.getCode());
 
         accessPolicyService.readException = forbidden("read");
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.getCurrentCustomer("actor-3", "CUSTOMER"));
+        ApiErrorException forbidden = captureGetCurrentCustomerError("actor-3", "CUSTOMER");
         assertEquals("CUSTOMER_FORBIDDEN", forbidden.getCode());
     }
 
@@ -372,14 +334,10 @@ class CustomerServiceTest {
     void updateCustomerValidatesCustomerId() {
         UpdateCustomerRequest request = new UpdateCustomerRequest("Legal", null, null, null);
 
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(null, request, "actor", "ADMIN"));
+        ApiErrorException missing = captureUpdateCustomerError(null, request, "actor", "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", missing.getCode());
 
-        ApiErrorException invalid = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer("not-a-uuid", request, "actor", "ADMIN"));
+        ApiErrorException invalid = captureUpdateCustomerError("not-a-uuid", request, "actor", "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", invalid.getCode());
     }
 
@@ -388,9 +346,11 @@ class CustomerServiceTest {
         String id = UUID.randomUUID().toString();
         customerRepository.byId.put(id, customer(id, "ext-018", "No Patch", "np@example.com", null, "ACTIVE", "owner", "creator"));
 
-        ApiErrorException exception = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(id, new UpdateCustomerRequest(null, null, null, null), "owner", "CUSTOMER"));
+        ApiErrorException exception = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest(null, null, null, null),
+            "owner",
+            "CUSTOMER");
 
         assertEquals("CUSTOMER_VALIDATION_ERROR", exception.getCode());
     }
@@ -435,13 +395,11 @@ class CustomerServiceTest {
         assertEquals("same@example.com", sameEmail.primaryEmail());
 
         customerRepository.primaryEmails.add("taken@example.com");
-        ApiErrorException conflict = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(
-                        id,
-                        new UpdateCustomerRequest(null, "taken@example.com", null, null),
-                        "owner",
-                        "CUSTOMER"));
+        ApiErrorException conflict = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest(null, "taken@example.com", null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("CUSTOMER_CONFLICT", conflict.getCode());
         assertEquals("primaryEmail", conflict.getField());
 
@@ -496,24 +454,20 @@ class CustomerServiceTest {
                 "CUSTOMER").status());
 
         entity.setStatus("CLOSED");
-        ApiErrorException invalidTransition = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(
-                        id,
-                        new UpdateCustomerRequest(null, null, null, "ACTIVE"),
-                        "owner",
-                        "CUSTOMER"));
+        ApiErrorException invalidTransition = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest(null, null, null, "ACTIVE"),
+            "owner",
+            "CUSTOMER");
         assertEquals("CUSTOMER_VALIDATION_ERROR", invalidTransition.getCode());
         assertEquals("status", invalidTransition.getField());
 
                 entity.setStatus("ACTIVE");
-                ApiErrorException unsupportedTransition = assertThrows(
-                    ApiErrorException.class,
-                    () -> service.updateCustomer(
-                        id,
-                        new UpdateCustomerRequest(null, null, null, "PAUSED"),
-                        "owner",
-                        "CUSTOMER"));
+            ApiErrorException unsupportedTransition = captureUpdateCustomerError(
+                id,
+                new UpdateCustomerRequest(null, null, null, "PAUSED"),
+                "owner",
+                "CUSTOMER");
                 assertEquals("CUSTOMER_VALIDATION_ERROR", unsupportedTransition.getCode());
                 assertEquals("status", unsupportedTransition.getField());
     }
@@ -524,30 +478,38 @@ class CustomerServiceTest {
         customerRepository.byId.put(id, customer(id, "ext-022", "Update", "up@example.com", null, "ACTIVE", "owner", "creator"));
 
         customerRepository.throwDataIntegrityOnSave = true;
-        ApiErrorException conflict = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(id, new UpdateCustomerRequest("Name", null, null, null), "owner", "CUSTOMER"));
+        ApiErrorException conflict = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest("Name", null, null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("CUSTOMER_CONFLICT", conflict.getCode());
         customerRepository.throwDataIntegrityOnSave = false;
 
         accessPolicyService.updateException = forbidden("update");
-        ApiErrorException accessForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(id, new UpdateCustomerRequest("Name", null, null, null), "owner", "CUSTOMER"));
+        ApiErrorException accessForbidden = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest("Name", null, null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("CUSTOMER_FORBIDDEN", accessForbidden.getCode());
         accessPolicyService.updateException = null;
 
         accessPolicyService.ownershipException = forbidden("update");
-        ApiErrorException ownershipForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(id, new UpdateCustomerRequest("Name", null, null, null), "owner", "CUSTOMER"));
+        ApiErrorException ownershipForbidden = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest("Name", null, null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("CUSTOMER_FORBIDDEN", ownershipForbidden.getCode());
         accessPolicyService.ownershipException = null;
 
         customerRepository.byId.clear();
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.updateCustomer(id, new UpdateCustomerRequest("Name", null, null, null), "owner", "CUSTOMER"));
+        ApiErrorException notFound = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest("Name", null, null, null),
+            "owner",
+            "CUSTOMER");
         assertEquals("CUSTOMER_NOT_FOUND", notFound.getCode());
     }
 
@@ -572,14 +534,12 @@ class CustomerServiceTest {
         deletionPolicyService.nextDecision = new CustomerDeletionPolicyService.DeletionDecision(true, false, List.of("DEPENDENCY_BLOCKER"), "BLOCK_DELETE");
 
         deletionPolicyService.enforceException = new ApiErrorException(HttpStatus.CONFLICT, "CUSTOMER_DELETE_BLOCKED", "blocked", null);
-        ApiErrorException blocked = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteCustomer(id, "owner", "ADMIN"));
+        ApiErrorException blocked = captureDeleteCustomerError(id, "owner", "ADMIN");
         assertEquals("CUSTOMER_DELETE_BLOCKED", blocked.getCode());
 
         deletionPolicyService.enforceException = null;
         entity.setDeletedAt(null);
-        assertDoesNotThrow(() -> service.deleteCustomer(id, "owner", "ADMIN"));
+        assertNull(captureDeleteCustomerError(id, "owner", "ADMIN"));
         assertNotNull(entity.getDeletedAt());
     }
 
@@ -598,34 +558,24 @@ class CustomerServiceTest {
 
     @Test
     void deleteCustomerValidationAndAccessFailuresAreHandled() {
-        ApiErrorException blankId = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteCustomer(" ", "owner", "ADMIN"));
+        ApiErrorException blankId = captureDeleteCustomerError(" ", "owner", "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", blankId.getCode());
 
-        ApiErrorException invalidId = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteCustomer("not-a-uuid", "owner", "ADMIN"));
+        ApiErrorException invalidId = captureDeleteCustomerError("not-a-uuid", "owner", "ADMIN");
         assertEquals("CUSTOMER_VALIDATION_ERROR", invalidId.getCode());
 
         String id = UUID.randomUUID().toString();
         accessPolicyService.deleteException = forbidden("delete");
-        ApiErrorException accessDenied = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteCustomer(id, "owner", "CUSTOMER"));
+        ApiErrorException accessDenied = captureDeleteCustomerError(id, "owner", "CUSTOMER");
         assertEquals("CUSTOMER_FORBIDDEN", accessDenied.getCode());
         accessPolicyService.deleteException = null;
 
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteCustomer(id, "owner", "ADMIN"));
+        ApiErrorException notFound = captureDeleteCustomerError(id, "owner", "ADMIN");
         assertEquals("CUSTOMER_NOT_FOUND", notFound.getCode());
 
         customerRepository.byId.put(id, customer(id, "ext-026", "Owned", "owned@example.com", null, "ACTIVE", "owner", "creator"));
         accessPolicyService.ownershipException = forbidden("delete");
-        ApiErrorException ownershipDenied = assertThrows(
-                ApiErrorException.class,
-                () -> service.deleteCustomer(id, "other", "CUSTOMER"));
+        ApiErrorException ownershipDenied = captureDeleteCustomerError(id, "other", "CUSTOMER");
         assertEquals("CUSTOMER_FORBIDDEN", ownershipDenied.getCode());
     }
 
@@ -667,6 +617,73 @@ class CustomerServiceTest {
                 "CUSTOMER_FORBIDDEN",
                 "Insufficient privileges to " + operation + " customer profile",
                 null);
+    }
+
+    private ApiErrorException captureCreateCustomerError(
+            CreateCustomerRequest request,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.createCustomer(request, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureListCustomersError(int page, int pageSize, String actorUserId, String role) {
+        ApiErrorException exception = null;
+        try {
+            service.listCustomers(page, pageSize, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureGetCustomerByIdError(String customerId, String actorUserId, String role) {
+        ApiErrorException exception = null;
+        try {
+            service.getCustomerById(customerId, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureGetCurrentCustomerError(String actorUserId, String role) {
+        ApiErrorException exception = null;
+        try {
+            service.getCurrentCustomer(actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureUpdateCustomerError(
+            String customerId,
+            UpdateCustomerRequest request,
+            String actorUserId,
+            String role) {
+        ApiErrorException exception = null;
+        try {
+            service.updateCustomer(customerId, request, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureDeleteCustomerError(String customerId, String actorUserId, String role) {
+        ApiErrorException exception = null;
+        try {
+            service.deleteCustomer(customerId, actorUserId, role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     private record RegisterCall(String email, String password, String passwordConfirmation, String role) {

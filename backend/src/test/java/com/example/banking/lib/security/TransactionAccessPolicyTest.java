@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
@@ -34,15 +33,17 @@ class TransactionAccessPolicyTest {
 
     @Test
     void enforceMonetaryAndHistoryAccessRejectUnauthorizedRoles() {
-        policy.enforceMonetaryAccess("ADMIN");
-        policy.enforceMonetaryAccess("customer");
-        policy.enforceHistoryAccess("ADMIN");
-        policy.enforceHistoryAccess("customer");
+        assertNull(captureMonetaryAccessError("ADMIN"));
+        assertNull(captureMonetaryAccessError("customer"));
+        assertNull(captureHistoryAccessError("ADMIN"));
+        assertNull(captureHistoryAccessError("customer"));
 
-        ApiErrorException postForbidden = assertThrows(ApiErrorException.class, () -> policy.enforceMonetaryAccess("auditor"));
+        ApiErrorException postForbidden = captureMonetaryAccessError("auditor");
+        assertNotNull(postForbidden);
         assertEquals("TRANSACTION_FORBIDDEN", postForbidden.getCode());
 
-        ApiErrorException readForbidden = assertThrows(ApiErrorException.class, () -> policy.enforceHistoryAccess("guest"));
+        ApiErrorException readForbidden = captureHistoryAccessError("guest");
+        assertNotNull(readForbidden);
         assertEquals("TRANSACTION_FORBIDDEN", readForbidden.getCode());
     }
 
@@ -63,14 +64,14 @@ class TransactionAccessPolicyTest {
         AccountEntity inheritedOwnerResult = policy.requireAccountOperationScope(accountId, "CUSTOMER", "owner-2", "post");
         assertNotNull(inheritedOwnerResult);
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireAccountOperationScope(accountId, "CUSTOMER", "outsider", "post"));
+        assertNull(captureRequireAccountOperationScopeError(accountId, "ADMIN", "anyone", "post"));
+
+        ApiErrorException forbidden = captureRequireAccountOperationScopeError(accountId, "CUSTOMER", "outsider", "post");
+        assertNotNull(forbidden);
         assertEquals("TRANSACTION_FORBIDDEN", forbidden.getCode());
 
-        ApiErrorException missingAccount = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireAccountOperationScope("missing", "ADMIN", "anyone", "post"));
+        ApiErrorException missingAccount = captureRequireAccountOperationScopeError("missing", "ADMIN", "anyone", "post");
+        assertNotNull(missingAccount);
         assertEquals("TRANSACTION_ACCOUNT_NOT_FOUND", missingAccount.getCode());
         assertEquals("accountId", missingAccount.getField());
     }
@@ -88,14 +89,14 @@ class TransactionAccessPolicyTest {
         customers.put("cust-10", customer);
         policy.enforceHistoryScope("ACCOUNT", accountId, "CUSTOMER", "owner-customer");
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> policy.enforceHistoryScope("ACCOUNT", accountId, "CUSTOMER", "outsider"));
+        assertNull(captureEnforceHistoryScopeError("ACCOUNT", accountId, "ADMIN", "admin"));
+
+        ApiErrorException forbidden = captureEnforceHistoryScopeError("ACCOUNT", accountId, "CUSTOMER", "outsider");
+        assertNotNull(forbidden);
         assertEquals("TRANSACTION_FORBIDDEN", forbidden.getCode());
 
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> policy.enforceHistoryScope("ACCOUNT", "missing", "ADMIN", "admin"));
+        ApiErrorException missing = captureEnforceHistoryScopeError("ACCOUNT", "missing", "ADMIN", "admin");
+        assertNotNull(missing);
         assertEquals("TRANSACTION_SCOPE_NOT_FOUND", missing.getCode());
         assertEquals("scopeId", missing.getField());
     }
@@ -109,21 +110,66 @@ class TransactionAccessPolicyTest {
         policy.enforceHistoryScope("CUSTOMER", customerId, "CUSTOMER", customerId);
         policy.enforceHistoryScope("CUSTOMER", customerId, "CUSTOMER", "owner-50");
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> policy.enforceHistoryScope("CUSTOMER", customerId, "CUSTOMER", "outsider"));
+        ApiErrorException forbidden = captureEnforceHistoryScopeError("CUSTOMER", customerId, "CUSTOMER", "outsider");
+        assertNotNull(forbidden);
         assertEquals("TRANSACTION_FORBIDDEN", forbidden.getCode());
 
-        ApiErrorException missing = assertThrows(
-                ApiErrorException.class,
-                () -> policy.enforceHistoryScope("CUSTOMER", "missing", "ADMIN", "admin"));
+        ApiErrorException missing = captureEnforceHistoryScopeError("CUSTOMER", "missing", "ADMIN", "admin");
+        assertNotNull(missing);
         assertEquals("TRANSACTION_SCOPE_NOT_FOUND", missing.getCode());
 
-        ApiErrorException invalidScopeType = assertThrows(
-                ApiErrorException.class,
-                () -> policy.enforceHistoryScope("BRANCH", customerId, "ADMIN", "admin"));
+        ApiErrorException invalidScopeType = captureEnforceHistoryScopeError("BRANCH", customerId, "ADMIN", "admin");
+        assertNotNull(invalidScopeType);
         assertEquals("TRANSACTION_VALIDATION_ERROR", invalidScopeType.getCode());
         assertEquals("scopeType", invalidScopeType.getField());
+    }
+
+    private ApiErrorException captureMonetaryAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            policy.enforceMonetaryAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureHistoryAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            policy.enforceHistoryAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRequireAccountOperationScopeError(
+            String accountId,
+            String role,
+            String actorUserId,
+            String operation) {
+        ApiErrorException exception = null;
+        try {
+            policy.requireAccountOperationScope(accountId, role, actorUserId, operation);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureEnforceHistoryScopeError(
+            String scopeType,
+            String scopeId,
+            String role,
+            String actorUserId) {
+        ApiErrorException exception = null;
+        try {
+            policy.enforceHistoryScope(scopeType, scopeId, role, actorUserId);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     @Test

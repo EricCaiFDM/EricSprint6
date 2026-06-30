@@ -3,7 +3,6 @@ package com.example.banking.lib.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Field;
@@ -41,44 +40,36 @@ class NotificationAccessPolicyTest {
         policy.enforceTriggerAccess(" admin ");
         policy.enforceTriggerAccess("CUSTOMER");
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> policy.enforceTriggerAccess(null));
+        ApiErrorException forbidden = captureEnforceTriggerAccessError(null);
         assertEquals("NOTIFICATION_FORBIDDEN", forbidden.getCode());
     }
 
     @Test
     void requireRecipientScopeValidatesRequiredScopeInputs() {
-        ApiErrorException missingScopeType = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
-                        null,
-                        "scope-1",
-                        "ADMIN",
-                        "actor-1",
-                        "read"));
+        ApiErrorException missingScopeType = captureRequireRecipientScopeError(
+            null,
+            "scope-1",
+            "ADMIN",
+            "actor-1",
+            "read");
         assertEquals("NOTIFICATION_VALIDATION_ERROR", missingScopeType.getCode());
         assertEquals("recipientScopeId", missingScopeType.getField());
 
-        ApiErrorException nullScopeId = assertThrows(
-            ApiErrorException.class,
-            () -> policy.requireRecipientScope(
-                NotificationRecipientScopeType.CUSTOMER,
-                null,
-                "ADMIN",
-                "actor-1",
-                "read"));
+        ApiErrorException nullScopeId = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.CUSTOMER,
+            null,
+            "ADMIN",
+            "actor-1",
+            "read");
         assertEquals("NOTIFICATION_VALIDATION_ERROR", nullScopeId.getCode());
         assertEquals("recipientScopeId", nullScopeId.getField());
 
-        ApiErrorException blankScopeId = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
-                        NotificationRecipientScopeType.CUSTOMER,
-                        "   ",
-                        "ADMIN",
-                        "actor-1",
-                        "read"));
+        ApiErrorException blankScopeId = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.CUSTOMER,
+            "   ",
+            "ADMIN",
+            "actor-1",
+            "read");
         assertEquals("NOTIFICATION_VALIDATION_ERROR", blankScopeId.getCode());
         assertEquals("recipientScopeId", blankScopeId.getField());
     }
@@ -102,25 +93,21 @@ class NotificationAccessPolicyTest {
             "admin-user",
             "read");
 
-        ApiErrorException missingCustomerScope = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
-                        NotificationRecipientScopeType.CUSTOMER,
-                        "missing-customer",
-                        "ADMIN",
-                        "admin-user",
-                        "read"));
+        ApiErrorException missingCustomerScope = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.CUSTOMER,
+            "missing-customer",
+            "ADMIN",
+            "admin-user",
+            "read");
         assertEquals("NOTIFICATION_SCOPE_NOT_FOUND", missingCustomerScope.getCode());
         assertEquals("recipientScopeId", missingCustomerScope.getField());
 
-        ApiErrorException missingAccountScope = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
-                        NotificationRecipientScopeType.ACCOUNT,
-                        "missing-account",
-                        "ADMIN",
-                        "admin-user",
-                        "read"));
+        ApiErrorException missingAccountScope = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.ACCOUNT,
+            "missing-account",
+            "ADMIN",
+            "admin-user",
+            "read");
         assertEquals("NOTIFICATION_SCOPE_NOT_FOUND", missingAccountScope.getCode());
         assertEquals("recipientScopeId", missingAccountScope.getField());
 
@@ -137,24 +124,20 @@ class NotificationAccessPolicyTest {
         CustomerEntity customer = customer("cust-1", "owner-1", "creator-1");
         customers.put("cust-1", customer);
 
-        ApiErrorException forbiddenWithNullActor = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
-                        NotificationRecipientScopeType.CUSTOMER,
-                        "cust-1",
-                        "CUSTOMER",
-                        null,
-                        "read"));
+        ApiErrorException forbiddenWithNullActor = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.CUSTOMER,
+            "cust-1",
+            "CUSTOMER",
+            null,
+            "read");
         assertEquals("NOTIFICATION_FORBIDDEN", forbiddenWithNullActor.getCode());
 
-        ApiErrorException forbiddenWithBlankActor = assertThrows(
-            ApiErrorException.class,
-            () -> policy.requireRecipientScope(
-                NotificationRecipientScopeType.CUSTOMER,
-                "cust-1",
-                "CUSTOMER",
-                "   ",
-                "read"));
+        ApiErrorException forbiddenWithBlankActor = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.CUSTOMER,
+            "cust-1",
+            "CUSTOMER",
+            "   ",
+            "read");
         assertEquals("NOTIFICATION_FORBIDDEN", forbiddenWithBlankActor.getCode());
 
         policy.requireRecipientScope(
@@ -171,14 +154,12 @@ class NotificationAccessPolicyTest {
                 " creator-1 ",
                 "read");
 
-            ApiErrorException missingCustomerScope = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
+                ApiErrorException missingCustomerScope = captureRequireRecipientScopeError(
                     NotificationRecipientScopeType.CUSTOMER,
                     "missing-customer",
                     "CUSTOMER",
                     "owner-1",
-                    "read"));
+                    "read");
             assertEquals("NOTIFICATION_SCOPE_NOT_FOUND", missingCustomerScope.getCode());
             assertEquals("recipientScopeId", missingCustomerScope.getField());
             }
@@ -213,28 +194,24 @@ class NotificationAccessPolicyTest {
                 "customer-owner",
                 "read");
 
-        ApiErrorException missingAccountScope = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
-                        NotificationRecipientScopeType.ACCOUNT,
-                        "missing-account",
-                        "CUSTOMER",
-                        "owner-1",
-                        "read"));
+        ApiErrorException missingAccountScope = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.ACCOUNT,
+            "missing-account",
+            "CUSTOMER",
+            "owner-1",
+            "read");
         assertEquals("NOTIFICATION_SCOPE_NOT_FOUND", missingAccountScope.getCode());
         assertEquals("recipientScopeId", missingAccountScope.getField());
     }
 
     @Test
     void requireRecipientScopeForbidsCustomerOnAdminScope() {
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireRecipientScope(
-                        NotificationRecipientScopeType.ADMIN,
-                        "virtual-admin",
-                        "CUSTOMER",
-                        "actor-1",
-                        "read"));
+        ApiErrorException forbidden = captureRequireRecipientScopeError(
+            NotificationRecipientScopeType.ADMIN,
+            "virtual-admin",
+            "CUSTOMER",
+            "actor-1",
+            "read");
 
         assertEquals("NOTIFICATION_FORBIDDEN", forbidden.getCode());
     }
@@ -243,45 +220,37 @@ class NotificationAccessPolicyTest {
     void requireRecipientScopeHitsDefaultValidationWhenSwitchMapUnexpected() {
         customers.put("cust-switch-default", customer("cust-switch-default", "owner-switch", "creator-switch"));
 
-        withCorruptedSwitchMapping(NotificationRecipientScopeType.CUSTOMER, () -> {
-            ApiErrorException invalidScopeType = assertThrows(
-                    ApiErrorException.class,
-                    () -> policy.requireRecipientScope(
-                            NotificationRecipientScopeType.CUSTOMER,
-                            "cust-switch-default",
-                            "CUSTOMER",
-                            "owner-switch",
-                            "read"));
+        ApiErrorException invalidScopeType = captureRequireRecipientScopeErrorWithCorruptedSwitchMap(
+                NotificationRecipientScopeType.CUSTOMER,
+                NotificationRecipientScopeType.CUSTOMER,
+                "cust-switch-default",
+                "CUSTOMER",
+                "owner-switch",
+                "read");
 
-            assertEquals("NOTIFICATION_VALIDATION_ERROR", invalidScopeType.getCode());
-            assertEquals("recipientScopeType", invalidScopeType.getField());
-        });
+        assertEquals("NOTIFICATION_VALIDATION_ERROR", invalidScopeType.getCode());
+        assertEquals("recipientScopeType", invalidScopeType.getField());
     }
 
     @Test
     void ensureScopeExistsHitsDefaultValidationWhenSwitchMapUnexpected() {
         customers.put("cust-switch-default-admin", customer("cust-switch-default-admin", "owner-admin", "creator-admin"));
 
-        withCorruptedSwitchMapping(NotificationRecipientScopeType.CUSTOMER, () -> {
-            ApiErrorException invalidScopeType = assertThrows(
-                    ApiErrorException.class,
-                    () -> policy.requireRecipientScope(
-                            NotificationRecipientScopeType.CUSTOMER,
-                            "cust-switch-default-admin",
-                            "ADMIN",
-                            "admin-user",
-                            "read"));
+        ApiErrorException invalidScopeType = captureRequireRecipientScopeErrorWithCorruptedSwitchMap(
+                NotificationRecipientScopeType.CUSTOMER,
+                NotificationRecipientScopeType.CUSTOMER,
+                "cust-switch-default-admin",
+                "ADMIN",
+                "admin-user",
+                "read");
 
-            assertEquals("NOTIFICATION_VALIDATION_ERROR", invalidScopeType.getCode());
-            assertEquals("recipientScopeType", invalidScopeType.getField());
-        });
+        assertEquals("NOTIFICATION_VALIDATION_ERROR", invalidScopeType.getCode());
+        assertEquals("recipientScopeType", invalidScopeType.getField());
     }
 
     @Test
     void requireEventScopeThrowsWhenEventMissingAndDelegatesOtherwise() {
-        ApiErrorException notFound = assertThrows(
-                ApiErrorException.class,
-                () -> policy.requireEventScope(null, "ADMIN", "actor-1", "read"));
+        ApiErrorException notFound = captureRequireEventScopeError(null, "ADMIN", "actor-1", "read");
         assertEquals("NOTIFICATION_EVENT_NOT_FOUND", notFound.getCode());
 
         NotificationEventEntity event = new NotificationEventEntity();
@@ -318,22 +287,19 @@ class NotificationAccessPolicyTest {
         assertEquals(3, fromField.length);
         assertEquals(7, fromField[0]);
 
-        AssertionError missingMember = assertThrows(
-                AssertionError.class,
-                () -> resolveNotificationScopeSwitchMap(NotificationAccessPolicyTest.class));
+        AssertionError missingMember = captureResolveSwitchMapAssertionError(NotificationAccessPolicyTest.class);
         assertTrue(missingMember.getCause() instanceof NoSuchFieldException);
 
-        AssertionError nullField = assertThrows(
-                AssertionError.class,
-                () -> resolveNotificationScopeSwitchMap(SwitchMapNullFieldHolder.class));
+        AssertionError nullField = captureResolveSwitchMapAssertionError(SwitchMapNullFieldHolder.class);
         assertTrue(nullField.getCause() instanceof NoSuchFieldException);
     }
 
     @Test
     void invokePrivateBooleanWrapsReflectionErrors() {
-        AssertionError assertionError = assertThrows(
-                AssertionError.class,
-                () -> invokePrivateBoolean(policy, "missingMethod", new Class<?>[0]));
+        AssertionError assertionError = captureInvokePrivateBooleanAssertionError(
+            policy,
+            "missingMethod",
+            new Class<?>[0]);
 
         assertTrue(assertionError.getCause() instanceof ReflectiveOperationException);
     }
@@ -400,17 +366,86 @@ class NotificationAccessPolicyTest {
                 "creator-2"));
     }
 
-    private void withCorruptedSwitchMapping(NotificationRecipientScopeType scopeType, Runnable assertion) {
+    private ApiErrorException captureEnforceTriggerAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            policy.enforceTriggerAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRequireRecipientScopeError(
+            NotificationRecipientScopeType recipientScopeType,
+            String recipientScopeId,
+            String role,
+            String actorUserId,
+            String operation) {
+        ApiErrorException exception = null;
+        try {
+            policy.requireRecipientScope(recipientScopeType, recipientScopeId, role, actorUserId, operation);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureRequireRecipientScopeErrorWithCorruptedSwitchMap(
+            NotificationRecipientScopeType corruptedScopeType,
+            NotificationRecipientScopeType recipientScopeType,
+            String recipientScopeId,
+            String role,
+            String actorUserId,
+            String operation) {
         int[] switchMap = resolveNotificationScopeSwitchMap();
-        int index = scopeType.ordinal();
+        int index = corruptedScopeType.ordinal();
         int previous = switchMap[index];
 
         switchMap[index] = 0;
         try {
-            assertion.run();
+            return captureRequireRecipientScopeError(recipientScopeType, recipientScopeId, role, actorUserId, operation);
         } finally {
             switchMap[index] = previous;
         }
+    }
+
+    private ApiErrorException captureRequireEventScopeError(
+            NotificationEventEntity event,
+            String role,
+            String actorUserId,
+            String operation) {
+        ApiErrorException exception = null;
+        try {
+            policy.requireEventScope(event, role, actorUserId, operation);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private AssertionError captureResolveSwitchMapAssertionError(Class<?> targetClass) {
+        AssertionError assertionError = null;
+        try {
+            resolveNotificationScopeSwitchMap(targetClass);
+        } catch (AssertionError captured) {
+            assertionError = captured;
+        }
+        return assertionError;
+    }
+
+    private AssertionError captureInvokePrivateBooleanAssertionError(
+            Object target,
+            String methodName,
+            Class<?>[] parameterTypes,
+            Object... args) {
+        AssertionError assertionError = null;
+        try {
+            invokePrivateBoolean(target, methodName, parameterTypes, args);
+        } catch (AssertionError captured) {
+            assertionError = captured;
+        }
+        return assertionError;
     }
 
     private int[] resolveNotificationScopeSwitchMap() {

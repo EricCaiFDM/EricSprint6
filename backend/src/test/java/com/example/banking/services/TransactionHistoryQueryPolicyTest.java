@@ -2,7 +2,6 @@ package com.example.banking.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -24,6 +23,7 @@ class TransactionHistoryQueryPolicyTest {
         HistorySchema request = baseRequest();
 
         QueryPolicyResult result = policy.normalize(request);
+        assertNull(captureNormalizeError(request));
 
         assertEquals("ACCOUNT", result.scopeType());
         assertEquals(request.getScopeId(), result.scopeId());
@@ -59,12 +59,12 @@ class TransactionHistoryQueryPolicyTest {
     void normalizeValidatesScopeTypeAndScopeId() {
         HistorySchema request = baseRequest();
         request.setScopeType("branch");
-        ApiErrorException scopeType = assertThrows(ApiErrorException.class, () -> policy.normalize(request));
+        ApiErrorException scopeType = captureNormalizeError(request);
         assertEquals("scopeType", scopeType.getField());
 
         HistorySchema invalidScopeId = baseRequest();
         invalidScopeId.setScopeId("not-uuid");
-        ApiErrorException scopeId = assertThrows(ApiErrorException.class, () -> policy.normalize(invalidScopeId));
+        ApiErrorException scopeId = captureNormalizeError(invalidScopeId);
         assertEquals("scopeId", scopeId.getField());
     }
 
@@ -72,18 +72,18 @@ class TransactionHistoryQueryPolicyTest {
     void normalizeValidatesDateAndTransactionType() {
         HistorySchema badDate = baseRequest();
         badDate.setStartDateUtc("invalid-date");
-        ApiErrorException dateError = assertThrows(ApiErrorException.class, () -> policy.normalize(badDate));
+        ApiErrorException dateError = captureNormalizeError(badDate);
         assertEquals("startDateUtc", dateError.getField());
 
         HistorySchema badRange = baseRequest();
         badRange.setStartDateUtc("2026-06-29T00:00:00Z");
         badRange.setEndDateUtc("2026-06-01T00:00:00Z");
-        ApiErrorException range = assertThrows(ApiErrorException.class, () -> policy.normalize(badRange));
+        ApiErrorException range = captureNormalizeError(badRange);
         assertEquals("startDateUtc", range.getField());
 
         HistorySchema badType = baseRequest();
         badType.setTransactionType("something");
-        ApiErrorException type = assertThrows(ApiErrorException.class, () -> policy.normalize(badType));
+        ApiErrorException type = captureNormalizeError(badType);
         assertEquals("transactionType", type.getField());
     }
 
@@ -91,18 +91,28 @@ class TransactionHistoryQueryPolicyTest {
     void normalizeValidatesPageAndPageSizeBounds() {
         HistorySchema pageTooLow = baseRequest();
         pageTooLow.setPage(0);
-        ApiErrorException pageError = assertThrows(ApiErrorException.class, () -> policy.normalize(pageTooLow));
+        ApiErrorException pageError = captureNormalizeError(pageTooLow);
         assertEquals("page", pageError.getField());
 
         HistorySchema pageSizeTooLow = baseRequest();
         pageSizeTooLow.setPageSize(0);
-        ApiErrorException pageSizeLow = assertThrows(ApiErrorException.class, () -> policy.normalize(pageSizeTooLow));
+        ApiErrorException pageSizeLow = captureNormalizeError(pageSizeTooLow);
         assertEquals("pageSize", pageSizeLow.getField());
 
         HistorySchema pageSizeTooHigh = baseRequest();
         pageSizeTooHigh.setPageSize(99);
-        ApiErrorException pageSizeHigh = assertThrows(ApiErrorException.class, () -> policy.normalize(pageSizeTooHigh));
+        ApiErrorException pageSizeHigh = captureNormalizeError(pageSizeTooHigh);
         assertEquals("pageSize", pageSizeHigh.getField());
+    }
+
+    private ApiErrorException captureNormalizeError(HistorySchema request) {
+        ApiErrorException exception = null;
+        try {
+            policy.normalize(request);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     private HistorySchema baseRequest() {

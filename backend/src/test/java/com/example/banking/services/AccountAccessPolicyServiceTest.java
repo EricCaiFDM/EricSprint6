@@ -3,7 +3,6 @@ package com.example.banking.services;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
@@ -30,22 +29,22 @@ class AccountAccessPolicyServiceTest {
 
     @Test
     void roleBasedAccessMethodsAllowExpectedRolesAndRejectUnknownRole() {
-        service.enforceCreateAccess("customer");
-        service.enforceCreateAccess("ADMIN");
-        service.enforceReadAccess("ADMIN");
-        service.enforceReadAccess("customer");
-        service.enforceListAccess("customer");
-        service.enforceListAccess("ADMIN");
-        service.enforceUpdateAccess("ADMIN");
-        service.enforceUpdateAccess("customer");
-        service.enforceDeleteAccess("customer");
-        service.enforceDeleteAccess("ADMIN");
+        assertNull(captureCreateAccessError("customer"));
+        assertNull(captureCreateAccessError("ADMIN"));
+        assertNull(captureReadAccessError("ADMIN"));
+        assertNull(captureReadAccessError("customer"));
+        assertNull(captureListAccessError("customer"));
+        assertNull(captureListAccessError("ADMIN"));
+        assertNull(captureUpdateAccessError("ADMIN"));
+        assertNull(captureUpdateAccessError("customer"));
+        assertNull(captureDeleteAccessError("customer"));
+        assertNull(captureDeleteAccessError("ADMIN"));
 
-        ApiErrorException createForbidden = assertThrows(ApiErrorException.class, () -> service.enforceCreateAccess("auditor"));
-        ApiErrorException readForbidden = assertThrows(ApiErrorException.class, () -> service.enforceReadAccess(null));
-        ApiErrorException listForbidden = assertThrows(ApiErrorException.class, () -> service.enforceListAccess("guest"));
-        ApiErrorException updateForbidden = assertThrows(ApiErrorException.class, () -> service.enforceUpdateAccess("guest"));
-        ApiErrorException deleteForbidden = assertThrows(ApiErrorException.class, () -> service.enforceDeleteAccess("guest"));
+        ApiErrorException createForbidden = captureCreateAccessError("auditor");
+        ApiErrorException readForbidden = captureReadAccessError(null);
+        ApiErrorException listForbidden = captureListAccessError("guest");
+        ApiErrorException updateForbidden = captureUpdateAccessError("guest");
+        ApiErrorException deleteForbidden = captureDeleteAccessError("guest");
 
         assertEquals("ACCOUNT_FORBIDDEN", createForbidden.getCode());
         assertEquals("ACCOUNT_FORBIDDEN", readForbidden.getCode());
@@ -56,11 +55,9 @@ class AccountAccessPolicyServiceTest {
 
     @Test
     void adminFinancialUpdateRequiresAdminRole() {
-        service.enforceAdminFinancialUpdateAccess("ADMIN");
+        assertNull(captureAdminFinancialUpdateError("ADMIN"));
 
-        ApiErrorException forbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.enforceAdminFinancialUpdateAccess("CUSTOMER"));
+        ApiErrorException forbidden = captureAdminFinancialUpdateError("CUSTOMER");
 
         assertEquals("ACCOUNT_FORBIDDEN", forbidden.getCode());
     }
@@ -69,34 +66,22 @@ class AccountAccessPolicyServiceTest {
     void enforceOwnershipIfRequiredCoversAdminDirectAndLegacyOwnership() {
         customers.put("cust-legacy", customer("cust-legacy", "owner-legacy", "creator-legacy"));
 
-        service.enforceOwnershipIfRequired("ADMIN", "any-actor", "any-owner", "read");
-        service.enforceOwnershipIfRequired("CUSTOMER", "owner-direct", "owner-direct", "read");
-        service.enforceOwnershipIfRequired("CUSTOMER", "owner-legacy", "cust-legacy", "read");
-        service.enforceOwnershipIfRequired("CUSTOMER", "creator-legacy", "cust-legacy", "read");
+        assertNull(captureOwnershipError("ADMIN", "any-actor", "any-owner", "read"));
+        assertNull(captureOwnershipError("CUSTOMER", "owner-direct", "owner-direct", "read"));
+        assertNull(captureOwnershipError("CUSTOMER", "owner-legacy", "cust-legacy", "read"));
+        assertNull(captureOwnershipError("CUSTOMER", "creator-legacy", "cust-legacy", "read"));
 
-        ApiErrorException missingActorForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.enforceOwnershipIfRequired("CUSTOMER", null, "owner-direct", "read"));
+        ApiErrorException missingActorForbidden = captureOwnershipError("CUSTOMER", null, "owner-direct", "read");
 
-        ApiErrorException blankActorForbidden = assertThrows(
-            ApiErrorException.class,
-            () -> service.enforceOwnershipIfRequired("CUSTOMER", "   ", "owner-direct", "read"));
+        ApiErrorException blankActorForbidden = captureOwnershipError("CUSTOMER", "   ", "owner-direct", "read");
 
-        ApiErrorException missingOwnerForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.enforceOwnershipIfRequired("CUSTOMER", "actor", "   ", "read"));
+        ApiErrorException missingOwnerForbidden = captureOwnershipError("CUSTOMER", "actor", "   ", "read");
 
-        ApiErrorException nullOwnerForbidden = assertThrows(
-            ApiErrorException.class,
-            () -> service.enforceOwnershipIfRequired("CUSTOMER", "actor", null, "read"));
+        ApiErrorException nullOwnerForbidden = captureOwnershipError("CUSTOMER", "actor", null, "read");
 
-        ApiErrorException outsiderForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.enforceOwnershipIfRequired("CUSTOMER", "outsider", "cust-legacy", "read"));
+        ApiErrorException outsiderForbidden = captureOwnershipError("CUSTOMER", "outsider", "cust-legacy", "read");
 
-        ApiErrorException nonCustomerRoleForbidden = assertThrows(
-            ApiErrorException.class,
-            () -> service.enforceOwnershipIfRequired("AUDITOR", "owner-direct", "owner-direct", "read"));
+        ApiErrorException nonCustomerRoleForbidden = captureOwnershipError("AUDITOR", "owner-direct", "owner-direct", "read");
 
         assertEquals("ACCOUNT_FORBIDDEN", missingActorForbidden.getCode());
         assertEquals("ACCOUNT_FORBIDDEN", blankActorForbidden.getCode());
@@ -110,34 +95,22 @@ class AccountAccessPolicyServiceTest {
     void enforceListScopeCoversAdminCustomerAndForbiddenPaths() {
         customers.put("cust-100", customer("cust-100", "owner-100", "creator-100"));
 
-        service.enforceListScope("ADMIN", "any-actor", "cust-100");
-        service.enforceListScope("CUSTOMER", "cust-100", "cust-100");
-        service.enforceListScope("CUSTOMER", "owner-100", "cust-100");
-        service.enforceListScope("CUSTOMER", "creator-100", "cust-100");
+        assertNull(captureListScopeError("ADMIN", "any-actor", "cust-100"));
+        assertNull(captureListScopeError("CUSTOMER", "cust-100", "cust-100"));
+        assertNull(captureListScopeError("CUSTOMER", "owner-100", "cust-100"));
+        assertNull(captureListScopeError("CUSTOMER", "creator-100", "cust-100"));
 
-        ApiErrorException missingScopeForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.enforceListScope("CUSTOMER", "owner-100", " "));
+        ApiErrorException missingScopeForbidden = captureListScopeError("CUSTOMER", "owner-100", " ");
 
-        ApiErrorException nullScopeForbidden = assertThrows(
-            ApiErrorException.class,
-            () -> service.enforceListScope("CUSTOMER", "owner-100", null));
+        ApiErrorException nullScopeForbidden = captureListScopeError("CUSTOMER", "owner-100", null);
 
-        ApiErrorException blankActorForbidden = assertThrows(
-            ApiErrorException.class,
-            () -> service.enforceListScope("CUSTOMER", "   ", "cust-100"));
+        ApiErrorException blankActorForbidden = captureListScopeError("CUSTOMER", "   ", "cust-100");
 
-        ApiErrorException nullActorForbidden = assertThrows(
-            ApiErrorException.class,
-            () -> service.enforceListScope("CUSTOMER", null, "cust-100"));
+        ApiErrorException nullActorForbidden = captureListScopeError("CUSTOMER", null, "cust-100");
 
-        ApiErrorException outsiderForbidden = assertThrows(
-                ApiErrorException.class,
-                () -> service.enforceListScope("CUSTOMER", "outsider", "cust-100"));
+        ApiErrorException outsiderForbidden = captureListScopeError("CUSTOMER", "outsider", "cust-100");
 
-        ApiErrorException nonCustomerRoleForbidden = assertThrows(
-            ApiErrorException.class,
-            () -> service.enforceListScope("AUDITOR", "owner-100", "cust-100"));
+        ApiErrorException nonCustomerRoleForbidden = captureListScopeError("AUDITOR", "owner-100", "cust-100");
 
         assertEquals("ACCOUNT_FORBIDDEN", missingScopeForbidden.getCode());
         assertEquals("ACCOUNT_FORBIDDEN", nullScopeForbidden.getCode());
@@ -145,6 +118,86 @@ class AccountAccessPolicyServiceTest {
         assertEquals("ACCOUNT_FORBIDDEN", nullActorForbidden.getCode());
         assertEquals("ACCOUNT_FORBIDDEN", outsiderForbidden.getCode());
         assertEquals("ACCOUNT_FORBIDDEN", nonCustomerRoleForbidden.getCode());
+    }
+
+    private ApiErrorException captureCreateAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceCreateAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureReadAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceReadAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureListAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceListAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureUpdateAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceUpdateAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureAdminFinancialUpdateError(String role) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceAdminFinancialUpdateAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureDeleteAccessError(String role) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceDeleteAccess(role);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureOwnershipError(String role, String actorUserId, String ownerUserId, String operation) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceOwnershipIfRequired(role, actorUserId, ownerUserId, operation);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
+    }
+
+    private ApiErrorException captureListScopeError(String role, String actorUserId, String requestedCustomerId) {
+        ApiErrorException exception = null;
+        try {
+            service.enforceListScope(role, actorUserId, requestedCustomerId);
+        } catch (ApiErrorException captured) {
+            exception = captured;
+        }
+        return exception;
     }
 
     @Test
