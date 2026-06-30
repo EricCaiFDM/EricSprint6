@@ -48,6 +48,14 @@ public class AccountAccessPolicyService {
         throw forbidden("update");
     }
 
+    public void enforceAdminFinancialUpdateAccess(String role) {
+        String normalizedRole = normalizeRole(role);
+        if ("ADMIN".equals(normalizedRole)) {
+            return;
+        }
+        throw forbidden("update");
+    }
+
     public void enforceDeleteAccess(String role) {
         String normalizedRole = normalizeRole(role);
         if ("CUSTOMER".equals(normalizedRole) || "ADMIN".equals(normalizedRole)) {

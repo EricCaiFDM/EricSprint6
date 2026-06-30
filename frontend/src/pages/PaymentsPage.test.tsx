@@ -3,11 +3,15 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { PaymentsPage } from "./PaymentsPage";
 import * as accounts from "../services/accounts";
+import * as customers from "../services/customers";
 import * as notifications from "../services/notifications";
+import * as session from "../services/session";
 import * as transactions from "../services/transactions";
 
 jest.mock("../services/accounts");
+jest.mock("../services/customers");
 jest.mock("../services/notifications");
+jest.mock("../services/session");
 jest.mock("../services/transactions");
 
 describe("PaymentsPage", () => {
@@ -31,6 +35,20 @@ describe("PaymentsPage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>).mockReturnValue("CUSTOMER");
+
+    (customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>).mockResolvedValue([
+      {
+        customerId: "cust-200",
+        externalCustomerKey: "ext-200",
+        fullName: "Casey Admin",
+        email: "casey@example.com",
+        mobile: "+61 400 000 200",
+        status: "ACTIVE",
+        joinedAt: "2024-05-01T00:00:00Z"
+      }
+    ]);
 
     (notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>).mockResolvedValue([
       {
@@ -240,5 +258,157 @@ describe("PaymentsPage", () => {
     expect(screen.getByText(/Account: Everyday \(acc-1\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Final total account balance/i)).toBeInTheDocument();
     expect(screen.getByText(/\$4,250\.00/i)).toBeInTheDocument();
+  });
+
+  it("resolves admin customer scope by name for deposits", async () => {
+    (session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>).mockReturnValue("ADMIN");
+
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+    const submitDepositMock = transactions.submitDeposit as jest.MockedFunction<typeof transactions.submitDeposit>;
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 1
+    });
+
+    submitDepositMock.mockResolvedValue({
+      reference: "txn-admin-1",
+      transactionType: "DEPOSIT",
+      status: "Completed",
+      submittedAt: "2026-06-26T11:15:00Z",
+      postedAmount: 50,
+      currency: "USD",
+      balanceAfter: 1300
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/Target customer name or ID/i), {
+      target: { value: "Casey Admin" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-200");
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/^Account$/i)[0], {
+      target: { value: "acc-1" }
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/^Amount$/i)[0], {
+      target: { value: "50" }
+    });
+
+    const depositButton = screen.getByRole("button", { name: /Submit deposit/i });
+    await waitFor(() => {
+      expect(depositButton).not.toBeDisabled();
+    });
+
+    fireEvent.click(depositButton);
+
+    await waitFor(() => {
+      expect(submitDepositMock).toHaveBeenCalled();
+      const firstCall = submitDepositMock.mock.calls[0]?.[0];
+      expect(firstCall?.accountId).toBe("acc-1");
+      expect(firstCall?.customerId).toBe("cust-200");
+    });
+  });
+
+  it("allows admins to switch selected customers from dropdown without clearing search", async () => {
+    (session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>).mockReturnValue("ADMIN");
+
+    (customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>).mockResolvedValue([
+      {
+        customerId: "cust-200",
+        externalCustomerKey: "ext-200",
+        fullName: "Casey Admin",
+        email: "casey@example.com",
+        mobile: "+61 400 000 200",
+        status: "ACTIVE",
+        joinedAt: "2024-05-01T00:00:00Z"
+      },
+      {
+        customerId: "cust-201",
+        externalCustomerKey: "ext-201",
+        fullName: "Casey Delta",
+        email: "casey.delta@example.com",
+        mobile: "+61 400 000 201",
+        status: "ACTIVE",
+        joinedAt: "2024-05-02T00:00:00Z"
+      }
+    ]);
+
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 1
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/Target customer name or ID/i), {
+      target: { value: "Casey" }
+    });
+
+    const matchingCustomers = screen.getByLabelText(/Matching customers/i);
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-200" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-200");
+    });
+
+    expect(screen.getByLabelText(/Target customer name or ID/i)).toHaveValue("Casey");
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-201" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-201");
+    });
+
+    expect(screen.getByLabelText(/Target customer name or ID/i)).toHaveValue("Casey");
   });
 });

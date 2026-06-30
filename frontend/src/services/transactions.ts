@@ -84,15 +84,24 @@ export async function fetchRecentTransactions(): Promise<TransactionItem[]> {
 export async function fetchTransactionHistory(
   query: TransactionHistoryQuery = {}
 ): Promise<TransactionHistoryResult> {
-  const scopedCustomerId = query.customerId?.trim();
-  const customer = scopedCustomerId
-    ? { customerId: scopedCustomerId }
-    : await resolveCurrentCustomerProfile();
   const scopeType = query.scopeType ?? "CUSTOMER";
+  const scopedCustomerId = query.customerId?.trim();
+  const scopedQueryScopeId = query.scopeId?.trim();
 
-  const scopeId = scopeType === "CUSTOMER"
-    ? (query.scopeId ?? customer.customerId)
-    : query.scopeId;
+  let scopeId = "";
+
+  if (scopeType === "CUSTOMER") {
+    if (scopedQueryScopeId) {
+      scopeId = scopedQueryScopeId;
+    } else if (scopedCustomerId) {
+      scopeId = scopedCustomerId;
+    } else {
+      const customer = await resolveCurrentCustomerProfile();
+      scopeId = customer.customerId;
+    }
+  } else {
+    scopeId = scopedQueryScopeId ?? "";
+  }
 
   if (!scopeId) {
     throw new Error("Select a valid scope before requesting transaction history.");

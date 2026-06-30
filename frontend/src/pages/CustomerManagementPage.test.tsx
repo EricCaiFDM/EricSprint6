@@ -47,6 +47,17 @@ describe("CustomerManagementPage", () => {
 
     (customersService.fetchCustomerProfile as jest.MockedFunction<typeof customersService.fetchCustomerProfile>).mockResolvedValue(baseProfile);
     (customersService.fetchCustomerDetails as jest.MockedFunction<typeof customersService.fetchCustomerDetails>).mockResolvedValue(baseProfile);
+    (customersService.fetchCustomersForAdmin as jest.MockedFunction<typeof customersService.fetchCustomersForAdmin>).mockResolvedValue([
+      {
+        customerId: "cust-101",
+        externalCustomerKey: "ext-101",
+        fullName: "Taylor Green",
+        email: "taylor.green@example.com",
+        mobile: "+61 412 000 111",
+        status: "ACTIVE",
+        joinedAt: "2026-06-01T00:00:00Z"
+      }
+    ]);
     (customersService.createCustomerProfile as jest.MockedFunction<typeof customersService.createCustomerProfile>).mockResolvedValue(baseProfile);
     (customersService.updateCustomerProfile as jest.MockedFunction<typeof customersService.updateCustomerProfile>).mockResolvedValue(baseProfile);
     (customersService.deleteCustomerProfile as jest.MockedFunction<typeof customersService.deleteCustomerProfile>).mockResolvedValue({
@@ -69,7 +80,7 @@ describe("CustomerManagementPage", () => {
   it("submits customer profile updates without status", async () => {
     renderPage();
 
-    fireEvent.change(screen.getByLabelText(/Legal name/i), {
+    fireEvent.change(screen.getByLabelText(/^Legal name$/i), {
       target: { value: "Taylor Green Updated" }
     });
     fireEvent.change(screen.getByLabelText(/Primary email/i), {
@@ -128,5 +139,81 @@ describe("CustomerManagementPage", () => {
     expect(await screen.findByRole("heading", { name: /Create customer/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/Status/i)).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: /Close your customer account/i })).not.toBeInTheDocument();
+  });
+
+  it("resolves admin target scope by customer name for updates", async () => {
+    (sessionService.getNormalizedTokenRole as jest.MockedFunction<typeof sessionService.getNormalizedTokenRole>).mockReturnValue("ADMIN");
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/Target customer name or ID/i), {
+      target: { value: "Taylor Green" }
+    });
+
+    fireEvent.change(screen.getAllByPlaceholderText(/No change/i)[0], {
+      target: { value: "Taylor Green Updated" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Update customer/i }));
+
+    await waitFor(() => {
+      expect(customersService.updateCustomerProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ legalName: "Taylor Green Updated" }),
+        "cust-101"
+      );
+    });
+  });
+
+  it("allows admins to switch selected customers from dropdown without clearing search", async () => {
+    (sessionService.getNormalizedTokenRole as jest.MockedFunction<typeof sessionService.getNormalizedTokenRole>).mockReturnValue("ADMIN");
+
+    (customersService.fetchCustomersForAdmin as jest.MockedFunction<typeof customersService.fetchCustomersForAdmin>).mockResolvedValue([
+      {
+        customerId: "cust-101",
+        externalCustomerKey: "ext-101",
+        fullName: "Taylor Green",
+        email: "taylor.green@example.com",
+        mobile: "+61 412 000 111",
+        status: "ACTIVE",
+        joinedAt: "2026-06-01T00:00:00Z"
+      },
+      {
+        customerId: "cust-202",
+        externalCustomerKey: "ext-202",
+        fullName: "Taylor Brown",
+        email: "taylor.brown@example.com",
+        mobile: "+61 422 000 222",
+        status: "ACTIVE",
+        joinedAt: "2026-06-05T00:00:00Z"
+      }
+    ]);
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/Target customer name or ID/i), {
+      target: { value: "Taylor" }
+    });
+
+    const matchingCustomers = screen.getByLabelText(/Matching customers/i);
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-101" }
+    });
+
+    await waitFor(() => {
+      expect(customersService.fetchCustomerDetails).toHaveBeenCalledWith("cust-101");
+    });
+
+    expect(screen.getByLabelText(/Target customer name or ID/i)).toHaveValue("Taylor");
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-202" }
+    });
+
+    await waitFor(() => {
+      expect(customersService.fetchCustomerDetails).toHaveBeenCalledWith("cust-202");
+    });
+
+    expect(screen.getByLabelText(/Target customer name or ID/i)).toHaveValue("Taylor");
   });
 });

@@ -233,6 +233,16 @@ components:
         status:
           type: string
           enum: [ACTIVE, SUSPENDED, CLOSED]
+        interestRate:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Admin-only. Can be updated only for SAVINGS accounts.
+        balance:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Admin-only. Sets account balance and reflected available/current balances.
     AccountResponse:
       type: object
       required: [accountId, accountNumber, customerId, accountType, status, currencyCode, balance, availableBalance, currentBalance, openedAtUtc]

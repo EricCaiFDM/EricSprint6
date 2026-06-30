@@ -146,7 +146,10 @@ public class AccountService {
             AccountEntity account = activeAccountOrThrow(normalizedAccountId);
             accessPolicyService.enforceOwnershipIfRequired(role, actorId, account.getOwnerUserId(), "update");
 
-            if (request.nickname() == null && request.status() == null) {
+            if (request.nickname() == null
+                    && request.status() == null
+                    && request.interestRate() == null
+                    && request.balance() == null) {
                 throw new ApiErrorException(
                         HttpStatus.BAD_REQUEST,
                         "ACCOUNT_VALIDATION_ERROR",
@@ -171,6 +174,23 @@ public class AccountService {
                 if ("CLOSED".equals(nextStatus)) {
                     account.setClosedAtUtc(Instant.now());
                 }
+            }
+
+            if (request.interestRate() != null) {
+                accessPolicyService.enforceAdminFinancialUpdateAccess(role);
+                if (!"SAVINGS".equalsIgnoreCase(account.getAccountType())) {
+                    throw new ApiErrorException(
+                            HttpStatus.BAD_REQUEST,
+                            "ACCOUNT_VALIDATION_ERROR",
+                            "interestRate can only be updated for savings accounts",
+                            "interestRate");
+                }
+                account.setInterestRate(resolveInterestRate(account.getAccountType(), request.interestRate()));
+            }
+
+            if (request.balance() != null) {
+                accessPolicyService.enforceAdminFinancialUpdateAccess(role);
+                account.setBalance(request.balance().setScale(2, java.math.RoundingMode.HALF_UP));
             }
 
             account.setUpdatedAtUtc(Instant.now());

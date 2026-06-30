@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -6,7 +6,13 @@ import {
   fetchAccounts,
   type CreateCustomerAccountInput
 } from "../services/accounts";
+import { fetchCustomersForAdmin } from "../services/customers";
 import { getNormalizedTokenRole } from "../services/session";
+import {
+  filterCustomersByNameOrId,
+  formatCustomerScopeOption,
+  resolveCustomerIdFromScopeInput
+} from "../utils/customerScope";
 import { formatCurrency } from "../utils/formatting";
 
 export function AccountManagementPage() {
@@ -17,7 +23,8 @@ export function AccountManagementPage() {
   const isAdmin = role === "ADMIN";
   const initialScopeId = isAdmin ? (searchParams.get("customerId") ?? "") : "";
 
-  const [customerScopeId, setCustomerScopeId] = useState(initialScopeId);
+  const [customerScopeInput, setCustomerScopeInput] = useState(initialScopeId);
+  const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState(initialScopeId);
   const [feedback, setFeedback] = useState(
     "Create and list accounts in this workspace, then open a specific account to view and update it."
   );
@@ -29,6 +36,26 @@ export function AccountManagementPage() {
     nickname: "",
     interestRate: 0
   });
+
+  const adminCustomersQuery = useQuery({
+    queryKey: ["customers", "admin", "account-scope-options"],
+    queryFn: () => fetchCustomersForAdmin(1, 200),
+    enabled: isAdmin
+  });
+
+  const adminCustomers = adminCustomersQuery.data ?? [];
+
+  const inferredCustomerScopeId = useMemo(
+    () => resolveCustomerIdFromScopeInput(customerScopeInput, adminCustomers),
+    [customerScopeInput, adminCustomers]
+  );
+
+  const customerScopeId = selectedCustomerScopeId || inferredCustomerScopeId;
+
+  const matchingScopeCustomers = useMemo(
+    () => filterCustomersByNameOrId(adminCustomers, customerScopeInput),
+    [adminCustomers, customerScopeInput]
+  );
 
   const accountsQuery = useQuery({
     queryKey: ["accounts", "list", isAdmin ? customerScopeId : "self"],
@@ -59,7 +86,7 @@ export function AccountManagementPage() {
     }
 
     if (isAdmin && !customerScopeId.trim()) {
-      setCreateError("Enter customer ID scope before creating accounts as admin.");
+      setCreateError("Enter customer name or ID scope before creating accounts as admin.");
       return;
     }
 
@@ -103,15 +130,37 @@ export function AccountManagementPage() {
           <h3>Admin scope</h3>
           <form className="form" onSubmit={(event) => event.preventDefault()}>
             <label>
-              Target customer ID
+              Target customer name or ID
               <input
-                value={customerScopeId}
-                onChange={(event) => setCustomerScopeId(event.target.value)}
-                placeholder="customer UUID"
+                value={customerScopeInput}
+                onChange={(event) => {
+                  setCustomerScopeInput(event.target.value);
+                  setSelectedCustomerScopeId("");
+                }}
+                placeholder="Search by customer name or ID"
               />
             </label>
+
+            <label>
+              Matching customers
+              <select
+                value={customerScopeId}
+                onChange={(event) => setSelectedCustomerScopeId(event.target.value)}
+                disabled={adminCustomersQuery.isPending || matchingScopeCustomers.length === 0}
+              >
+                <option value="">Select customer</option>
+                {matchingScopeCustomers.map((customer) => (
+                  <option key={customer.customerId} value={customer.customerId}>
+                    {formatCustomerScopeOption(customer)}
+                  </option>
+                ))}
+              </select>
+            </label>
           </form>
-          <p className="hint-text">Provide customer ID to manage a specific customer account set.</p>
+          <p className="hint-text">Provide a customer name or ID to manage a specific customer account set.</p>
+          {customerScopeInput.trim() && !customerScopeId ? (
+            <p className="hint-text">Select a customer from suggestions or provide an exact customer ID.</p>
+          ) : null}
         </article>
       ) : null}
 

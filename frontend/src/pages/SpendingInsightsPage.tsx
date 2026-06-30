@@ -5,7 +5,7 @@ import { formatCurrency } from "../utils/formatting";
 export function SpendingInsightsPage() {
   const insightsQuery = useQuery({
     queryKey: ["insights", "spending"],
-    queryFn: fetchSpendingInsights
+    queryFn: () => fetchSpendingInsights()
   });
 
   const insights = insightsQuery.data;

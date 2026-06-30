@@ -1,5 +1,8 @@
 package com.example.banking.api.account.dto;
 
+import java.math.BigDecimal;
+
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -8,5 +11,11 @@ public record UpdateAccountRequest(
         String nickname,
 
         @Pattern(regexp = "^(ACTIVE|SUSPENDED|CLOSED)$", message = "status must be ACTIVE, SUSPENDED, or CLOSED")
-        String status) {
+        String status,
+
+        @DecimalMin(value = "0.00", message = "interestRate must be greater than or equal to 0")
+        BigDecimal interestRate,
+
+        @DecimalMin(value = "0.00", message = "balance must be greater than or equal to 0")
+        BigDecimal balance) {
 }

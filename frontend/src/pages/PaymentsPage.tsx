@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAccounts, type BankAccount } from "../services/accounts";
+import { fetchCustomersForAdmin } from "../services/customers";
 import { fetchRecentNotifications } from "../services/notifications";
 import {
   fetchTransactionHistory,
@@ -16,6 +17,11 @@ import {
   type TransferReceipt
 } from "../services/transactions";
 import { getNormalizedTokenRole } from "../services/session";
+import {
+  filterCustomersByNameOrId,
+  formatCustomerScopeOption,
+  resolveCustomerIdFromScopeInput
+} from "../utils/customerScope";
 import { formatCurrency, formatDate } from "../utils/formatting";
 
 type OperationReceipt = {
@@ -36,7 +42,8 @@ export function PaymentsPage() {
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
 
-  const [customerScopeId, setCustomerScopeId] = useState("");
+  const [customerScopeInput, setCustomerScopeInput] = useState("");
+  const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState("");
 
   const [depositAccountId, setDepositAccountId] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -62,6 +69,26 @@ export function PaymentsPage() {
   const [depositError, setDepositError] = useState<string | null>(null);
   const [withdrawError, setWithdrawError] = useState<string | null>(null);
   const [transferError, setTransferError] = useState<string | null>(null);
+
+  const adminCustomersQuery = useQuery({
+    queryKey: ["customers", "admin", "payments-scope-options"],
+    queryFn: () => fetchCustomersForAdmin(1, 200),
+    enabled: isAdmin
+  });
+
+  const adminCustomers = adminCustomersQuery.data ?? [];
+
+  const inferredCustomerScopeId = useMemo(
+    () => resolveCustomerIdFromScopeInput(customerScopeInput, adminCustomers),
+    [customerScopeInput, adminCustomers]
+  );
+
+  const customerScopeId = selectedCustomerScopeId || inferredCustomerScopeId;
+
+  const matchingScopeCustomers = useMemo(
+    () => filterCustomersByNameOrId(adminCustomers, customerScopeInput),
+    [adminCustomers, customerScopeInput]
+  );
 
   const accountsQuery = useQuery({
     queryKey: ["accounts", "payments", isAdmin ? customerScopeId : "self"],
@@ -376,15 +403,37 @@ export function PaymentsPage() {
           <h3>Admin customer scope</h3>
           <form className="form" onSubmit={(event) => event.preventDefault()}>
             <label>
-              Target customer ID
+              Target customer name or ID
               <input
-                value={customerScopeId}
-                onChange={(event) => setCustomerScopeId(event.target.value)}
-                placeholder="customer UUID"
+                value={customerScopeInput}
+                onChange={(event) => {
+                  setCustomerScopeInput(event.target.value);
+                  setSelectedCustomerScopeId("");
+                }}
+                placeholder="Search by customer name or ID"
               />
             </label>
+
+            <label>
+              Matching customers
+              <select
+                value={customerScopeId}
+                onChange={(event) => setSelectedCustomerScopeId(event.target.value)}
+                disabled={adminCustomersQuery.isPending || matchingScopeCustomers.length === 0}
+              >
+                <option value="">Select customer</option>
+                {matchingScopeCustomers.map((customer) => (
+                  <option key={customer.customerId} value={customer.customerId}>
+                    {formatCustomerScopeOption(customer)}
+                  </option>
+                ))}
+              </select>
+            </label>
           </form>
-          <p className="hint-text">Enter customer ID before posting or querying transactions as admin.</p>
+          <p className="hint-text">Enter customer name or ID before posting or querying transactions as admin.</p>
+          {customerScopeInput.trim() && !customerScopeId ? (
+            <p className="hint-text">Select a customer from suggestions or provide an exact customer ID.</p>
+          ) : null}
         </article>
       ) : null}
 

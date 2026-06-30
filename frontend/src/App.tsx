@@ -13,6 +13,7 @@ import { RegisterPage } from "./pages/RegisterPage";
 import { ResetRequestPage } from "./pages/ResetRequestPage";
 import { TokenRefreshPage } from "./pages/TokenRefreshPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
+import { AdminCustomerDetailsPage } from "./pages/AdminCustomerDetailsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { CustomerManagementPage } from "./pages/CustomerManagementPage";
 import { AccountManagementPage } from "./pages/AccountManagementPage";
@@ -213,6 +214,7 @@ export default function App() {
 
             <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/admin/dashboard" element={withRole(["ADMIN"], <AdminDashboardPage />)} />
+            <Route path="/admin/customers/:customerId" element={withRole(["ADMIN"], <AdminCustomerDetailsPage />)} />
             <Route path="/admin/accounts" element={withRole(["ADMIN"], <AccountManagementPage />)} />
             <Route path="/admin/accounts/:accountId" element={withRole(["ADMIN"], <AccountDetailsPage />)} />
             <Route path="/admin/payments" element={withRole(["ADMIN"], <PaymentsPage />)} />

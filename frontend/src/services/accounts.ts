@@ -26,6 +26,8 @@ export type UpdateCustomerAccountInput = {
   accountId: string;
   nickname?: string;
   status?: "ACTIVE" | "SUSPENDED" | "CLOSED";
+  interestRate?: number;
+  balance?: number;
 };
 
 export type DeleteCustomerAccountResult = {
@@ -122,14 +124,24 @@ export async function updateCustomerAccount(input: UpdateCustomerAccountInput): 
     throw new Error("Enter a valid account ID.");
   }
 
-  if (!input.nickname && !input.status) {
+  const hasInterestRate = typeof input.interestRate === "number" && Number.isFinite(input.interestRate);
+  const hasBalance = typeof input.balance === "number" && Number.isFinite(input.balance);
+
+  if (
+    !input.nickname
+    && !input.status
+    && !hasInterestRate
+    && !hasBalance
+  ) {
     throw new Error("Provide at least one account field to update.");
   }
 
   try {
     const response = await apiClient.patch(`/accounts/${encodeURIComponent(input.accountId.trim())}`, {
       nickname: input.nickname?.trim() || undefined,
-      status: input.status
+      status: input.status,
+      interestRate: hasInterestRate ? input.interestRate : undefined,
+      balance: hasBalance ? input.balance : undefined
     });
 
     const mapped = mapAccount(response.data);

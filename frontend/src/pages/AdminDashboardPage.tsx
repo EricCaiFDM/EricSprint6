@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { fetchAccounts } from "../services/accounts";
 import { fetchCustomersForAdmin } from "../services/customers";
 import { getTokenEmail, getTokenSubject, setActiveCustomerId } from "../services/session";
+import { filterCustomersByNameOrId } from "../utils/customerScope";
 import { formatCurrency, formatDate } from "../utils/formatting";
 
 export function AdminDashboardPage() {
@@ -12,8 +13,9 @@ export function AdminDashboardPage() {
   const signedInUserId = getTokenSubject() ?? "Not available";
 
   const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [customerSearchQuery, setCustomerSearchQuery] = useState("");
   const [feedback, setFeedback] = useState(
-    "Select a customer and open any checking/savings account to manage it on the account details page."
+    "Search customers by name or ID, then open a full profile overview."
   );
 
   const customersQuery = useQuery({
@@ -44,6 +46,11 @@ export function AdminDashboardPage() {
     [customers, selectedCustomerId]
   );
 
+  const filteredCustomers = useMemo(
+    () => filterCustomersByNameOrId(customers, customerSearchQuery),
+    [customers, customerSearchQuery]
+  );
+
   const selectedCustomerBalance = useMemo(
     () => accounts.reduce((sum, account) => sum + account.availableBalance, 0),
     [accounts]
@@ -52,15 +59,8 @@ export function AdminDashboardPage() {
   const onSelectCustomer = (customerId: string) => {
     setSelectedCustomerId(customerId);
     setActiveCustomerId(customerId);
-    setFeedback(`Loaded customer scope: ${customerId}.`);
-  };
-
-  const onSelectAccount = (accountId: string) => {
-    const scopeQuery = selectedCustomerId.trim()
-      ? `?customerId=${encodeURIComponent(selectedCustomerId.trim())}`
-      : "";
-    navigate(`/admin/accounts/${encodeURIComponent(accountId)}${scopeQuery}`);
-    setFeedback(`Opened account ${accountId} details.`);
+    setFeedback(`Opening customer profile overview for ${customerId}.`);
+    navigate(`/admin/customers/${encodeURIComponent(customerId)}`);
   };
 
   return (
@@ -69,7 +69,7 @@ export function AdminDashboardPage() {
         <div>
           <h2 className="page-title">Admin workspace</h2>
           <p className="page-subtitle">
-            View all customers, select one, and manage that customer's checking/savings accounts.
+            View all customers and open a full profile page with accounts, transactions, monthly statements, and spending insights.
           </p>
         </div>
       </header>
@@ -92,15 +92,27 @@ export function AdminDashboardPage() {
       <section className="two-column-grid">
         <article className="surface-card">
           <h3>All customers</h3>
+          <form className="form" onSubmit={(event) => event.preventDefault()}>
+            <label>
+              Search customers by name or ID
+              <input
+                value={customerSearchQuery}
+                onChange={(event) => setCustomerSearchQuery(event.target.value)}
+                placeholder="Type a customer name or ID"
+              />
+            </label>
+          </form>
           {customersQuery.isLoading ? (
             <p className="hint-text">Loading customer directory...</p>
           ) : customersQuery.isError ? (
             <p className="hint-text">Unable to load customers: {(customersQuery.error as Error).message}</p>
           ) : customers.length === 0 ? (
             <p className="hint-text">No customers found.</p>
+          ) : filteredCustomers.length === 0 ? (
+            <p className="hint-text">No customers match your search.</p>
           ) : (
             <ul className="stack-list">
-              {customers.map((customer) => (
+              {filteredCustomers.map((customer) => (
                 <li key={customer.customerId}>
                   <button
                     type="button"
@@ -173,53 +185,6 @@ export function AdminDashboardPage() {
               <dd>{signedInUserId}</dd>
             </div>
           </dl>
-        </article>
-      </section>
-
-      <section className="two-column-grid">
-        <article className="surface-card">
-          <h3>Checking & savings accounts</h3>
-          {!selectedCustomerId ? (
-            <p className="hint-text">Select a customer to view accounts.</p>
-          ) : accountsQuery.isLoading ? (
-            <p className="hint-text">Loading customer accounts...</p>
-          ) : accountsQuery.isError ? (
-            <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
-          ) : accounts.length === 0 ? (
-            <p className="hint-text">No checking/savings accounts found for this customer.</p>
-          ) : (
-            <ul className="stack-list">
-              {accounts.map((account) => (
-                <li key={account.accountId}>
-                  <button
-                    type="button"
-                    className="selector-list-button"
-                    onClick={() => onSelectAccount(account.accountId)}
-                  >
-                    <div>
-                      <p className="item-title">{account.accountName}</p>
-                      <p className="item-meta">{account.accountType} · {account.accountNumberMasked}</p>
-                      <p className="item-meta">ID: {account.accountId}</p>
-                    </div>
-                    <div className="stack-list-meta">
-                      <p className="item-emphasis">{formatCurrency(account.availableBalance, account.currency)}</p>
-                      <span className={account.status === "Active" ? "status-pill status-pill--ok" : "status-pill"}>
-                        {account.status}
-                      </span>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </article>
-
-        <article className="surface-card">
-          <h3>Account details workflow</h3>
-          <p className="hint-text">
-            Click an account from the list to open a dedicated account details page where admins can view,
-            update, and delete that specific account.
-          </p>
         </article>
       </section>
 

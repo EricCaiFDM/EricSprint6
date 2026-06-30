@@ -24,8 +24,36 @@ export type SpendingInsight = {
   categories: InsightCategory[];
 };
 
-export async function fetchSpendingInsights(): Promise<SpendingInsight> {
-  const response = await apiClient.get("/insights/spending");
+export type SpendingInsightQuery = {
+  scopeType?: "ACCOUNT" | "CUSTOMER";
+  scopeId?: string;
+  periodStartUtc?: string;
+  periodEndUtc?: string;
+  categoryFilters?: string;
+};
+
+export async function fetchSpendingInsights(query: SpendingInsightQuery = {}): Promise<SpendingInsight> {
+  const params: Record<string, string> = {};
+
+  if (query.scopeType) {
+    params.scopeType = query.scopeType;
+  }
+  if (query.scopeId?.trim()) {
+    params.scopeId = query.scopeId.trim();
+  }
+  if (query.periodStartUtc?.trim()) {
+    params.periodStartUtc = query.periodStartUtc.trim();
+  }
+  if (query.periodEndUtc?.trim()) {
+    params.periodEndUtc = query.periodEndUtc.trim();
+  }
+  if (query.categoryFilters?.trim()) {
+    params.categoryFilters = query.categoryFilters.trim();
+  }
+
+  const response = await apiClient.get("/insights/spending", {
+    params: Object.keys(params).length > 0 ? params : undefined
+  });
   return mapInsights(response.data);
 }
 

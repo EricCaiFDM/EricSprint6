@@ -11,7 +11,7 @@ import {
 import { fetchCustomerDetails } from "../services/customers";
 import { formatCurrency } from "../utils/formatting";
 
-type AccountUpdateForm = Omit<UpdateCustomerAccountInput, "accountId">;
+type AccountUpdateForm = Pick<UpdateCustomerAccountInput, "nickname" | "status">;
 
 const initialUpdateForm: AccountUpdateForm = {
   nickname: "",
@@ -40,6 +40,8 @@ export function AccountDetailsPage() {
   }, [customerScopeId, isAdminPath]);
 
   const [updateForm, setUpdateForm] = useState<AccountUpdateForm>(initialUpdateForm);
+  const [adminBalanceInput, setAdminBalanceInput] = useState("");
+  const [adminInterestRateInput, setAdminInterestRateInput] = useState("");
   const [feedback, setFeedback] = useState("Review account information and submit updates from this page.");
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
@@ -63,6 +65,8 @@ export function AccountDetailsPage() {
       setUpdateError(null);
       setFeedback(`Account updated: ${account.accountName} (${account.accountId}).`);
       setUpdateForm(initialUpdateForm);
+      setAdminBalanceInput("");
+      setAdminInterestRateInput("");
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["accounts", "list"] }),
@@ -106,9 +110,26 @@ export function AccountDetailsPage() {
 
     const nickname = updateForm.nickname?.trim() || undefined;
     const status = updateForm.status;
+    const interestRate = isAdminPath ? parseOptionalDecimal(adminInterestRateInput) : undefined;
+    const balance = isAdminPath ? parseOptionalDecimal(adminBalanceInput) : undefined;
 
-    if (!nickname && !status) {
-      setUpdateError("Provide nickname or status to update this account.");
+    if (isAdminPath && adminBalanceInput.trim() && balance === undefined) {
+      setUpdateError("Enter a valid numeric balance.");
+      return;
+    }
+
+    if (isAdminPath && adminInterestRateInput.trim() && interestRate === undefined) {
+      setUpdateError("Enter a valid numeric interest rate.");
+      return;
+    }
+
+    if (!nickname && !status && interestRate === undefined && balance === undefined) {
+      setUpdateError("Provide at least one account field to update.");
+      return;
+    }
+
+    if (isAdminPath && interestRate !== undefined && account?.accountType !== "Savings") {
+      setUpdateError("Interest rate can only be updated for savings accounts.");
       return;
     }
 
@@ -117,7 +138,9 @@ export function AccountDetailsPage() {
     updateMutation.mutate({
       accountId,
       nickname,
-      status
+      status,
+      interestRate: isAdminPath ? interestRate : undefined,
+      balance: isAdminPath ? balance : undefined
     });
   };
 
@@ -250,6 +273,33 @@ export function AccountDetailsPage() {
               </select>
             </label>
 
+            {isAdminPath ? (
+              <>
+                <label>
+                  Balance
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={adminBalanceInput}
+                    onChange={(event) => setAdminBalanceInput(event.target.value)}
+                    placeholder="No change"
+                  />
+                </label>
+
+                <label>
+                  Savings interest rate (%)
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={adminInterestRateInput}
+                    onChange={(event) => setAdminInterestRateInput(event.target.value)}
+                    placeholder={account?.accountType === "Savings" ? "No change" : "Savings accounts only"}
+                    disabled={account?.accountType !== "Savings"}
+                  />
+                </label>
+              </>
+            ) : null}
+
             <div className="actions">
               <button type="submit" disabled={updateMutation.isPending}>
                 {updateMutation.isPending ? "Updating..." : "Update account"}
@@ -352,4 +402,31 @@ function AccountDetailsSummary({ account }: { account: BankAccount }) {
       </div>
     </dl>
   );
+}
+
+function parseOptionalDecimal(raw: string): number | undefined {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const compact = trimmed.replace(/\s+/g, "");
+  const hasComma = compact.includes(",");
+  const hasDot = compact.includes(".");
+
+  let normalized = compact;
+
+  if (hasComma && hasDot) {
+    // Use the right-most separator as decimal mark and treat the other as thousand separator.
+    const lastComma = compact.lastIndexOf(",");
+    const lastDot = compact.lastIndexOf(".");
+    normalized = lastComma > lastDot
+      ? compact.replace(/\./g, "").replace(",", ".")
+      : compact.replace(/,/g, "");
+  } else if (hasComma) {
+    normalized = compact.replace(",", ".");
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
