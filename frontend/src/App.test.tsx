@@ -127,6 +127,47 @@ describe("App", () => {
     expect(await screen.findByRole("heading", { name: /^Customer management$/i })).toBeInTheDocument();
   });
 
+  it("shows the right rail on non-statements pages", async () => {
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "customer-rail",
+        email: "customer.rail@example.com",
+        role: "CUSTOMER"
+      })
+    );
+
+    renderApp("/customer/dashboard");
+
+    expect(await screen.findByRole("heading", { name: /^Need help\?$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Accounts & security$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Trust at NorthBridge$/i })).toBeInTheDocument();
+  });
+
+  it("shows support cards on statements pages", async () => {
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "customer-statements",
+        email: "customer.statements@example.com",
+        role: "CUSTOMER"
+      })
+    );
+
+    renderApp("/customer/statements");
+
+    expect(await screen.findByRole("heading", { name: /^Statements$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Need help\?$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Accounts & security$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Trust at NorthBridge$/i })).toBeInTheDocument();
+  });
+
   it("logs out and returns to sign-in navigation", async () => {
     const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
     mockedCheckHealth.mockResolvedValue("OK");

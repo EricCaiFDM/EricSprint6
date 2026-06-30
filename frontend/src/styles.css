@@ -266,9 +266,13 @@ a {
 
 .content-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 0.9fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
+}
+
+.content-layout > * {
+  min-width: 0;
 }
 
 .content-surface {
@@ -277,14 +281,16 @@ a {
   border-radius: 20px;
   padding: 1.12rem;
   box-shadow: var(--shadow-soft);
+  min-width: 0;
+  overflow-x: hidden;
 }
 
 .side-rail {
   display: grid;
   gap: 0.85rem;
-  align-self: start;
-  align-content: start;
-  grid-auto-rows: max-content;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-self: stretch;
+  align-content: stretch;
 }
 
 .rail-card {
@@ -352,6 +358,7 @@ a {
   display: grid;
   gap: 0.95rem;
   animation: lift-in 0.32s ease;
+  min-width: 0;
 }
 
 .page-header {
@@ -509,6 +516,7 @@ a {
   border-radius: 14px;
   background: var(--surface-0);
   padding: 0.92rem;
+  min-width: 0;
 }
 
 .surface-card h3 {
@@ -939,6 +947,92 @@ button:disabled {
   padding: 0.45rem 0.68rem;
 }
 
+.statement-table-shell {
+  border: 1px solid var(--line-200);
+  border-radius: 12px;
+  background: #fcfeff;
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.statement-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+}
+
+.statement-table th,
+.statement-table td {
+  border-bottom: 1px solid var(--line-200);
+  padding: 0.58rem 0.62rem;
+  text-align: left;
+  vertical-align: top;
+  font-size: 0.86rem;
+  overflow-wrap: anywhere;
+}
+
+.statement-table th {
+  font-family: var(--font-display);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ink-700);
+  background: linear-gradient(180deg, #f7fbff 0%, #edf4fb 100%);
+}
+
+.statement-table tbody tr:hover {
+  background: #f6fbff;
+}
+
+.statement-table .status-pill {
+  margin-top: 0.06rem;
+}
+
+.statement-table-actions {
+  white-space: nowrap;
+}
+
+.statement-table-actions .button-secondary {
+  font-size: 0.78rem;
+  padding: 0.38rem 0.62rem;
+}
+
+.statement-table-meta {
+  margin-top: 0.18rem;
+  font-size: 0.78rem;
+  color: var(--ink-700);
+}
+
+.statement-table-number {
+  text-align: right !important;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+
+.statement-table-number--debit {
+  color: #9d2f2f;
+}
+
+.statement-table-number--credit {
+  color: var(--ok-700);
+}
+
+.statement-table--ledger {
+  min-width: 920px;
+}
+
+.statement-opening-row td {
+  background: #f8fbff;
+  color: var(--ink-700);
+}
+
+.statement-closing-row td {
+  background: #f2f8ff;
+  color: var(--ink-900);
+}
+
 .insight-item {
   border: 1px solid var(--line-200);
   border-radius: 11px;
@@ -992,7 +1086,7 @@ button:disabled {
   }
 
   .side-rail {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .account-grid {
@@ -1062,11 +1156,92 @@ button:disabled {
     flex: 0 0 auto;
   }
 
+  .statement-table th,
+  .statement-table td {
+    font-size: 0.8rem;
+    padding: 0.5rem 0.54rem;
+  }
+
+  .statement-table th {
+    font-size: 0.72rem;
+  }
+
   .modal-backdrop {
     padding: 0.8rem;
   }
 
   .confirm-modal {
     padding: 0.86rem;
+  }
+}
+
+@media (max-width: 980px) {
+  .statement-table-shell {
+    overflow-x: visible;
+    border: none;
+    background: transparent;
+  }
+
+  .statement-table,
+  .statement-table--ledger {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .statement-table thead {
+    display: none;
+  }
+
+  .statement-table tbody {
+    display: grid;
+    gap: 0.58rem;
+  }
+
+  .statement-table tr {
+    display: grid;
+    border: 1px solid var(--line-200);
+    border-radius: 11px;
+    background: #fcfeff;
+    padding: 0 0.55rem;
+  }
+
+  .statement-table td {
+    display: grid;
+    grid-template-columns: 8.4rem minmax(0, 1fr);
+    align-items: center;
+    gap: 0.52rem;
+    padding: 0.44rem 0;
+    border-bottom: 1px dashed var(--line-200);
+  }
+
+  .statement-table td:last-child {
+    border-bottom: none;
+  }
+
+  .statement-table td::before {
+    content: attr(data-label);
+    font-family: var(--font-display);
+    font-size: 0.69rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-700);
+  }
+
+  .statement-table-actions {
+    white-space: normal;
+  }
+
+  .statement-table-actions .button-secondary {
+    justify-self: start;
+  }
+
+  .statement-table-number {
+    text-align: left !important;
+    white-space: normal;
+  }
+
+  .statement-opening-row,
+  .statement-closing-row {
+    background: #f5faff;
   }
 }

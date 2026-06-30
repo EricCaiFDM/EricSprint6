@@ -1,16 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { fetchAccounts, type BankAccount } from "../services/accounts";
 import { fetchCustomersForAdmin } from "../services/customers";
 import { getNormalizedTokenRole } from "../services/session";
 import {
-  fetchStatement,
-  fetchStatementPdf,
-  fetchStatementTransactions,
   fetchStatements,
   generateStatement,
-  type StatementDetail,
   type StatementGenerationMode,
   type StatementListResult
 } from "../services/statements";
@@ -19,8 +15,7 @@ import {
   formatCustomerScopeOption,
   resolveCustomerIdFromScopeInput
 } from "../utils/customerScope";
-import type { TransactionItem } from "../services/transactions";
-import { formatCurrency, formatDateTime } from "../utils/formatting";
+import { formatDateTime } from "../utils/formatting";
 
 const emptyStatements: StatementListResult = {
   items: [],
@@ -32,6 +27,8 @@ const emptyStatements: StatementListResult = {
 
 export function StatementsPage() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
@@ -41,10 +38,8 @@ export function StatementsPage() {
   const [generationMode, setGenerationMode] = useState<StatementGenerationMode>("STANDARD");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
-  const [selectedStatementId, setSelectedStatementId] = useState("");
   const [customerScopeInput, setCustomerScopeInput] = useState(initialScopeId);
   const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState(initialScopeId);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState(
     isAdmin
       ? "Select a customer scope, then generate and retrieve monthly statements for that customer accounts."
@@ -84,7 +79,6 @@ export function StatementsPage() {
     if (isAdmin && !customerScopeId.trim()) {
       setAccountId("");
       setPage(1);
-      setSelectedStatementId("");
       return;
     }
 
@@ -96,7 +90,6 @@ export function StatementsPage() {
     if (!accountId || !accounts.some((item) => item.accountId === accountId)) {
       setAccountId(accounts[0].accountId);
       setPage(1);
-      setSelectedStatementId("");
     }
   }, [accounts, hasAccounts, accountId, isAdmin, customerScopeId]);
 
@@ -112,51 +105,14 @@ export function StatementsPage() {
     enabled: Boolean(accountId)
   });
 
-  const statementDetailQuery = useQuery({
-    queryKey: ["statements", "detail", selectedStatementId],
-    queryFn: () => fetchStatement(selectedStatementId),
-    enabled: Boolean(selectedStatementId)
-  });
-
-  const statementTransactionsQuery = useQuery({
-    queryKey: ["statements", "detail", "transactions", selectedStatementId],
-    queryFn: () =>
-      fetchStatementTransactions({
-        accountId: statementDetailQuery.data?.accountId ?? "",
-        periodYearMonth: statementDetailQuery.data?.periodYearMonth ?? ""
-      }),
-    enabled: Boolean(statementDetailQuery.data?.statementId)
-  });
-
   const generateMutation = useMutation({
     mutationFn: generateStatement,
     onSuccess: async (result) => {
       setFeedback(`Statement generation ${result.generationStatus.toLowerCase()} for request ${result.statementId}.`);
-      setSelectedStatementId(result.statementId);
       await queryClient.invalidateQueries({ queryKey: ["statements"] });
     },
     onError: (error) => {
       setFeedback(`Statement generation failed: ${(error as Error).message}`);
-    }
-  });
-
-  const downloadPdfMutation = useMutation({
-    mutationFn: async (statement: StatementDetail) => {
-      const pdf = await fetchStatementPdf(statement);
-      triggerPdfDownload(pdf.blob, pdf.fileName);
-    },
-    onMutate: () => {
-      setDownloadError(null);
-      setFeedback("Preparing statement PDF download...");
-    },
-    onSuccess: () => {
-      setFeedback("Statement PDF download started.");
-    },
-    onError: (error) => {
-      const message = (error as Error).message;
-      const fullMessage = `Unable to download statement PDF: ${message}`;
-      setDownloadError(fullMessage);
-      setFeedback(fullMessage);
     }
   });
 
@@ -203,27 +159,17 @@ export function StatementsPage() {
   const onApplyFilters = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPage(1);
-    setSelectedStatementId("");
   };
 
   const onViewDetails = (statementId: string) => {
-    setSelectedStatementId(statementId);
-    setDownloadError(null);
-    setFeedback("Retrieving selected statement details and transactions...");
-  };
-
-  const onDownloadPdf = () => {
-    if (!statementDetailQuery.data) {
-      return;
-    }
-
-    downloadPdfMutation.mutate(statementDetailQuery.data);
+    const basePath = isAdmin ? "/admin/statements" : "/customer/statements";
+    const query = isAdmin ? location.search : "";
+    navigate(`${basePath}/${encodeURIComponent(statementId)}${query}`);
   };
 
   const hasPreviousPage = statements.page > 1;
   const hasNextPage = statements.page < statements.totalPages;
 
-  const summaryCurrency = selectedAccount?.currency ?? "USD";
   const generatedCount = statements.items.filter((item) => item.status !== "FAILED").length;
   const failedCount = statements.items.filter((item) => item.status === "FAILED").length;
 
@@ -306,7 +252,6 @@ export function StatementsPage() {
                 onChange={(event) => {
                   setAccountId(event.target.value);
                   setPage(1);
-                  setSelectedStatementId("");
                 }}
                 disabled={accountsQuery.isPending || accountsQuery.isError || !hasAccounts || (isAdmin && !customerScopeId.trim())}
               >
@@ -353,7 +298,6 @@ export function StatementsPage() {
                 onClick={() => {
                   setPeriodYearMonth("");
                   setPage(1);
-                  setSelectedStatementId("");
                 }}
               >
                 Clear period
@@ -404,7 +348,7 @@ export function StatementsPage() {
               </p>
             ) : (
               <p className="hint-text">
-                Statements are generated for {selectedAccount.accountName} in {summaryCurrency}.
+                Statements are generated for {selectedAccount.accountName}.
               </p>
             )}
           </form>
@@ -413,39 +357,53 @@ export function StatementsPage() {
 
       <article className="surface-card">
         <h3>Statement results</h3>
-        <ul className="statement-list">
-          {statementsQuery.isPending ? <li className="statement-item">Loading statements...</li> : null}
-          {statementsQuery.isError ? (
-            <li className="statement-item">Unable to load statements: {(statementsQuery.error as Error).message}</li>
-          ) : null}
-          {!statementsQuery.isPending && !statementsQuery.isError && statements.items.length === 0 ? (
-            <li className="statement-item">No statements found for the selected filters.</li>
-          ) : null}
-          {statements.items.map((statement) => (
-            <li key={statement.statementId} className="statement-item">
-              <div>
-                <p className="item-title">
-                  {statement.periodYearMonth} · Version {statement.artifactVersion}
-                </p>
-                <p className="item-meta">
-                  Account {statement.accountId} · Generated {formatDateTime(statement.generatedAtUtc)}
-                </p>
-              </div>
-              <div className="statement-item-right">
-                <span className={statement.status === "FAILED" ? "status-pill status-pill--warn" : "status-pill status-pill--ok"}>
-                  {statement.status}
-                </span>
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={() => onViewDetails(statement.statementId)}
-                >
-                  View details
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+        {statementsQuery.isPending ? <p className="hint-text">Loading statements...</p> : null}
+        {statementsQuery.isError ? (
+          <p className="hint-text">Unable to load statements: {(statementsQuery.error as Error).message}</p>
+        ) : null}
+        {!statementsQuery.isPending && !statementsQuery.isError && statements.items.length === 0 ? (
+          <p className="hint-text">No statements found for the selected filters.</p>
+        ) : null}
+        {!statementsQuery.isPending && !statementsQuery.isError && statements.items.length > 0 ? (
+          <div className="statement-table-shell">
+            <table className="statement-table" aria-label="Statement results table">
+              <thead>
+                <tr>
+                  <th scope="col">Period</th>
+                  <th scope="col">Version</th>
+                  <th scope="col">Account</th>
+                  <th scope="col">Generated</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {statements.items.map((statement) => (
+                  <tr key={statement.statementId}>
+                    <td data-label="Period">{statement.periodYearMonth}</td>
+                    <td data-label="Version">v{statement.artifactVersion}</td>
+                    <td data-label="Account">{statement.accountId}</td>
+                    <td data-label="Generated">{formatDateTime(statement.generatedAtUtc)}</td>
+                    <td data-label="Status">
+                      <span className={statement.status === "FAILED" ? "status-pill status-pill--warn" : "status-pill status-pill--ok"}>
+                        {statement.status}
+                      </span>
+                    </td>
+                    <td data-label="Action" className="statement-table-actions">
+                      <button
+                        type="button"
+                        className="button-secondary"
+                        onClick={() => onViewDetails(statement.statementId)}
+                      >
+                        View details
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
 
         <div className="payments-pagination">
           <button type="button" className="button-secondary" onClick={() => setPage((value) => value - 1)} disabled={!hasPreviousPage}>
@@ -459,128 +417,10 @@ export function StatementsPage() {
           </button>
         </div>
       </article>
-
-      <article className="surface-card">
-        <h3>Selected statement details</h3>
-        {!selectedStatementId ? <p className="hint-text">Select a statement from the list to retrieve details.</p> : null}
-        {selectedStatementId && statementDetailQuery.isPending ? (
-          <p className="hint-text">Retrieving selected statement...</p>
-        ) : null}
-        {statementDetailQuery.isError ? (
-          <p className="hint-text">Unable to retrieve statement: {(statementDetailQuery.error as Error).message}</p>
-        ) : null}
-        {statementDetailQuery.data ? (
-          <>
-            <dl className="profile-grid">
-              <div>
-                <dt>Statement ID</dt>
-                <dd>{statementDetailQuery.data.statementId}</dd>
-              </div>
-              <div>
-                <dt>Period</dt>
-                <dd>{statementDetailQuery.data.periodYearMonth}</dd>
-              </div>
-              <div>
-                <dt>Version</dt>
-                <dd>{statementDetailQuery.data.artifactVersion}</dd>
-              </div>
-              <div>
-                <dt>Opening balance</dt>
-                <dd>{formatCurrency(statementDetailQuery.data.openingBalance, statementDetailQuery.data.currencyCode)}</dd>
-              </div>
-              <div>
-                <dt>Closing balance</dt>
-                <dd>{formatCurrency(statementDetailQuery.data.closingBalance, statementDetailQuery.data.currencyCode)}</dd>
-              </div>
-              <div>
-                <dt>Generated at</dt>
-                <dd>{formatDateTime(statementDetailQuery.data.generatedAtUtc)}</dd>
-              </div>
-            </dl>
-
-            <div className="actions">
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={onDownloadPdf}
-                disabled={downloadPdfMutation.isPending}
-              >
-                {downloadPdfMutation.isPending ? "Preparing PDF..." : "Download PDF"}
-              </button>
-            </div>
-
-            {downloadError ? <p className="inline-error" role="alert">{downloadError}</p> : null}
-
-            <h4>Statement transactions</h4>
-            {statementTransactionsQuery.isPending ? (
-              <p className="hint-text">Loading statement transactions...</p>
-            ) : null}
-            {statementTransactionsQuery.isError ? (
-              <p className="hint-text">Unable to load statement transactions: {(statementTransactionsQuery.error as Error).message}</p>
-            ) : null}
-            {!statementTransactionsQuery.isPending && !statementTransactionsQuery.isError && (statementTransactionsQuery.data?.length ?? 0) === 0 ? (
-              <p className="hint-text">No transactions were posted in this statement period.</p>
-            ) : null}
-            {statementTransactionsQuery.data && statementTransactionsQuery.data.length > 0 ? (
-              <ul className="activity-list">
-                {statementTransactionsQuery.data.map((item) => (
-                  <li key={item.transactionId} className="activity-item">
-                    <div>
-                      <p className="item-title">{toReadableStatementTransactionType(item)} · {item.description}</p>
-                      <p className="item-meta">{formatDateTime(item.bookedAt)} · Ref {item.transactionId}</p>
-                    </div>
-                    <p className={item.direction === "CREDIT" ? "amount-credit" : "amount-debit"}>
-                      {item.direction === "CREDIT" ? "+" : "-"}
-                      {formatCurrency(item.amount, item.currency)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </>
-        ) : null}
-      </article>
     </section>
   );
 }
 
 function formatAccountLabel(account: BankAccount): string {
   return `${account.accountName} (${account.accountNumberMasked})`;
-}
-
-function toReadableStatementTransactionType(item: TransactionItem): string {
-  switch (item.transactionType) {
-    case "DEPOSIT":
-      return "Deposit";
-    case "WITHDRAWAL":
-      return "Withdrawal";
-    case "TRANSFER_DEBIT":
-      return "Transfer / standing order debit";
-    case "TRANSFER_CREDIT":
-      return "Transfer / standing order credit";
-    default:
-      return "Transaction";
-  }
-}
-
-function triggerPdfDownload(blob: Blob, fileName: string): void {
-  if (!window.URL || typeof window.URL.createObjectURL !== "function") {
-    throw new Error("PDF downloads are not supported in this browser.");
-  }
-
-  const objectUrl = window.URL.createObjectURL(blob);
-  const link = document.createElement("a");
-
-  try {
-    link.href = objectUrl;
-    link.download = fileName;
-    link.style.display = "none";
-    document.body.appendChild(link);
-    link.click();
-  } finally {
-    if (link.parentNode) {
-      link.parentNode.removeChild(link);
-    }
-    window.URL.revokeObjectURL(objectUrl);
-  }
 }
