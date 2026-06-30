@@ -1,8 +1,11 @@
 package com.example.banking.lib.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
 import java.util.Map;
@@ -121,6 +124,36 @@ class TransactionAccessPolicyTest {
                 () -> policy.enforceHistoryScope("BRANCH", customerId, "ADMIN", "admin"));
         assertEquals("TRANSACTION_VALIDATION_ERROR", invalidScopeType.getCode());
         assertEquals("scopeType", invalidScopeType.getField());
+    }
+
+    @Test
+    void proxyRepositoriesCoverAllInvocationHandlerBranches() {
+        AccountJpaRepository accountJpaRepository = accountRepository();
+        CustomerJpaRepository customerJpaRepository = customerRepository();
+
+        accounts.put("acc-proxy", account("acc-proxy", "cust-proxy", "owner-proxy", "creator-proxy"));
+        customers.put("cust-proxy", customer("cust-proxy", "owner-proxy", "creator-proxy"));
+
+        assertTrue(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("acc-proxy").isPresent());
+        assertTrue(accountJpaRepository.findByAccountIdAndDeletedAtIsNull("missing").isEmpty());
+        assertFalse(accountJpaRepository.existsByCustomerId("cust-proxy"));
+        assertNull(accountJpaRepository.findByDeletedAtIsNull());
+
+        assertTrue(customerJpaRepository.findByCustomerIdAndDeletedAtIsNull("cust-proxy").isPresent());
+        assertTrue(customerJpaRepository.findByCustomerIdAndDeletedAtIsNull("missing").isEmpty());
+
+        assertTrue(customerJpaRepository
+                .findFirstByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc("owner-proxy")
+                .isPresent());
+        assertTrue(customerJpaRepository
+                .findFirstByCreatedByUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc("creator-proxy")
+                .isPresent());
+        assertTrue(customerJpaRepository
+                .findFirstByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc("nobody")
+                .isEmpty());
+
+        assertFalse(customerJpaRepository.existsByPrimaryEmailIgnoreCaseAndDeletedAtIsNull("x@y.com"));
+        assertTrue(customerJpaRepository.findById("missing").isEmpty());
     }
 
     private AccountJpaRepository accountRepository() {

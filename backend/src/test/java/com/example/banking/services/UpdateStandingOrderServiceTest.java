@@ -1,9 +1,12 @@
 package com.example.banking.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -178,6 +181,118 @@ class UpdateStandingOrderServiceTest {
         assertEquals("effectiveToUtc", toError.getField());
     }
 
+    @Test
+    void proxyRepositoriesCoverAllInvocationHandlerBranches() {
+        AccountJpaRepository accountJpaRepository = accountRepository();
+
+        AccountEntity account = accountJpaRepository.findByAccountIdAndDeletedAtIsNull("acc-1").orElseThrow();
+        assertEquals("acc-1", account.getAccountId());
+        assertEquals("owner-1", account.getOwnerUserId());
+        assertFalse(accountJpaRepository.existsByCustomerId("cust-1"));
+        assertNull(accountJpaRepository.save(new AccountEntity()));
+
+        CustomerJpaRepository customerJpaRepository = customerRepository();
+        assertTrue(customerJpaRepository.findByCustomerIdAndDeletedAtIsNull("cust-1").isEmpty());
+        assertFalse(customerJpaRepository.existsByPrimaryEmailIgnoreCaseAndDeletedAtIsNull("a@bank.com"));
+        assertEquals(0, customerJpaRepository.saveAll(List.of()).size());
+    }
+
+    @Test
+    void inMemoryStandingOrderRepositoryDefaultMethodsAreCovered() {
+        InMemoryStandingOrderRepository inMemoryRepository = new InMemoryStandingOrderRepository();
+        String id = UUID.randomUUID().toString();
+        StandingOrderEntity standingOrder = baseStandingOrder(id);
+
+        assertSame(standingOrder, inMemoryRepository.save(standingOrder));
+        assertSame(standingOrder, inMemoryRepository.findById(id).orElseThrow());
+        assertTrue(inMemoryRepository.findById(UUID.randomUUID().toString()).isEmpty());
+        assertTrue(inMemoryRepository.findDueWithinWindow(Instant.now(), Instant.now().plusSeconds(60)).isEmpty());
+        assertTrue(inMemoryRepository.listByScope("owner-1", "CUSTOMER", 1, 10).isEmpty());
+    }
+
+    @Test
+    void inMemoryLifecycleEventRepositoryMethodsAreCovered() {
+        InMemoryLifecycleEventRepository inMemoryRepository = new InMemoryLifecycleEventRepository();
+
+        StandingOrderLifecycleEventEntity event1 = lifecycleEvent("so-1", "CREATED");
+        StandingOrderLifecycleEventEntity event2 = lifecycleEvent("so-2", "UPDATED");
+        StandingOrderLifecycleEventEntity event3 = lifecycleEvent("so-1", "SUSPENDED");
+
+        assertSame(event1, inMemoryRepository.save(event1));
+        List<StandingOrderLifecycleEventEntity> savedBatch = inMemoryRepository.saveAll(List.of(event2));
+        assertEquals(1, savedBatch.size());
+        assertSame(event2, savedBatch.get(0));
+
+        assertTrue(inMemoryRepository.findById("missing").isEmpty());
+        assertFalse(inMemoryRepository.existsById("missing"));
+        assertEquals(2, inMemoryRepository.findAll().size());
+        assertTrue(inMemoryRepository.findAllById(List.of(event1.getEventId())).isEmpty());
+        assertEquals(2, inMemoryRepository.count());
+
+        inMemoryRepository.deleteById("missing");
+        inMemoryRepository.delete(event2);
+        assertEquals(1, inMemoryRepository.count());
+
+        inMemoryRepository.saveAndFlush(event2);
+        assertEquals(2, inMemoryRepository.count());
+
+        List<StandingOrderLifecycleEventEntity> flushedBatch = inMemoryRepository.saveAllAndFlush(List.of(event3));
+        assertEquals(1, flushedBatch.size());
+        assertSame(event3, flushedBatch.get(0));
+        assertEquals(3, inMemoryRepository.count());
+
+        List<StandingOrderLifecycleEventEntity> standingOrderEvents =
+                inMemoryRepository.findByStandingOrderIdOrderByOccurredAtUtcDesc("so-1");
+        assertEquals(2, standingOrderEvents.size());
+
+        inMemoryRepository.flush();
+        inMemoryRepository.deleteAllById(List.of(event1.getEventId()));
+        inMemoryRepository.deleteAll(List.of(event1));
+        assertEquals(2, inMemoryRepository.count());
+
+        inMemoryRepository.deleteAllInBatch(List.of(event2));
+        assertEquals(1, inMemoryRepository.count());
+
+        inMemoryRepository.deleteAllByIdInBatch(List.of(event3.getEventId()));
+        assertEquals(1, inMemoryRepository.count());
+
+        assertNull(inMemoryRepository.getOne("missing"));
+        assertNull(inMemoryRepository.getById("missing"));
+        assertNull(inMemoryRepository.getReferenceById("missing"));
+
+        org.springframework.data.domain.Example<StandingOrderLifecycleEventEntity> example =
+                org.springframework.data.domain.Example.of(event3);
+        assertTrue(inMemoryRepository.findOne(example).isEmpty());
+        assertTrue(inMemoryRepository.findAll(example).isEmpty());
+        assertTrue(inMemoryRepository.findAll(example, org.springframework.data.domain.Sort.unsorted()).isEmpty());
+        assertTrue(inMemoryRepository.findAll(example, org.springframework.data.domain.Pageable.unpaged()).isEmpty());
+        assertEquals(0, inMemoryRepository.count(example));
+        assertFalse(inMemoryRepository.exists(example));
+
+        assertEquals(1, inMemoryRepository.findAll(org.springframework.data.domain.Sort.unsorted()).size());
+        assertTrue(inMemoryRepository.findAll(org.springframework.data.domain.Pageable.unpaged()).isEmpty());
+
+        inMemoryRepository.deleteAllInBatch();
+        assertEquals(0, inMemoryRepository.count());
+
+        inMemoryRepository.save(event1);
+        assertEquals(1, inMemoryRepository.count());
+        inMemoryRepository.deleteAll();
+        assertEquals(0, inMemoryRepository.count());
+    }
+
+    private StandingOrderLifecycleEventEntity lifecycleEvent(String standingOrderId, String eventType) {
+        StandingOrderLifecycleEventEntity event = new StandingOrderLifecycleEventEntity();
+        event.setEventId(UUID.randomUUID().toString());
+        event.setStandingOrderId(standingOrderId);
+        event.setEventType(eventType);
+        event.setActorUserId("owner-1");
+        event.setActorRole("CUSTOMER");
+        event.setOccurredAtUtc(Instant.now());
+        event.setMetadata("{}");
+        return event;
+    }
+
     private StandingOrderEntity baseStandingOrder(String id) {
         StandingOrderEntity standingOrder = new StandingOrderEntity();
         standingOrder.setStandingOrderId(id);
@@ -329,7 +444,6 @@ class UpdateStandingOrderServiceTest {
             saved.clear();
         }
 
-        @Override
         public java.util.List<StandingOrderLifecycleEventEntity> findByStandingOrderIdOrderByOccurredAtUtcDesc(String standingOrderId) {
             return saved.stream().filter(event -> standingOrderId.equals(event.getStandingOrderId())).toList();
         }

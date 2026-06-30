@@ -283,7 +283,7 @@ public class AccountService {
     private String resolveOwnerUserId(String customerId, String fallbackOwnerUserId) {
         return customerJpaRepository.findByCustomerIdAndDeletedAtIsNull(customerId)
                 .map(customer -> customer.getOwnerUserId())
-                .filter(owner -> owner != null && !owner.isBlank())
+                .filter(owner -> !owner.isBlank())
                 .orElse(fallbackOwnerUserId);
     }
 

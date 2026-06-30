@@ -1,7 +1,10 @@
 package com.example.banking.lib.security;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
 import java.time.Instant;
@@ -157,6 +160,41 @@ class InsightAccessGuardTest {
                 () -> guard.resolveAndAuthorize(query, "actor-1", "CUSTOMER"));
         assertEquals("INSIGHT_SCOPE_NOT_FOUND", missing.getCode());
     }
+
+        @Test
+        void customerRepoProxyCoversAllInvocationHandlerBranches() {
+        CustomerJpaRepository repository = customerRepo("cust-proxy", "owner-proxy");
+
+        Optional<CustomerEntity> ownerLookup =
+            repository.findFirstByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc("owner-proxy");
+        assertTrue(ownerLookup.isPresent());
+        assertEquals("cust-proxy", ownerLookup.orElseThrow().getCustomerId());
+
+        assertTrue(repository
+            .findFirstByOwnerUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc("other-user")
+            .isEmpty());
+
+        assertTrue(repository
+            .findFirstByCreatedByUserIdAndDeletedAtIsNullOrderByCreatedAtUtcDesc("owner-proxy")
+            .isPresent());
+
+        assertTrue(repository.findByCustomerIdAndDeletedAtIsNull("cust-proxy").isPresent());
+        assertTrue(repository.findByCustomerIdAndDeletedAtIsNull("missing-customer").isEmpty());
+
+        assertFalse(repository.existsByPrimaryEmailIgnoreCaseAndDeletedAtIsNull("a@b.com"));
+
+        assertTrue(repository.findById("missing-customer").isEmpty());
+        }
+
+        @Test
+        void emptyCustomerRepoProxyCoversBooleanFindAndDefaultBranches() {
+        CustomerJpaRepository repository = emptyCustomerRepo();
+
+        assertFalse(repository.existsById("any-id"));
+        assertTrue(repository.findByCustomerIdAndDeletedAtIsNull("any-id").isEmpty());
+
+        assertNull(repository.save(new CustomerEntity()));
+        }
 
     private CustomerJpaRepository customerRepo(String customerId, String ownerUserId) {
         return (CustomerJpaRepository) Proxy.newProxyInstance(

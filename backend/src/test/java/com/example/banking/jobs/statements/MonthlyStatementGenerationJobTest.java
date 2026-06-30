@@ -1,6 +1,9 @@
 package com.example.banking.jobs.statements;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
@@ -52,6 +55,17 @@ class MonthlyStatementGenerationJobTest {
         assertTrue(generationService.calls.contains("acc-1|" + previousMonth));
         assertTrue(generationService.calls.contains("acc-2|" + previousMonth));
         assertTrue(generationService.calls.contains("acc-3|" + previousMonth));
+    }
+
+    @Test
+    void accountRepositoryProxyCoversAllInvocationHandlerBranches() {
+        List<AccountEntity> seeded = List.of(account("acc-1"));
+        AccountJpaRepository accountJpaRepository = accountRepository(seeded);
+
+        assertSame(seeded, accountJpaRepository.findByDeletedAtIsNull());
+        assertFalse(accountJpaRepository.existsByCustomerId("cust-1"));
+        assertEquals(0, accountJpaRepository.hashCode());
+        assertNull(accountJpaRepository.save(account("acc-2")));
     }
 
     private AccountJpaRepository accountRepository(List<AccountEntity> accounts) {
