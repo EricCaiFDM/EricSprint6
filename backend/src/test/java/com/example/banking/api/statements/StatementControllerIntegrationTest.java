@@ -9,10 +9,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.startsWith;
 
 import java.time.YearMonth;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +47,14 @@ class StatementControllerIntegrationTest {
     @Autowired
     private JdbcTemplate jdbcTemplate;
 
+        private String expectedPdfStatementPeriodRange(String periodYearMonth) {
+                YearMonth period = YearMonth.parse(periodYearMonth);
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+                return formatter.format(period.atDay(1))
+                                + "-"
+                                + formatter.format(period.atEndOfMonth());
+        }
+
     private String createCustomer(String ownerUserId, String suffix) throws Exception {
         String payload = "{" +
                 "\"externalCustomerKey\":\"stmt-ext-" + suffix + "\"," +
@@ -68,7 +78,7 @@ class StatementControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + customerId + "\"," +
                 "\"accountType\":\"" + accountType + "\"," +
-                "\"currencyCode\":\"USD\"," +
+                                "\"currencyCode\":\"AUD\"," +
                 "\"nickname\":\"Statements " + accountType + "\"" +
                 "}";
 
@@ -144,11 +154,23 @@ class StatementControllerIntegrationTest {
                 .andExpect(header().string("Content-Disposition", containsString("statement-" + periodYearMonth + "-v1.pdf")))
                 .andExpect(content().string(startsWith("%PDF")))
                 .andExpect(content().string(containsString("NorthBridge Bank")))
+                .andExpect(content().string(containsString("Statement Ref: ")))
                 .andExpect(content().string(containsString("Account Summary")))
-                .andExpect(content().string(containsString("Balance Snapshot")))
+                .andExpect(content().string(containsString("Account Name: Statements CHECKING")))
+                .andExpect(content().string(containsString("Customer Name: Stacy Statement")))
+                .andExpect(content().string(containsString(
+                        "Statement Period: " + expectedPdfStatementPeriodRange(periodYearMonth))))
+                .andExpect(content().string(containsString("Generated Date: ")))
                 .andExpect(content().string(containsString("Statement Transactions")))
                 .andExpect(content().string(containsString("Deposit")))
-                .andExpect(content().string(containsString("+125.50 USD")));
+                .andExpect(content().string(containsString("+125.50 AUD")))
+                .andExpect(content().string(not(containsString("Account ID:"))))
+                .andExpect(content().string(not(containsString("Timezone:"))))
+                .andExpect(content().string(not(containsString("Generated:"))))
+                .andExpect(content().string(not(containsString("Status:"))))
+                .andExpect(content().string(not(containsString("Version:"))))
+                .andExpect(content().string(not(containsString("Balance Snapshot"))))
+                .andExpect(content().string(not(containsString("month-end UTC boundaries"))));
 
         mockMvc.perform(get("/statements")
                 .with(jwt().jwt(jwt -> jwt.claim("sub", "stmt-owner-100").claim("role", "CUSTOMER")))

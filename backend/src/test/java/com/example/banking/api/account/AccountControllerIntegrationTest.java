@@ -61,7 +61,7 @@ class AccountControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + customerId + "\"," +
                 "\"accountType\":\"" + accountType + "\"," +
-                "\"currencyCode\":\"USD\"," +
+                "\"currencyCode\":\"AUD\"," +
                 "\"nickname\":\"Main " + accountType + "\"" +
                 "}";
 
@@ -99,7 +99,7 @@ class AccountControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + customerId + "\"," +
                 "\"accountType\":\"SAVINGS\"," +
-                "\"currencyCode\":\"USD\"," +
+                "\"currencyCode\":\"AUD\"," +
                 "\"interestRate\":2.7500" +
                 "}";
 
@@ -225,7 +225,7 @@ class AccountControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + ownerCustomerId + "\"," +
                 "\"accountType\":\"CHECKING\"," +
-                "\"currencyCode\":\"USD\"" +
+                "\"currencyCode\":\"AUD\"" +
                 "}";
 
         mockMvc.perform(post("/accounts")
@@ -318,7 +318,7 @@ class AccountControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + customerId + "\"," +
                 "\"accountType\":\"BROKERAGE\"," +
-                "\"currencyCode\":\"USD\"" +
+                "\"currencyCode\":\"AUD\"" +
                 "}";
 
         mockMvc.perform(post("/accounts")

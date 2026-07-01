@@ -67,7 +67,7 @@ class StandingOrderControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + customerId + "\"," +
                 "\"accountType\":\"" + accountType + "\"," +
-                "\"currencyCode\":\"USD\"," +
+                                "\"currencyCode\":\"AUD\"," +
                 "\"nickname\":\"SO " + accountType + "\"" +
                 "}";
 

@@ -15,7 +15,7 @@ import {
   formatCustomerScopeOption,
   resolveCustomerIdFromScopeInput
 } from "../utils/customerScope";
-import { formatDateTime } from "../utils/formatting";
+import { formatDateTime, formatStatementPeriod } from "../utils/formatting";
 
 const emptyStatements: StatementListResult = {
   items: [],
@@ -380,7 +380,7 @@ export function StatementsPage() {
               <tbody>
                 {statements.items.map((statement) => (
                   <tr key={statement.statementId}>
-                    <td data-label="Period">{statement.periodYearMonth}</td>
+                    <td data-label="Period">{formatStatementPeriod(statement.periodYearMonth)}</td>
                     <td data-label="Version">v{statement.artifactVersion}</td>
                     <td data-label="Account">{statement.accountId}</td>
                     <td data-label="Generated">{formatDateTime(statement.generatedAtUtc)}</td>

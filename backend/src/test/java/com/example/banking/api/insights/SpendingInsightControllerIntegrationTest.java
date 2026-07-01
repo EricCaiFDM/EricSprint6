@@ -62,7 +62,7 @@ class SpendingInsightControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + customerId + "\"," +
                 "\"accountType\":\"" + accountType + "\"," +
-                "\"currencyCode\":\"USD\"," +
+                                "\"currencyCode\":\"AUD\"," +
                 "\"nickname\":\"Insights " + accountType + "\"" +
                 "}";
 

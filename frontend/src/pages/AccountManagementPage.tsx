@@ -32,7 +32,7 @@ export function AccountManagementPage() {
 
   const [openForm, setOpenForm] = useState<CreateCustomerAccountInput>({
     accountType: "CHECKING",
-    currencyCode: "USD",
+    currencyCode: "AUD",
     nickname: "",
     interestRate: 0
   });
@@ -194,7 +194,7 @@ export function AccountManagementPage() {
                     currencyCode: event.target.value
                   }))
                 }
-                placeholder="USD"
+                placeholder="AUD"
                 maxLength={3}
               />
             </label>

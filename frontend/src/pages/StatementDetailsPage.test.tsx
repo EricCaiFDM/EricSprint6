@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { StatementDetailsPage } from "./StatementDetailsPage";
 import * as statements from "../services/statements";
-import { formatDate } from "../utils/formatting";
+import { formatDate, formatStatementPeriod } from "../utils/formatting";
 
 jest.mock("../services/statements");
 
@@ -100,6 +100,7 @@ describe("StatementDetailsPage", () => {
     });
 
     const table = await screen.findByRole("table", { name: /Statement transactions table/i });
+    expect(await screen.findByText(formatStatementPeriod("2026-06"))).toBeInTheDocument();
     expect(within(table).getByRole("columnheader", { name: /^Date$/i })).toBeInTheDocument();
     expect(within(table).getByText(/Opening balance/i)).toBeInTheDocument();
     expect(within(table).getByText(/Ref txn-1/i)).toBeInTheDocument();

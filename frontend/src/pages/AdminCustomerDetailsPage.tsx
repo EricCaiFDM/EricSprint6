@@ -7,7 +7,7 @@ import { fetchCustomerDetails } from "../services/customers";
 import { fetchSpendingInsights } from "../services/insights";
 import { fetchStatements, type StatementListItem } from "../services/statements";
 import { fetchTransactionHistory } from "../services/transactions";
-import { formatCurrency, formatDate, formatDateTime } from "../utils/formatting";
+import { formatCurrency, formatDate, formatDateTime, formatStatementPeriod } from "../utils/formatting";
 
 type AccountStatements = {
   accountId: string;
@@ -320,7 +320,7 @@ export function AdminCustomerDetailsPage() {
                     {group.statements.map((statement) => (
                       <li key={statement.statementId} className="statement-item">
                         <div>
-                          <p className="item-title">{statement.periodYearMonth} · Version {statement.artifactVersion}</p>
+                          <p className="item-title">{formatStatementPeriod(statement.periodYearMonth)} · Version {statement.artifactVersion}</p>
                           <p className="item-meta">Generated {formatDateTime(statement.generatedAtUtc)}</p>
                         </div>
                         <span className={statement.status === "FAILED" ? "status-pill status-pill--warn" : "status-pill status-pill--ok"}>

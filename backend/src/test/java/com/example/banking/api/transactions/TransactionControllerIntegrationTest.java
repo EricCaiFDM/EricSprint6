@@ -61,7 +61,7 @@ class TransactionControllerIntegrationTest {
         String payload = "{" +
                 "\"customerId\":\"" + customerId + "\"," +
                 "\"accountType\":\"" + accountType + "\"," +
-                "\"currencyCode\":\"USD\"," +
+                                "\"currencyCode\":\"AUD\"," +
                 "\"nickname\":\"TX " + accountType + "\"" +
                 "}";
 

@@ -9,7 +9,7 @@ import {
 } from "../services/statements";
 import { getNormalizedTokenRole } from "../services/session";
 import type { TransactionItem } from "../services/transactions";
-import { formatCurrency, formatDate, formatDateTime } from "../utils/formatting";
+import { formatCurrency, formatDate, formatDateTime, formatStatementPeriod } from "../utils/formatting";
 
 type StatementLedgerRow = TransactionItem & {
   debitAmount: number | null;
@@ -201,7 +201,7 @@ export function StatementDetailsPage() {
               </div>
               <div>
                 <dt>Period</dt>
-                <dd>{statementDetailQuery.data.periodYearMonth}</dd>
+                <dd>{formatStatementPeriod(statementDetailQuery.data.periodYearMonth)}</dd>
               </div>
               <div>
                 <dt>Version</dt>

@@ -8,6 +8,7 @@ import * as customers from "../services/customers";
 import * as insights from "../services/insights";
 import * as statements from "../services/statements";
 import * as transactions from "../services/transactions";
+import { formatStatementPeriod } from "../utils/formatting";
 
 jest.mock("../services/accounts");
 jest.mock("../services/customers");
@@ -164,7 +165,7 @@ describe("AdminCustomerDetailsPage", () => {
     expect(await screen.findByText(/Paycheck/i)).toBeInTheDocument();
 
     expect(screen.getByRole("heading", { name: /Monthly statements/i })).toBeInTheDocument();
-    expect(await screen.findByText(/2026-06 · Version 1/i)).toBeInTheDocument();
+    expect(await screen.findByText(`${formatStatementPeriod("2026-06")} · Version 1`)).toBeInTheDocument();
     expect(await screen.findByText(/No statements found for this account./i)).toBeInTheDocument();
 
     await waitFor(() => {

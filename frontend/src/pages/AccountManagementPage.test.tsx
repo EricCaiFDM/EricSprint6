@@ -67,6 +67,15 @@ describe("AccountManagementPage", () => {
     });
   });
 
+  it("defaults account currency input to AUD", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    fetchAccountsMock.mockResolvedValue([]);
+
+    renderPage();
+
+    expect(await screen.findByLabelText(/Currency code/i)).toHaveValue("AUD");
+  });
+
   it("submits savings interest rate when creating savings account", async () => {
     const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
     const createCustomerAccountMock = accounts.createCustomerAccount as jest.MockedFunction<typeof accounts.createCustomerAccount>;
