@@ -4,7 +4,11 @@ import { Link, useParams } from "react-router-dom";
 
 import { fetchAccounts, type BankAccount } from "../services/accounts";
 import { fetchCustomerDetails } from "../services/customers";
-import { fetchSpendingInsights } from "../services/insights";
+import {
+  buildSpendingInsightMonthWindow,
+  currentLocalYearMonth,
+  fetchSpendingInsights
+} from "../services/insights";
 import { fetchStatements, type StatementListItem } from "../services/statements";
 import { fetchTransactionHistory } from "../services/transactions";
 import { formatCurrency, formatDate, formatDateTime, formatStatementPeriod } from "../utils/formatting";
@@ -18,12 +22,20 @@ type AccountStatements = {
 
 const STATEMENTS_PAGE_SIZE = 6;
 const TRANSACTIONS_PAGE_SIZE = 20;
+const PERIOD_YEAR_MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
 
 export function AdminCustomerDetailsPage() {
   const { customerId: routeCustomerId } = useParams<{ customerId: string }>();
   const customerId = routeCustomerId?.trim() ?? "";
+  const currentYearMonth = currentLocalYearMonth();
 
   const [selectedAccountId, setSelectedAccountId] = useState("");
+  const [selectedInsightYearMonth, setSelectedInsightYearMonth] = useState(currentYearMonth);
+
+  const selectedInsightPeriod = useMemo(
+    () => buildSpendingInsightMonthWindow(selectedInsightYearMonth),
+    [selectedInsightYearMonth]
+  );
 
   const customerQuery = useQuery({
     queryKey: ["admin", "customers", "details", customerId],
@@ -38,11 +50,20 @@ export function AdminCustomerDetailsPage() {
   });
 
   const insightsQuery = useQuery({
-    queryKey: ["admin", "customers", customerId, "insights"],
+    queryKey: [
+      "admin",
+      "customers",
+      customerId,
+      "insights",
+      selectedInsightPeriod.periodStartUtc,
+      selectedInsightPeriod.periodEndUtc
+    ],
     queryFn: () =>
       fetchSpendingInsights({
         scopeType: "CUSTOMER",
-        scopeId: customerId
+        scopeId: customerId,
+        periodStartUtc: selectedInsightPeriod.periodStartUtc,
+        periodEndUtc: selectedInsightPeriod.periodEndUtc
       }),
     enabled: Boolean(customerId)
   });
@@ -197,13 +218,28 @@ export function AdminCustomerDetailsPage() {
 
         <article className="surface-card">
           <h3>Spending insights</h3>
+          <label>
+            Insight month
+            <input
+              type="month"
+              value={selectedInsightYearMonth}
+              max={currentYearMonth}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                if (PERIOD_YEAR_MONTH_PATTERN.test(nextValue)) {
+                  setSelectedInsightYearMonth(nextValue);
+                }
+              }}
+            />
+          </label>
           {insightsQuery.isPending ? <p className="hint-text">Loading spending insights...</p> : null}
           {insightsQuery.isError ? (
             <p className="hint-text">Unable to load spending insights: {(insightsQuery.error as Error).message}</p>
           ) : null}
           {insightsQuery.data ? (
             <>
-              <p className="item-title">{insightsQuery.data.periodLabel}</p>
+              <p className="item-title">{selectedInsightPeriod.monthLabel}</p>
+              <p className="item-meta">Spending period: {selectedInsightPeriod.rangeLabel}</p>
               <p className="summary-value">{formatCurrency(insightsQuery.data.totalSpend, insightsQuery.data.currency)}</p>
               {insightsQuery.data.confidenceLevel === "LOW" ? (
                 <p className="hint-text">Insights are warming up as more spending activity is captured.</p>

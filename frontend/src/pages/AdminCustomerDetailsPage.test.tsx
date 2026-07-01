@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { AdminCustomerDetailsPage } from "./AdminCustomerDetailsPage";
@@ -12,9 +12,29 @@ import { formatStatementPeriod } from "../utils/formatting";
 
 jest.mock("../services/accounts");
 jest.mock("../services/customers");
-jest.mock("../services/insights");
+jest.mock("../services/insights", () => {
+  const actual = jest.requireActual("../services/insights");
+  return {
+    ...actual,
+    fetchSpendingInsights: jest.fn()
+  };
+});
 jest.mock("../services/statements");
 jest.mock("../services/transactions");
+
+function expectedMonthQuery(periodYearMonth: string): { periodStartUtc: string; periodEndUtc: string } {
+  const [yearPart, monthPart] = periodYearMonth.split("-");
+  const year = Number(yearPart);
+  const monthIndex = Number(monthPart) - 1;
+
+  const startLocal = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const endExclusiveLocal = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
+
+  return {
+    periodStartUtc: startLocal.toISOString(),
+    periodEndUtc: endExclusiveLocal.toISOString()
+  };
+}
 
 describe("AdminCustomerDetailsPage", () => {
   function renderPage(initialPath = "/admin/customers/cust-77") {
@@ -40,6 +60,8 @@ describe("AdminCustomerDetailsPage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date("2026-07-15T12:00:00.000Z"));
 
     (customers.fetchCustomerDetails as jest.MockedFunction<typeof customers.fetchCustomerDetails>).mockResolvedValue({
       customerId: "cust-77",
@@ -154,7 +176,8 @@ describe("AdminCustomerDetailsPage", () => {
     expect(await screen.findByRole("heading", { name: /Customer profile overview/i })).toBeInTheDocument();
     expect(await screen.findByText(/Alex Morgan/i)).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Spending insights/i })).toBeInTheDocument();
-    expect(screen.getByText(/June 2026/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Insight month/i)).toHaveValue("2026-07");
+    expect(screen.getByText(/Spending period:/i)).toBeInTheDocument();
     expect(screen.getByText(/Groceries/i)).toBeInTheDocument();
 
     expect(screen.getByRole("heading", { name: /^Accounts$/i })).toBeInTheDocument();
@@ -187,7 +210,32 @@ describe("AdminCustomerDetailsPage", () => {
       });
       expect(insights.fetchSpendingInsights).toHaveBeenCalledWith({
         scopeType: "CUSTOMER",
-        scopeId: "cust-77"
+        scopeId: "cust-77",
+        ...expectedMonthQuery("2026-07")
+      });
+    });
+  });
+
+  it("allows admin to choose a specific insights month", async () => {
+    renderPage();
+
+    await waitFor(() => {
+      expect(insights.fetchSpendingInsights).toHaveBeenCalledWith({
+        scopeType: "CUSTOMER",
+        scopeId: "cust-77",
+        ...expectedMonthQuery("2026-07")
+      });
+    });
+
+    fireEvent.change(screen.getByLabelText(/Insight month/i), {
+      target: { value: "2026-05" }
+    });
+
+    await waitFor(() => {
+      expect(insights.fetchSpendingInsights).toHaveBeenLastCalledWith({
+        scopeType: "CUSTOMER",
+        scopeId: "cust-77",
+        ...expectedMonthQuery("2026-05")
       });
     });
   });
@@ -200,5 +248,9 @@ describe("AdminCustomerDetailsPage", () => {
 
     expect(await screen.findByText(/Unable to load customer profile: Customer lookup failed/i)).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: /Spending insights/i })).toBeInTheDocument();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 });
