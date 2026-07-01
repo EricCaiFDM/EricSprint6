@@ -95,6 +95,7 @@
 - [X] T028 [P] Align endpoint behavior and payload details with contract in specs/002-authentication/contracts/openapi.yaml
 - [X] T029 Update executable verification steps in specs/002-authentication/quickstart.md
 - [X] T030 Run full quickstart scenario validation and record outcomes in specs/002-authentication/quickstart.md
+- [X] T031 Add exhaustive AuthService branch coverage tests in backend/src/test/java/com/example/banking/services/AuthServiceTest.java
 
 ---
 

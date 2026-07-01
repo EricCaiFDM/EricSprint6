@@ -4,9 +4,12 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.math.BigDecimal;
@@ -22,6 +25,7 @@ import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 
 import com.example.banking.api.common.ApiErrorException;
@@ -387,6 +391,58 @@ class SpendingInsightServiceTest {
     }
 
     @Test
+    void getInsightsApiExceptionInPipelineMapsForbiddenOutcomeToDeniedPermission() {
+        guardDouble.scope = new InsightAccessGuard.InsightScope(
+                "ACCOUNT",
+                "acc-forbidden",
+                Instant.parse("2026-06-01T00:00:00Z"),
+                Instant.parse("2026-06-30T23:59:59Z"),
+                List.of());
+
+        transactionRepositoryDouble.queueAccountResponse(List.of(transaction(TransactionType.WITHDRAWAL, "USD", "10.00")));
+        visibilityDouble.queueVisibleTransactions(List.of(transaction(TransactionType.WITHDRAWAL, "USD", "10.00")));
+        aggregationDouble.apiException = InsightErrors.forbidden();
+
+        ApiErrorException exception = captureGetInsightsError(
+                query("ACCOUNT", "acc-forbidden", null),
+                "actor-forbidden",
+                "ADMIN");
+
+        assertNotNull(exception);
+        assertEquals("INSIGHT_FORBIDDEN", exception.getCode());
+        assertEquals(1, retrievalEventRepositoryDouble.saved.size());
+        assertEquals("DENIED_PERMISSION", retrievalEventRepositoryDouble.saved.get(0).getOutcome());
+        assertEquals("INSIGHT_FORBIDDEN", retrievalEventRepositoryDouble.saved.get(0).getReasonCode());
+        assertEquals(0, insightRepositoryDouble.saved.size());
+    }
+
+    @Test
+    void getInsightsApiExceptionInPipelineMapsValidationOutcomeToInvalidFilter() {
+        guardDouble.scope = new InsightAccessGuard.InsightScope(
+                "ACCOUNT",
+                "acc-validation",
+                Instant.parse("2026-06-01T00:00:00Z"),
+                Instant.parse("2026-06-30T23:59:59Z"),
+                List.of());
+
+        transactionRepositoryDouble.queueAccountResponse(List.of(transaction(TransactionType.WITHDRAWAL, "USD", "10.00")));
+        visibilityDouble.queueVisibleTransactions(List.of(transaction(TransactionType.WITHDRAWAL, "USD", "10.00")));
+        aggregationDouble.apiException = InsightErrors.validation("invalid filter", "categoryFilters");
+
+        ApiErrorException exception = captureGetInsightsError(
+                query("ACCOUNT", "acc-validation", null),
+                "actor-validation",
+                "ADMIN");
+
+        assertNotNull(exception);
+        assertEquals("INSIGHT_VALIDATION_ERROR", exception.getCode());
+        assertEquals(1, retrievalEventRepositoryDouble.saved.size());
+        assertEquals("INVALID_FILTER", retrievalEventRepositoryDouble.saved.get(0).getOutcome());
+        assertEquals("INSIGHT_VALIDATION_ERROR", retrievalEventRepositoryDouble.saved.get(0).getReasonCode());
+        assertEquals(0, insightRepositoryDouble.saved.size());
+    }
+
+    @Test
     void getInsightsRuntimeExceptionIsWrappedAsDependencyFailure() {
         guardDouble.scope = new InsightAccessGuard.InsightScope(
                 "ACCOUNT",
@@ -409,14 +465,136 @@ class SpendingInsightServiceTest {
     }
 
     @Test
+    void getInsightsRuntimeExceptionInCustomerScopeIsWrappedAsDependencyFailure() {
+        guardDouble.scope = new InsightAccessGuard.InsightScope(
+                "CUSTOMER",
+                "cust-9",
+                Instant.parse("2026-06-01T00:00:00Z"),
+                Instant.parse("2026-06-30T23:59:59Z"),
+                List.of());
+        transactionRepositoryDouble.customerException = new RuntimeException("customer query failed");
+
+        ApiErrorException exception = captureGetInsightsError(
+                query("CUSTOMER", "cust-9", null),
+                "actor-9",
+                "CUSTOMER");
+
+        assertNotNull(exception);
+        assertEquals("INSIGHT_DEPENDENCY_FAILURE", exception.getCode());
+        assertEquals(1, transactionRepositoryDouble.customerPeriodCalls);
+        assertEquals(0, transactionRepositoryDouble.accountPeriodCalls);
+        assertEquals("FAILED_DEPENDENCY", retrievalEventRepositoryDouble.saved.get(0).getOutcome());
+        assertEquals("INSIGHT_DEPENDENCY_FAILURE", retrievalEventRepositoryDouble.saved.get(0).getReasonCode());
+    }
+
+    @Test
     void validateCategoryFiltersReturnsEmptySetForNullInput() {
         Set<String> normalized = invokeValidateCategoryFilters(null);
         assertTrue(normalized.isEmpty());
     }
 
     @Test
+    void validateCategoryFiltersRejectsUnsupportedCategoryViaInvokeHelper() {
+        taxonomyDouble.supportedCodes = Set.of("CASH_WITHDRAWAL");
+
+        ApiErrorException exception = assertThrows(ApiErrorException.class,
+                () -> invokeValidateCategoryFilters(List.of("TRAVEL")));
+
+        assertEquals("INSIGHT_VALIDATION_ERROR", exception.getCode());
+        assertEquals("categoryFilters", exception.getField());
+    }
+
+    @Test
+    void validateCategoryFiltersReturnsDeduplicatedSetForSupportedValues() {
+        taxonomyDouble.supportedCodes = Set.of("CASH_WITHDRAWAL", "TRANSFER_OUT");
+
+        Set<String> normalized = invokeValidateCategoryFilters(List.of(
+                "CASH_WITHDRAWAL",
+                "TRANSFER_OUT",
+                "CASH_WITHDRAWAL"));
+
+        assertEquals(Set.of("CASH_WITHDRAWAL", "TRANSFER_OUT"), normalized);
+    }
+
+    @Test
     void resolveCurrencyReturnsUsdForNullTransactionsList() {
         assertEquals("USD", invokeResolveCurrency(null));
+    }
+
+    @Test
+    void resolveCurrencyReturnsUsdForEmptyAndBlankCurrencyTransactions() {
+        assertEquals("USD", invokeResolveCurrency(List.of()));
+
+        List<TransactionEntity> blankCurrencies = List.of(
+                transaction(TransactionType.WITHDRAWAL, " ", "1.00"),
+                transaction(TransactionType.WITHDRAWAL, null, "2.00"));
+        assertEquals("USD", invokeResolveCurrency(blankCurrencies));
+    }
+
+    @Test
+    void resolveCurrencyReturnsFirstNonBlankCurrency() {
+        List<TransactionEntity> mixedCurrencies = List.of(
+                transaction(TransactionType.WITHDRAWAL, " ", "1.00"),
+                transaction(TransactionType.WITHDRAWAL, "EUR", "2.00"),
+                transaction(TransactionType.WITHDRAWAL, "USD", "3.00"));
+
+        assertEquals("EUR", invokeResolveCurrency(mixedCurrencies));
+    }
+
+    @Test
+    void invocationHandlersCoverSaveAndFallbackBranchesAcrossRepositoryDoubles() {
+        TransactionRepository transactionRepository = transactionRepositoryDouble.proxy();
+        TransactionEntity transaction = transaction(TransactionType.DEPOSIT, "USD", "1.00");
+        assertSame(transaction, transactionRepository.save(transaction));
+        List<TransactionEntity> batch = List.of(transaction);
+        assertEquals(batch, transactionRepository.saveAll(batch));
+        assertTrue(transactionRepository.findById("missing").isEmpty());
+        assertTrue(transactionRepository.findAccountTransactionsForPeriod("acc", Instant.now(), Instant.now()).isEmpty());
+        assertTrue(transactionRepository.findCustomerTransactionsForPeriod("cust", Instant.now(), Instant.now()).isEmpty());
+        assertTrue(transactionRepository.findAccountHistory(
+                "acc",
+                Instant.now(),
+                Instant.now(),
+                null,
+                PageRequest.of(0, 10)).isEmpty());
+        assertTrue(transactionRepository.findCustomerHistory(
+                "cust",
+                Instant.now(),
+                Instant.now(),
+                null,
+                PageRequest.of(0, 10)).isEmpty());
+
+        SpendingInsightRequestRepository requestRepository = requestRepositoryDouble.proxy();
+        SpendingInsightRequest request = new SpendingInsightRequest();
+        assertNotNull(requestRepository.save(request).getRequestId());
+        assertTrue(requestRepository.findById("missing").isEmpty());
+        assertTrue(requestRepository.findAll().isEmpty());
+
+        SpendingInsightRepository insightRepository = insightRepositoryDouble.proxy();
+        SpendingInsight insight = new SpendingInsight();
+        assertNotNull(insightRepository.save(insight).getInsightId());
+        assertTrue(insightRepository.findById("missing").isEmpty());
+        assertTrue(insightRepository.findAll().isEmpty());
+
+        InsightCategorySummaryRepository categoryRepository = categorySummaryRepositoryDouble.proxy();
+        InsightCategorySummary summary = new InsightCategorySummary();
+        assertNotNull(categoryRepository.save(summary).getSummaryId());
+        assertFalse(categoryRepository.saveAll(List.of(new InsightCategorySummary())).isEmpty());
+        assertTrue(categoryRepository.findById("missing").isEmpty());
+        assertTrue(categoryRepository.findAll().isEmpty());
+
+        InsightConfidenceMetadataRepository confidenceRepository = confidenceMetadataRepositoryDouble.proxy();
+        InsightConfidenceMetadata metadata = new InsightConfidenceMetadata();
+        assertNotNull(confidenceRepository.save(metadata).getConfidenceId());
+        assertTrue(confidenceRepository.findById("missing").isEmpty());
+        assertTrue(confidenceRepository.findAll().isEmpty());
+
+        InsightRetrievalEventRepository retrievalRepository = retrievalEventRepositoryDouble.proxy();
+        InsightRetrievalEvent event = new InsightRetrievalEvent();
+        assertNotNull(retrievalRepository.save(event).getEventId());
+        assertNotNull(event.getOccurredAtUtc());
+        assertTrue(retrievalRepository.findById("missing").isEmpty());
+        assertTrue(retrievalRepository.findAll().isEmpty());
     }
 
     private ApiErrorException captureGetInsightsError(SpendingInsightQuery query, String actorUserId, String role) {
@@ -466,6 +644,12 @@ class SpendingInsightServiceTest {
             Method method = SpendingInsightService.class.getDeclaredMethod("validateCategoryFilters", List.class);
             method.setAccessible(true);
             return (Set<String>) method.invoke(service, categoryFilters);
+        } catch (InvocationTargetException exception) {
+            Throwable target = exception.getTargetException();
+            if (target instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new AssertionError(target);
         } catch (ReflectiveOperationException exception) {
             throw new AssertionError(exception);
         }
@@ -476,6 +660,12 @@ class SpendingInsightServiceTest {
             Method method = SpendingInsightService.class.getDeclaredMethod("resolveCurrency", List.class);
             method.setAccessible(true);
             return (String) method.invoke(service, transactions);
+        } catch (InvocationTargetException exception) {
+            Throwable target = exception.getTargetException();
+            if (target instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new AssertionError(target);
         } catch (ReflectiveOperationException exception) {
             throw new AssertionError(exception);
         }

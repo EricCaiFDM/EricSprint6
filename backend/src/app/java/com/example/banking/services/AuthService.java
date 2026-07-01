@@ -146,12 +146,16 @@ public class AuthService {
 
     private String hash(String plainText) {
         try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            MessageDigest digest = createMessageDigest();
             byte[] hash = digest.digest(plainText.getBytes(StandardCharsets.UTF_8));
             return Base64.getEncoder().encodeToString(hash);
         } catch (NoSuchAlgorithmException ex) {
             throw new IllegalStateException("Hash algorithm unavailable", ex);
         }
+    }
+
+    protected MessageDigest createMessageDigest() throws NoSuchAlgorithmException {
+        return MessageDigest.getInstance("SHA-256");
     }
 
     private String normalizeIdentity(String identity) {
