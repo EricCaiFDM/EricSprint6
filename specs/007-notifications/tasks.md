@@ -91,6 +91,8 @@
 - [X] T037 Add global snackbar-style notification alert in app shell with regression coverage in frontend/src/App.tsx and frontend/src/App.test.tsx
 - [X] T038 Add tablet/mobile burger-menu navigation that stays fixed on the left while scrolling and expands/collapses in frontend/src/App.tsx, frontend/src/styles.css, and frontend/src/App.test.tsx
 - [X] T039 Add dashboard welcome section using the signed-in customer name with regression coverage in frontend/src/pages/DashboardPage.tsx and frontend/src/pages/DashboardPage.test.tsx
+- [X] T040 Add Swagger/OpenAPI backend documentation with public docs endpoints and regression coverage in backend/pom.xml, backend/src/app/java/com/example/banking/lib/config/SecurityConfig.java, and backend/src/test/java/com/example/banking/api/common/ApiDocumentationIntegrationTest.java
+- [X] T041 Add per-endpoint Swagger summaries and descriptions for backend APIs in backend/src/app/java/com/example/banking/lib/config/OpenApiConfig.java with docs contract checks in backend/src/test/java/com/example/banking/api/common/ApiDocumentationIntegrationTest.java
 
 ---
 
