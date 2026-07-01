@@ -25,8 +25,8 @@ Feature specifications, plans, and OpenAPI contracts are maintained under `specs
 - Spring Boot 3.3.x
 - Spring Web, Validation, Security, Data JPA
 - Springdoc OpenAPI (Swagger UI)
-- MySQL (runtime default)
-- H2 (local/test usage)
+- MySQL (runtime and local default)
+- H2 (test usage)
 
 ### Frontend
 
@@ -70,7 +70,7 @@ Install the following before running locally:
 
 - Java 21+
 - Node.js 20+ and npm
-- MySQL 8+ (or configure local profile for H2 where applicable)
+- MySQL 8+
 
 ## Local Setup
 
@@ -135,7 +135,10 @@ With backend running:
 cd frontend
 npm test
 npm run test:coverage
+npm run test:prism
 ```
+
+`npm run test:prism` executes integration-style contract checks against Prism mock servers for all feature OpenAPI contracts under `specs/*/contracts/openapi.yaml`.
 
 ### Backend
 
