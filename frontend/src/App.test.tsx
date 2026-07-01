@@ -84,6 +84,34 @@ describe("App", () => {
     expect(screen.queryByRole("link", { name: /^Admin Dashboard$/i })).not.toBeInTheDocument();
   });
 
+  it("toggles the burger menu open and closed", async () => {
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "customer-nav-toggle",
+        email: "customer.nav@example.com",
+        role: "CUSTOMER"
+      })
+    );
+
+    renderApp("/customer/dashboard");
+
+    const menuButton = await screen.findByRole("button", { name: /^Menu$/i });
+    expect(menuButton).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(menuButton);
+
+    const closeMenuButton = screen.getByRole("button", { name: /^Close menu$/i });
+    expect(closeMenuButton).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(closeMenuButton);
+
+    expect(screen.getByRole("button", { name: /^Menu$/i })).toHaveAttribute("aria-expanded", "false");
+  });
+
   it("shows an on-screen alert when a newer customer notification arrives", async () => {
     jest.useFakeTimers();
 

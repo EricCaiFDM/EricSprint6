@@ -51,6 +51,7 @@ export default function App() {
   const location = useLocation();
   const [authState, setAuthState] = useState<AuthState>(() => readAuthState());
   const [screenAlert, setScreenAlert] = useState<string | null>(null);
+  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const latestNotificationIdRef = useRef<string | null>(null);
   const { isAuthenticated, role } = authState;
   const shouldTrackCustomerFeed = isAuthenticated && role === "CUSTOMER";
@@ -133,6 +134,10 @@ export default function App() {
       window.clearTimeout(timeoutId);
     };
   }, [screenAlert]);
+
+  useEffect(() => {
+    setIsNavMenuOpen(false);
+  }, [location.pathname, isAuthenticated, role]);
 
   const healthState: "checking" | "online" | "offline" = healthQuery.isPending
     ? "checking"
@@ -228,37 +233,59 @@ export default function App() {
           </li>
         </ul>
       </header>
-      <nav className="main-nav" aria-label="Primary banking navigation">
-        {navLinks.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) => (isActive ? "main-nav-link active" : "main-nav-link")}
-          >
-            {link.label}
-          </NavLink>
-        ))}
-        {showAdminSwitch ? (
-          <NavLink
-            to="/security/login"
-            className={({ isActive }) =>
-              isActive
-                ? "main-nav-link main-nav-link--admin-switch active"
-                : "main-nav-link main-nav-link--admin-switch"
-            }
-          >
-            Admin Pages
-          </NavLink>
-        ) : null}
-        {isAuthenticated ? (
-          <button
-            type="button"
-            className="main-nav-action main-nav-action--logout"
-            onClick={onLogout}
-          >
-            Log out
-          </button>
-        ) : null}
+      <nav className={isNavMenuOpen ? "main-nav main-nav--open" : "main-nav"} aria-label="Primary banking navigation">
+        <button
+          type="button"
+          className="main-nav-toggle"
+          aria-expanded={isNavMenuOpen}
+          aria-controls="primary-banking-nav-links"
+          onClick={() => setIsNavMenuOpen((isOpen) => !isOpen)}
+        >
+          <span className="main-nav-toggle-icon" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>{isNavMenuOpen ? "Close menu" : "Menu"}</span>
+        </button>
+
+        <div id="primary-banking-nav-links" className="main-nav-links">
+          {navLinks.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) => (isActive ? "main-nav-link active" : "main-nav-link")}
+              onClick={() => setIsNavMenuOpen(false)}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+          {showAdminSwitch ? (
+            <NavLink
+              to="/security/login"
+              className={({ isActive }) =>
+                isActive
+                  ? "main-nav-link main-nav-link--admin-switch active"
+                  : "main-nav-link main-nav-link--admin-switch"
+              }
+              onClick={() => setIsNavMenuOpen(false)}
+            >
+              Admin Pages
+            </NavLink>
+          ) : null}
+          {isAuthenticated ? (
+            <button
+              type="button"
+              className="main-nav-action main-nav-action--logout"
+              onClick={() => {
+                setIsNavMenuOpen(false);
+                onLogout();
+              }}
+            >
+              Log out
+            </button>
+          ) : null}
+        </div>
       </nav>
 
       {screenAlert ? (

@@ -1,11 +1,16 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchAccounts } from "../services/accounts";
+import { fetchCustomerProfile } from "../services/customers";
 import { fetchRecentTransactions, type TransactionItem } from "../services/transactions";
 import { fetchStandingOrders } from "../services/standingOrders";
 import { formatCurrency, formatDate, formatDateTime } from "../utils/formatting";
 
 export function DashboardPage() {
+  const profileQuery = useQuery({
+    queryKey: ["customers", "self", "dashboard-welcome"],
+    queryFn: fetchCustomerProfile
+  });
   const accountsQuery = useQuery({
     queryKey: ["accounts"],
     queryFn: () => fetchAccounts()
@@ -40,6 +45,7 @@ export function DashboardPage() {
     [accounts]
   );
 
+  const customerName = profileQuery.data?.fullName?.trim() ? profileQuery.data.fullName.trim() : "Customer";
   const upcomingCount = standingOrders.filter((order) => order.lifecycleState === "ACTIVE").length;
 
   return (
@@ -52,6 +58,11 @@ export function DashboardPage() {
           </p>
         </div>
       </header>
+
+      <article className="surface-card dashboard-welcome-card" aria-label="Welcome message">
+        <h3>Welcome back, {customerName}</h3>
+        <p className="hint-text">Here is a quick look at your banking activity today.</p>
+      </article>
 
       <section className="summary-grid" aria-label="Account summaries">
         <article className="summary-card">
