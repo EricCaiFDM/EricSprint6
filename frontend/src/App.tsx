@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { checkHealth } from "./services/api";
+import { fetchRecentNotifications } from "./services/notifications";
 import {
   clearAuthSession,
   getAccessToken,
@@ -47,8 +48,12 @@ function roleWorkspacePrefix(role: UserRole): "admin" | "customer" {
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [authState, setAuthState] = useState<AuthState>(() => readAuthState());
+  const [screenAlert, setScreenAlert] = useState<string | null>(null);
+  const latestNotificationIdRef = useRef<string | null>(null);
   const { isAuthenticated, role } = authState;
+  const shouldTrackCustomerFeed = isAuthenticated && role === "CUSTOMER";
 
   useEffect(() => {
     const syncAuthState = () => {
@@ -70,6 +75,64 @@ export default function App() {
     queryFn: checkHealth,
     retry: 0
   });
+
+  const notificationFeedQuery = useQuery({
+    queryKey: ["notification-feed"],
+    queryFn: fetchRecentNotifications,
+    enabled: shouldTrackCustomerFeed,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true
+  });
+
+  useEffect(() => {
+    if (shouldTrackCustomerFeed) {
+      return;
+    }
+    latestNotificationIdRef.current = null;
+    setScreenAlert(null);
+  }, [shouldTrackCustomerFeed]);
+
+  useEffect(() => {
+    const latest = notificationFeedQuery.data?.[0];
+    if (!latest) {
+      return;
+    }
+
+    if (latestNotificationIdRef.current === null) {
+      latestNotificationIdRef.current = latest.notificationId;
+      return;
+    }
+
+    if (latest.notificationId === latestNotificationIdRef.current) {
+      return;
+    }
+
+    latestNotificationIdRef.current = latest.notificationId;
+
+    if (location.pathname !== "/customer/notifications") {
+      setScreenAlert(`New alert: ${latest.title}`);
+    }
+  }, [location.pathname, notificationFeedQuery.data]);
+
+  useEffect(() => {
+    if (location.pathname === "/customer/notifications" && screenAlert) {
+      setScreenAlert(null);
+    }
+  }, [location.pathname, screenAlert]);
+
+  useEffect(() => {
+    if (!screenAlert) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setScreenAlert(null);
+    }, 4500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [screenAlert]);
 
   const healthState: "checking" | "online" | "offline" = healthQuery.isPending
     ? "checking"
@@ -197,6 +260,15 @@ export default function App() {
           </button>
         ) : null}
       </nav>
+
+      {screenAlert ? (
+        <aside className="screen-snackbar" role="alert" aria-live="assertive" aria-atomic="true">
+          <p className="screen-snackbar-message">{screenAlert}</p>
+          <button type="button" className="screen-snackbar-dismiss" onClick={() => setScreenAlert(null)}>
+            Dismiss
+          </button>
+        </aside>
+      ) : null}
 
       <section className="content-layout">
         <section className="content-surface">

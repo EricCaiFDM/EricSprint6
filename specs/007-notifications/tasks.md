@@ -88,6 +88,7 @@
 - [X] T034 Add GET /notifications/events feed endpoint and repository query support in backend/src/app/java/com/example/banking/api/notifications/routes/ListRecentNotificationsRoute.java
 - [X] T035 Add frontend live-alert banner behavior and polling in frontend/src/pages/NotificationsPage.tsx
 - [X] T036 Add backend/frontend regression tests for notifications feed and live-alert updates in backend/src/test/java/com/example/banking/api/notifications/NotificationControllerIntegrationTest.java
+- [X] T037 Add global snackbar-style notification alert in app shell with regression coverage in frontend/src/App.tsx and frontend/src/App.test.tsx
 
 ---
 

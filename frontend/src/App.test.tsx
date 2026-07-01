@@ -1,10 +1,12 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
 import * as api from "./services/api";
+import * as notifications from "./services/notifications";
 
 jest.mock("./services/api");
+jest.mock("./services/notifications");
 
 function createMockJwt(claims: Record<string, string>): string {
   const payload = window
@@ -38,6 +40,12 @@ describe("App", () => {
   beforeEach(() => {
     window.localStorage.clear();
     jest.clearAllMocks();
+
+    (notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>).mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("renders public navigation when signed out", async () => {
@@ -74,6 +82,73 @@ describe("App", () => {
     expect(screen.queryByRole("link", { name: /^Admin Pages$/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /^Log out$/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /^Admin Dashboard$/i })).not.toBeInTheDocument();
+  });
+
+  it("shows an on-screen alert when a newer customer notification arrives", async () => {
+    jest.useFakeTimers();
+
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    const feedMock = notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>;
+    feedMock.mockResolvedValueOnce([
+      {
+        notificationId: "notif-1",
+        title: "Deposit posted",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:00Z",
+        level: "Info"
+      }
+    ]);
+    feedMock.mockResolvedValueOnce([
+      {
+        notificationId: "notif-2",
+        title: "Transfer completed",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:05Z",
+        level: "Info"
+      },
+      {
+        notificationId: "notif-1",
+        title: "Deposit posted",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:00Z",
+        level: "Info"
+      }
+    ]);
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "customer-global-alert",
+        email: "customer.alert@example.com",
+        role: "CUSTOMER"
+      })
+    );
+
+    renderApp("/customer/dashboard");
+
+    expect(await screen.findByRole("heading", { name: /^Dashboard$/i })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(feedMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    await waitFor(() => {
+      expect(feedMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("New alert: Transfer completed");
+
+    fireEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
   });
 
   it("renders admin navigation for ADMIN role", async () => {
