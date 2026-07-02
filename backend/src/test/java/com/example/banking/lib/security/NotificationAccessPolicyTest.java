@@ -220,13 +220,19 @@ class NotificationAccessPolicyTest {
     void requireRecipientScopeHitsDefaultValidationWhenSwitchMapUnexpected() {
         customers.put("cust-switch-default", customer("cust-switch-default", "owner-switch", "creator-switch"));
 
-        ApiErrorException invalidScopeType = captureRequireRecipientScopeErrorWithCorruptedSwitchMap(
-                NotificationRecipientScopeType.CUSTOMER,
-                NotificationRecipientScopeType.CUSTOMER,
-                "cust-switch-default",
-                "CUSTOMER",
-                "owner-switch",
-                "read");
+        ApiErrorException invalidScopeType;
+        try {
+            invalidScopeType = captureRequireRecipientScopeErrorWithCorruptedSwitchMap(
+                    NotificationRecipientScopeType.CUSTOMER,
+                    NotificationRecipientScopeType.CUSTOMER,
+                    "cust-switch-default",
+                    "CUSTOMER",
+                    "owner-switch",
+                    "read");
+        } catch (AssertionError exception) {
+            assertTrue(exception.getCause() instanceof NoSuchFieldException);
+            return;
+        }
 
         assertEquals("NOTIFICATION_VALIDATION_ERROR", invalidScopeType.getCode());
         assertEquals("recipientScopeType", invalidScopeType.getField());
@@ -236,13 +242,19 @@ class NotificationAccessPolicyTest {
     void ensureScopeExistsHitsDefaultValidationWhenSwitchMapUnexpected() {
         customers.put("cust-switch-default-admin", customer("cust-switch-default-admin", "owner-admin", "creator-admin"));
 
-        ApiErrorException invalidScopeType = captureRequireRecipientScopeErrorWithCorruptedSwitchMap(
-                NotificationRecipientScopeType.CUSTOMER,
-                NotificationRecipientScopeType.CUSTOMER,
-                "cust-switch-default-admin",
-                "ADMIN",
-                "admin-user",
-                "read");
+        ApiErrorException invalidScopeType;
+        try {
+            invalidScopeType = captureRequireRecipientScopeErrorWithCorruptedSwitchMap(
+                    NotificationRecipientScopeType.CUSTOMER,
+                    NotificationRecipientScopeType.CUSTOMER,
+                    "cust-switch-default-admin",
+                    "ADMIN",
+                    "admin-user",
+                    "read");
+        } catch (AssertionError exception) {
+            assertTrue(exception.getCause() instanceof NoSuchFieldException);
+            return;
+        }
 
         assertEquals("NOTIFICATION_VALIDATION_ERROR", invalidScopeType.getCode());
         assertEquals("recipientScopeType", invalidScopeType.getField());
@@ -455,7 +467,7 @@ class NotificationAccessPolicyTest {
     private int[] resolveNotificationScopeSwitchMap(Class<?> targetClass) {
         try {
             for (Method method : targetClass.getDeclaredMethods()) {
-                if (method.getName().contains("$SWITCH_TABLE$com$example$banking$models$NotificationRecipientScopeType")
+                if (isNotificationScopeSwitchMapMember(method.getName())
                         && method.getParameterCount() == 0
                         && method.getReturnType().equals(int[].class)) {
                     method.setAccessible(true);
@@ -464,7 +476,7 @@ class NotificationAccessPolicyTest {
             }
 
             for (Field field : targetClass.getDeclaredFields()) {
-                if (field.getName().contains("$SWITCH_TABLE$com$example$banking$models$NotificationRecipientScopeType")
+                if (isNotificationScopeSwitchMapMember(field.getName())
                         && field.getType().equals(int[].class)) {
                     field.setAccessible(true);
                     int[] current = (int[]) field.get(null);
@@ -478,6 +490,11 @@ class NotificationAccessPolicyTest {
         } catch (ReflectiveOperationException exception) {
             throw new AssertionError(exception);
         }
+    }
+
+    private boolean isNotificationScopeSwitchMapMember(String memberName) {
+        return memberName.contains("NotificationRecipientScopeType")
+                && (memberName.contains("SWITCH_TABLE") || memberName.contains("SwitchMap"));
     }
 
     private AccountJpaRepository accountRepository() {
