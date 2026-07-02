@@ -117,7 +117,7 @@ export async function login(payload: LoginRequest): Promise<LoginResponse> {
   if (!response.accessToken || !response.refreshToken) {
     throw new Error("Authentication response missing required tokens");
   }
-  saveAuthSession(response.accessToken, response.refreshToken);
+  saveAuthSession(response.accessToken, response.refreshToken, response.expiresIn);
   return response;
 }
 
@@ -134,7 +134,7 @@ export async function refreshToken(payload: RefreshRequest): Promise<RefreshResp
   if (!response.accessToken || !response.refreshToken) {
     throw new Error("Authentication response missing required tokens");
   }
-  saveAuthSession(response.accessToken, response.refreshToken);
+  saveAuthSession(response.accessToken, response.refreshToken, response.expiresIn);
   return response;
 }
 

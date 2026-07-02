@@ -25,8 +25,8 @@ Feature specifications, plans, and OpenAPI contracts are maintained under `specs
 - Spring Boot 3.3.x
 - Spring Web, Validation, Security, Data JPA
 - Springdoc OpenAPI (Swagger UI)
-- MySQL (runtime and local default)
-- H2 (test usage)
+- MySQL (runtime default)
+- H2 (local/test usage)
 
 ### Frontend
 
@@ -70,7 +70,7 @@ Install the following before running locally:
 
 - Java 21+
 - Node.js 20+ and npm
-- MySQL 8+
+- MySQL 8+ (or configure local profile for H2 where applicable)
 
 ## Local Setup
 

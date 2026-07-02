@@ -790,6 +790,19 @@ button:disabled {
   justify-content: flex-end;
 }
 
+.session-expiry-modal {
+  border-color: #8fc6ef;
+  background: linear-gradient(170deg, #f4faff 0%, #e7f3ff 100%);
+}
+
+.session-expiry-modal h3 {
+  color: #0c4f7d;
+}
+
+.session-expiry-modal p {
+  color: #225579;
+}
+
 .output {
   margin-top: 0.95rem;
   border: 1px solid #c8dff2;

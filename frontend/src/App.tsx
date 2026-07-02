@@ -1,18 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
-import { checkHealth } from "./services/api";
+import { checkHealth, refreshToken as refreshSessionToken } from "./services/api";
 import { fetchRecentNotifications } from "./services/notifications";
 import {
   clearAuthSession,
   getAccessToken,
+  getAccessTokenExpiresAtMs,
   getNormalizedTokenRole,
+  getRefreshToken,
   type UserRole
 } from "./services/session";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ResetRequestPage } from "./pages/ResetRequestPage";
-import { TokenRefreshPage } from "./pages/TokenRefreshPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminCustomerDetailsPage } from "./pages/AdminCustomerDetailsPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -28,12 +29,17 @@ import { SpendingInsightsPage } from "./pages/SpendingInsightsPage";
 
 type AuthState = {
   isAuthenticated: boolean;
+  accessToken: string | null;
   role: UserRole | null;
 };
 
+const SESSION_WARNING_WINDOW_MS = 3 * 60 * 1000;
+
 function readAuthState(): AuthState {
+  const accessToken = getAccessToken();
   return {
-    isAuthenticated: Boolean(getAccessToken()),
+    isAuthenticated: Boolean(accessToken),
+    accessToken,
     role: getNormalizedTokenRole()
   };
 }
@@ -52,9 +58,34 @@ export default function App() {
   const [authState, setAuthState] = useState<AuthState>(() => readAuthState());
   const [screenAlert, setScreenAlert] = useState<string | null>(null);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
+  const [showSessionExpiryDialog, setShowSessionExpiryDialog] = useState(false);
+  const [isRefreshingSession, setIsRefreshingSession] = useState(false);
+  const [sessionRefreshError, setSessionRefreshError] = useState<string | null>(null);
   const latestNotificationIdRef = useRef<string | null>(null);
-  const { isAuthenticated, role } = authState;
+  const sessionWarningTimeoutRef = useRef<number | null>(null);
+  const sessionExpiryTimeoutRef = useRef<number | null>(null);
+  const { isAuthenticated, role, accessToken } = authState;
   const shouldTrackCustomerFeed = isAuthenticated && role === "CUSTOMER";
+
+  const clearSessionExpiryTimeouts = useCallback(() => {
+    if (sessionWarningTimeoutRef.current !== null) {
+      window.clearTimeout(sessionWarningTimeoutRef.current);
+      sessionWarningTimeoutRef.current = null;
+    }
+    if (sessionExpiryTimeoutRef.current !== null) {
+      window.clearTimeout(sessionExpiryTimeoutRef.current);
+      sessionExpiryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const onLogout = useCallback(() => {
+    clearSessionExpiryTimeouts();
+    setShowSessionExpiryDialog(false);
+    setIsRefreshingSession(false);
+    setSessionRefreshError(null);
+    clearAuthSession();
+    navigate("/security/login", { replace: true });
+  }, [clearSessionExpiryTimeouts, navigate]);
 
   useEffect(() => {
     const syncAuthState = () => {
@@ -139,6 +170,63 @@ export default function App() {
     setIsNavMenuOpen(false);
   }, [location.pathname, isAuthenticated, role]);
 
+  useEffect(() => {
+    clearSessionExpiryTimeouts();
+    setShowSessionExpiryDialog(false);
+    setIsRefreshingSession(false);
+    setSessionRefreshError(null);
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const expiresAtMs = getAccessTokenExpiresAtMs();
+    if (!expiresAtMs) {
+      return;
+    }
+
+    const now = Date.now();
+    const msUntilExpiry = expiresAtMs - now;
+
+    if (msUntilExpiry <= 0) {
+      onLogout();
+      return;
+    }
+
+    const msUntilWarning = Math.max(msUntilExpiry - SESSION_WARNING_WINDOW_MS, 0);
+
+    sessionWarningTimeoutRef.current = window.setTimeout(() => {
+      setSessionRefreshError(null);
+      setShowSessionExpiryDialog(true);
+    }, msUntilWarning);
+
+    sessionExpiryTimeoutRef.current = window.setTimeout(() => {
+      onLogout();
+    }, msUntilExpiry);
+
+    return clearSessionExpiryTimeouts;
+  }, [accessToken, clearSessionExpiryTimeouts, isAuthenticated, onLogout]);
+
+  const onStaySignedIn = async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      onLogout();
+      return;
+    }
+
+    setIsRefreshingSession(true);
+    setSessionRefreshError(null);
+
+    try {
+      await refreshSessionToken({ refreshToken });
+      setShowSessionExpiryDialog(false);
+    } catch {
+      setSessionRefreshError("Unable to extend session. Please try again or log out.");
+    } finally {
+      setIsRefreshingSession(false);
+    }
+  };
+
   const healthState: "checking" | "online" | "offline" = healthQuery.isPending
     ? "checking"
     : healthQuery.isError
@@ -201,11 +289,6 @@ export default function App() {
         ];
 
   const showAdminSwitch = !isAuthenticated;
-
-  const onLogout = () => {
-    clearAuthSession();
-    navigate("/security/login", { replace: true });
-  };
 
   return (
     <main className="bank-app">
@@ -297,6 +380,35 @@ export default function App() {
         </aside>
       ) : null}
 
+      {showSessionExpiryDialog && isAuthenticated ? (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="confirm-modal session-expiry-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="session-expiry-title"
+            aria-describedby="session-expiry-description"
+          >
+            <h3 id="session-expiry-title">Session expiring soon</h3>
+            <p id="session-expiry-description">Your session is about to expire. Stay signed in?</p>
+            {sessionRefreshError ? <p className="inline-error">{sessionRefreshError}</p> : null}
+            <div className="actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={onLogout}
+                disabled={isRefreshingSession}
+              >
+                Log out
+              </button>
+              <button type="button" onClick={onStaySignedIn} disabled={isRefreshingSession}>
+                {isRefreshingSession ? "Refreshing..." : "Stay signed in"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
       <section className="content-layout">
         <section className="content-surface">
           <Routes>
@@ -328,13 +440,13 @@ export default function App() {
             <Route path="/security/register" element={<RegisterPage />} />
             <Route path="/security/create-customer" element={<Navigate to="/security/register" replace />} />
             <Route path="/security/reset" element={<ResetRequestPage />} />
-            <Route path="/security/refresh" element={<TokenRefreshPage />} />
+            <Route path="/security/refresh" element={<Navigate to="/security/login" replace />} />
 
             <Route path="/login" element={<Navigate to="/security/login" replace />} />
             <Route path="/register" element={<Navigate to="/security/register" replace />} />
             <Route path="/create-customer" element={<Navigate to="/security/register" replace />} />
             <Route path="/reset" element={<Navigate to="/security/reset" replace />} />
-            <Route path="/refresh" element={<Navigate to="/security/refresh" replace />} />
+            <Route path="/refresh" element={<Navigate to="/security/login" replace />} />
 
             <Route path="/dashboard" element={<Navigate to={roleScopedTarget("dashboard")} replace />} />
             <Route path="/accounts" element={<Navigate to={roleScopedTarget("accounts")} replace />} />
@@ -365,7 +477,6 @@ export default function App() {
               <li><NavLink to="/security/register">Create account</NavLink></li>
               <li><NavLink to="/security/login">Sign in</NavLink></li>
               <li><NavLink to="/security/reset">Recover account</NavLink></li>
-              <li><NavLink to="/security/refresh">Refresh session</NavLink></li>
             </ul>
           </article>
 

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import App from "./App";
 import * as api from "./services/api";
@@ -8,7 +8,7 @@ import * as notifications from "./services/notifications";
 jest.mock("./services/api");
 jest.mock("./services/notifications");
 
-function createMockJwt(claims: Record<string, string>): string {
+function createMockJwt(claims: Record<string, unknown>): string {
   const payload = window
     .btoa(JSON.stringify(claims))
     .replace(/\+/g, "-")
@@ -269,6 +269,143 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /^Need help\?$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Accounts & security$/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /^Trust at NorthBridge$/i })).toBeInTheDocument();
+  });
+
+  it("shows session warning modal when 3-minute threshold is reached", async () => {
+    jest.useFakeTimers();
+    const now = new Date("2026-07-02T08:00:00Z");
+    jest.setSystemTime(now);
+
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "admin-expiry-warning",
+        email: "admin.expiry.warning@example.com",
+        role: "ADMIN",
+        exp: Math.floor((now.getTime() + 4 * 60 * 1000) / 1000)
+      })
+    );
+    window.localStorage.setItem("nb_refresh_token", "refresh-warning-token");
+
+    renderApp("/admin/dashboard");
+
+    expect(await screen.findByRole("heading", { name: /^Admin workspace$/i })).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(60 * 1000);
+    });
+
+    const dialog = await screen.findByRole("dialog", { name: /Session expiring soon/i });
+    expect(dialog).toBeInTheDocument();
+    expect(screen.getByText("Your session is about to expire. Stay signed in?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Stay signed in$/i })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: /^Log out$/i })).toBeInTheDocument();
+  });
+
+  it("refreshes session when user chooses stay signed in", async () => {
+    jest.useFakeTimers();
+    const now = new Date("2026-07-02T09:30:00Z");
+    jest.setSystemTime(now);
+
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+    const mockedRefreshToken = api.refreshToken as jest.MockedFunction<typeof api.refreshToken>;
+    mockedRefreshToken.mockImplementation(async () => {
+      const refreshedToken = createMockJwt({
+        sub: "admin-stay-signed-in",
+        email: "admin.stay.signed.in@example.com",
+        role: "ADMIN",
+        exp: Math.floor((Date.now() + 10 * 60 * 1000) / 1000)
+      });
+      window.localStorage.setItem("nb_access_token", refreshedToken);
+      window.localStorage.setItem("nb_refresh_token", "refresh-token-new");
+      window.dispatchEvent(new Event("nb-auth-changed"));
+      return {
+        accessToken: refreshedToken,
+        refreshToken: "refresh-token-new",
+        expiresIn: 600
+      };
+    });
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "admin-stay-signed-in",
+        email: "admin.stay.signed.in@example.com",
+        role: "ADMIN",
+        exp: Math.floor((now.getTime() + 4 * 60 * 1000) / 1000)
+      })
+    );
+    window.localStorage.setItem("nb_refresh_token", "refresh-token-old");
+
+    renderApp("/admin/dashboard");
+    expect(await screen.findByRole("heading", { name: /^Admin workspace$/i })).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(60 * 1000);
+    });
+
+    fireEvent.click(await screen.findByRole("button", { name: /^Stay signed in$/i }));
+
+    await waitFor(() => {
+      expect(mockedRefreshToken).toHaveBeenCalledWith({ refreshToken: "refresh-token-old" });
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: /Session expiring soon/i })).not.toBeInTheDocument();
+    });
+
+    act(() => {
+      jest.advanceTimersByTime(3 * 60 * 1000 + 500);
+    });
+
+    expect(screen.getByRole("heading", { name: /^Admin workspace$/i })).toBeInTheDocument();
+    expect(window.localStorage.getItem("nb_access_token")).not.toBeNull();
+  });
+
+  it("logs user out automatically when token expires without response", async () => {
+    jest.useFakeTimers();
+    const now = new Date("2026-07-02T10:45:00Z");
+    jest.setSystemTime(now);
+
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "admin-auto-expiry",
+        email: "admin.auto.expiry@example.com",
+        role: "ADMIN",
+        exp: Math.floor((now.getTime() + 4 * 60 * 1000) / 1000)
+      })
+    );
+    window.localStorage.setItem("nb_refresh_token", "refresh-expire-token");
+    window.localStorage.setItem("nb_customer_id", "customer-expire-token");
+
+    renderApp("/admin/dashboard");
+    expect(await screen.findByRole("heading", { name: /^Admin workspace$/i })).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(60 * 1000);
+    });
+    expect(await screen.findByRole("dialog", { name: /Session expiring soon/i })).toBeInTheDocument();
+
+    act(() => {
+      jest.advanceTimersByTime(3 * 60 * 1000 + 500);
+    });
+
+    await waitFor(() => {
+      expect(window.localStorage.getItem("nb_access_token")).toBeNull();
+      expect(window.localStorage.getItem("nb_refresh_token")).toBeNull();
+      expect(window.localStorage.getItem("nb_customer_id")).toBeNull();
+    });
+
+    expect(await screen.findByRole("heading", { name: /Sign in to your account/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Log out$/i })).not.toBeInTheDocument();
   });
 
   it("logs out and returns to sign-in navigation", async () => {
