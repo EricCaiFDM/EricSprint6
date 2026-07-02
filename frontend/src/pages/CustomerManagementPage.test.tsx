@@ -105,6 +105,24 @@ describe("CustomerManagementPage", () => {
     });
   });
 
+  it("shows inline update validation errors for invalid phone input", async () => {
+    (customersService.updateCustomerProfile as jest.MockedFunction<typeof customersService.updateCustomerProfile>).mockRejectedValue(
+      new Error("Phone number must be a valid phone number.")
+    );
+
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/Phone number/i), {
+      target: { value: "abc" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Update customer/i }));
+
+    expect(
+      await screen.findByText("Unable to update customer: Phone number must be a valid phone number.")
+    ).toBeInTheDocument();
+  });
+
   it("shows a confirmation modal before closing customer account", async () => {
     renderPage();
 

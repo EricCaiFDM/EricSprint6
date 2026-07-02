@@ -109,6 +109,26 @@ public class AuthService {
                 updated ? "ACCOUNT_UPDATED" : "ACCOUNT_NOT_FOUND");
     }
 
+    public boolean updateIdentityEmail(String userId, String email) {
+        String normalizedUserId = userId == null ? "" : userId.trim();
+        if (normalizedUserId.isEmpty()) {
+            return false;
+        }
+
+        String normalizedIdentity = normalizeIdentity(email);
+        if (normalizedIdentity.isEmpty()) {
+            throw new IllegalArgumentException("Email is required");
+        }
+
+        AuthRepository.AuthUserCredentials existingUser = repository.findCredentialsByEmail(normalizedIdentity)
+                .orElse(null);
+        if (existingUser != null && !normalizedUserId.equals(existingUser.userId())) {
+            throw new IllegalStateException("Email already registered with role " + existingUser.role());
+        }
+
+        return repository.updateEmailByUserId(normalizedUserId, normalizedIdentity);
+    }
+
     public LoginTokens refreshAccessToken(String refreshToken) {
         JwtTokenService.RefreshTokenPrincipal refreshTokenPrincipal;
         try {

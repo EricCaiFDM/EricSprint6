@@ -61,6 +61,18 @@ public class AuthRepository {
         return true;
     }
 
+    public boolean updateEmailByUserId(String userId, String email) {
+        Optional<AuthUserEntity> candidate = authUserJpaRepository.findById(userId);
+        if (candidate.isEmpty()) {
+            return false;
+        }
+
+        AuthUserEntity authUserEntity = candidate.get();
+        authUserEntity.setEmail(normalizeEmail(email));
+        authUserJpaRepository.save(authUserEntity);
+        return true;
+    }
+
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase();
     }

@@ -102,16 +102,42 @@ export async function updateCustomerProfile(
     throw new Error("Provide at least one field to update.");
   }
 
-  const response = await apiClient.patch(`/customers/${encodeURIComponent(targetCustomerId)}`, {
-    legalName: update.legalName?.trim() || undefined,
-    primaryEmail: update.primaryEmail?.trim() || undefined,
-    phoneNumber: update.phoneNumber?.trim() || undefined,
-    status: update.status
-  });
+  try {
+    const response = await apiClient.patch(`/customers/${encodeURIComponent(targetCustomerId)}`, {
+      legalName: update.legalName?.trim() || undefined,
+      primaryEmail: update.primaryEmail?.trim() || undefined,
+      phoneNumber: update.phoneNumber?.trim() || undefined,
+      status: update.status
+    });
 
-  const profile = mapCustomerProfile(response.data);
-  setActiveCustomerId(profile.customerId);
-  return profile;
+    const profile = mapCustomerProfile(response.data);
+    setActiveCustomerId(profile.customerId);
+    return profile;
+  } catch (error) {
+    const details = getApiErrorDetails(error);
+    if (details.status === 400) {
+      if (details.field === "phoneNumber") {
+        throw new Error("Phone number must be a valid phone number.");
+      }
+      if (details.field === "primaryEmail") {
+        throw new Error("Primary email must be valid.");
+      }
+      if (details.field === "legalName") {
+        throw new Error("Legal name is required.");
+      }
+      throw new Error(details.message);
+    }
+    if (details.status === 403) {
+      throw new Error("This signed-in account is not authorized to update the selected customer profile.");
+    }
+    if (details.status === 404) {
+      throw new Error("The selected customer could not be found.");
+    }
+    if (details.status === 409 && details.field === "primaryEmail") {
+      throw new Error("Primary email already exists.");
+    }
+    throw new Error(details.message);
+  }
 }
 
 export async function deleteCustomerProfile(customerId?: string): Promise<DeleteCustomerResult> {

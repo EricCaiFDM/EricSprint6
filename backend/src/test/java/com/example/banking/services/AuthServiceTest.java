@@ -264,6 +264,57 @@ class AuthServiceTest {
     }
 
     @Test
+    void updateIdentityEmailFailsWhenEmailIsBlank() {
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class,
+                () -> service.updateIdentityEmail("user-1", "   "));
+
+        assertEquals("Email is required", exception.getMessage());
+    }
+
+    @Test
+    void updateIdentityEmailFailsWhenIdentityAlreadyBelongsToDifferentUser() {
+        repository.findByEmailResult = Optional.of(credentials(
+                "user-2",
+                "taken@example.com",
+                "hash",
+                "CUSTOMER",
+                "ACTIVE"));
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> service.updateIdentityEmail("user-1", " taken@example.com "));
+
+        assertEquals("Email already registered with role CUSTOMER", exception.getMessage());
+    }
+
+    @Test
+    void updateIdentityEmailReturnsFalseWhenUserCannotBeResolved() {
+        repository.updateEmailResult = false;
+
+        boolean updated = service.updateIdentityEmail("user-1", "new@example.com");
+
+        assertEquals(false, updated);
+        assertEquals("user-1", repository.lastUpdateEmailUserId);
+        assertEquals("new@example.com", repository.lastUpdateEmailValue);
+    }
+
+    @Test
+    void updateIdentityEmailSucceedsWhenIdentityBelongsToSameUser() {
+        repository.findByEmailResult = Optional.of(credentials(
+                "user-1",
+                "current@example.com",
+                "hash",
+                "CUSTOMER",
+                "ACTIVE"));
+        repository.updateEmailResult = true;
+
+        boolean updated = service.updateIdentityEmail("user-1", " Current@example.com ");
+
+        assertEquals(true, updated);
+        assertEquals("user-1", repository.lastUpdateEmailUserId);
+        assertEquals("current@example.com", repository.lastUpdateEmailValue);
+    }
+
+    @Test
     void refreshAccessTokenFailsWhenRefreshTokenIsInvalid() {
         jwtTokenService.validateException = new SecurityException("Invalid");
 
@@ -362,6 +413,7 @@ class AuthServiceTest {
         Optional<AuthUserCredentials> findByUserIdResult = Optional.empty();
         boolean emailExistsResult;
         boolean updatePasswordResult;
+        boolean updateEmailResult;
 
         UUID createdUserId;
         String createdEmail;
@@ -374,9 +426,12 @@ class AuthServiceTest {
         String lastEmailExistsIdentity;
         String lastUpdateIdentity;
         String lastUpdatePasswordHash;
+        String lastUpdateEmailUserId;
+        String lastUpdateEmailValue;
 
         FakeAuthRepository() {
             super(null);
+            updateEmailResult = true;
         }
 
         @Override
@@ -411,6 +466,13 @@ class AuthServiceTest {
             lastUpdateIdentity = email;
             lastUpdatePasswordHash = passwordHash;
             return updatePasswordResult;
+        }
+
+        @Override
+        public boolean updateEmailByUserId(String userId, String email) {
+            lastUpdateEmailUserId = userId;
+            lastUpdateEmailValue = email;
+            return updateEmailResult;
         }
     }
 

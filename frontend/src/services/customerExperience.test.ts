@@ -585,6 +585,28 @@ describe("customer experience services", () => {
     expect(deleted.status).toBe("DELETED");
   });
 
+  it("shows phone validation message when customer update payload is invalid", async () => {
+    jest.spyOn(apiClient, "patch").mockRejectedValue({
+      response: {
+        status: 400,
+        data: {
+          code: "VALIDATION_ERROR",
+          field: "phoneNumber",
+          message: "phoneNumber must be a valid phone number"
+        }
+      }
+    });
+
+    await expect(
+      updateCustomerProfile(
+        {
+          phoneNumber: "abc"
+        },
+        "cust-801"
+      )
+    ).rejects.toThrow("Phone number must be a valid phone number.");
+  });
+
   it("lists accounts using explicit customer scope id", async () => {
     const getMock = jest.spyOn(apiClient, "get").mockResolvedValue({
       data: {

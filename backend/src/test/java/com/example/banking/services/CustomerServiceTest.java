@@ -393,6 +393,7 @@ class CustomerServiceTest {
                 "owner",
                 "CUSTOMER");
         assertEquals("same@example.com", sameEmail.primaryEmail());
+        assertEquals(0, authService.updateEmailCalls.size());
 
         customerRepository.primaryEmails.add("taken@example.com");
         ApiErrorException conflict = captureUpdateCustomerError(
@@ -410,6 +411,41 @@ class CustomerServiceTest {
                 "owner",
                 "CUSTOMER");
         assertEquals("new@example.com", uniqueEmail.primaryEmail());
+        assertEquals(1, authService.updateEmailCalls.size());
+        assertEquals("owner", authService.updateEmailCalls.get(0).userId());
+        assertEquals("new@example.com", authService.updateEmailCalls.get(0).email());
+    }
+
+    @Test
+    void updateCustomerMapsAuthIdentityEmailConflict() {
+        String id = UUID.randomUUID().toString();
+        customerRepository.byId.put(id, customer(id, "ext-020b", "Email", "same2@example.com", null, "ACTIVE", "owner", "creator"));
+        authService.emailUpdateIllegalState = new IllegalStateException("Email already registered with role CUSTOMER");
+
+        ApiErrorException conflict = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest(null, "taken@example.com", null, null),
+            "owner",
+            "CUSTOMER");
+
+        assertEquals("CUSTOMER_CONFLICT", conflict.getCode());
+        assertEquals("primaryEmail", conflict.getField());
+    }
+
+    @Test
+    void updateCustomerFailsWhenAuthIdentityRecordCannotBeUpdated() {
+        String id = UUID.randomUUID().toString();
+        customerRepository.byId.put(id, customer(id, "ext-020c", "Email", "same3@example.com", null, "ACTIVE", "owner", "creator"));
+        authService.nextUpdateEmailResult = false;
+
+        ApiErrorException conflict = captureUpdateCustomerError(
+            id,
+            new UpdateCustomerRequest(null, "new3@example.com", null, null),
+            "owner",
+            "CUSTOMER");
+
+        assertEquals("CUSTOMER_CONFLICT", conflict.getCode());
+        assertEquals("primaryEmail", conflict.getField());
     }
 
     @Test
@@ -689,6 +725,9 @@ class CustomerServiceTest {
     private record RegisterCall(String email, String password, String passwordConfirmation, String role) {
     }
 
+    private record EmailUpdateCall(String userId, String email) {
+    }
+
     private record SuccessAuditCall(String customerId, String eventType, String actorUserId, String actorRole) {
     }
 
@@ -866,9 +905,13 @@ class CustomerServiceTest {
 
     private static final class CapturingAuthService extends AuthService {
         private final List<RegisterCall> registerCalls = new ArrayList<>();
+        private final List<EmailUpdateCall> updateEmailCalls = new ArrayList<>();
         private UUID nextUserId = UUID.fromString("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
         private IllegalStateException illegalState;
         private IllegalArgumentException illegalArgument;
+        private IllegalStateException emailUpdateIllegalState;
+        private IllegalArgumentException emailUpdateIllegalArgument;
+        private boolean nextUpdateEmailResult = true;
 
         private CapturingAuthService() {
             super(null, null, null);
@@ -884,6 +927,18 @@ class CustomerServiceTest {
                 throw illegalArgument;
             }
             return nextUserId;
+        }
+
+        @Override
+        public boolean updateIdentityEmail(String userId, String email) {
+            updateEmailCalls.add(new EmailUpdateCall(userId, email));
+            if (emailUpdateIllegalState != null) {
+                throw emailUpdateIllegalState;
+            }
+            if (emailUpdateIllegalArgument != null) {
+                throw emailUpdateIllegalArgument;
+            }
+            return nextUpdateEmailResult;
         }
     }
 }

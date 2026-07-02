@@ -206,6 +206,11 @@ public class CustomerService {
                             "primaryEmail already exists",
                             "primaryEmail");
                 }
+
+                if (!normalizedEmail.equalsIgnoreCase(customer.getPrimaryEmail())) {
+                    syncAuthIdentityEmail(customer.getOwnerUserId(), normalizedEmail);
+                }
+
                 customer.setPrimaryEmail(normalizedEmail);
             }
             if (request.phoneNumber() != null) {
@@ -386,6 +391,31 @@ public class CustomerService {
                     HttpStatus.CONFLICT,
                     "CUSTOMER_CONFLICT",
                     "primaryEmail already exists",
+                    "primaryEmail");
+        }
+    }
+
+    private void syncAuthIdentityEmail(String ownerUserId, String normalizedEmail) {
+        try {
+            boolean updated = authService.updateIdentityEmail(ownerUserId, normalizedEmail);
+            if (!updated) {
+                throw new ApiErrorException(
+                        HttpStatus.CONFLICT,
+                        "CUSTOMER_CONFLICT",
+                        "primaryEmail cannot be updated because the linked sign-in identity is unavailable",
+                        "primaryEmail");
+            }
+        } catch (IllegalStateException exception) {
+            throw new ApiErrorException(
+                    HttpStatus.CONFLICT,
+                    "CUSTOMER_CONFLICT",
+                    exception.getMessage(),
+                    "primaryEmail");
+        } catch (IllegalArgumentException exception) {
+            throw new ApiErrorException(
+                    HttpStatus.BAD_REQUEST,
+                    "CUSTOMER_VALIDATION_ERROR",
+                    exception.getMessage(),
                     "primaryEmail");
         }
     }

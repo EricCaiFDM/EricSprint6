@@ -261,6 +261,44 @@ class CustomerControllerIntegrationTest {
     }
 
     @Test
+    void patchCustomerPrimaryEmailSyncsLoginIdentity() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-identity-sync").claim("role", "ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createPayload(
+                        "ext-identity-sync",
+                        "Identity Sync",
+                        "original.identity@example.com",
+                        "+27123456789",
+                        "secret123")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String customerId = created.get("customerId").asText();
+
+        mockMvc.perform(patch("/customers/{customerId}", customerId)
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-identity-sync").claim("role", "ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"primaryEmail\":\"renamed.identity@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.primaryEmail").value("renamed.identity@example.com"));
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identity\":\"original.identity@example.com\",\"password\":\"secret123\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identity\":\"renamed.identity@example.com\",\"password\":\"secret123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString());
+    }
+
+    @Test
     void patchCustomerRejectsInvalidStatusTransition() throws Exception {
         MvcResult createResult = createCustomer("owner-204", "CUSTOMER", "ext-204", "jane204@example.com");
         JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
