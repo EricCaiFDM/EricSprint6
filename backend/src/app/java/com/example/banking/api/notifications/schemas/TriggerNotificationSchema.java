@@ -5,7 +5,9 @@ import java.util.Map;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for trigger notification schema.")
 public record TriggerNotificationSchema(
         @NotBlank(message = "eventType is required")
         String eventType,

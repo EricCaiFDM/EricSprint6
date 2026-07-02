@@ -1,5 +1,8 @@
 package com.example.banking.api.account.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
+
+@Schema(description = "OpenAPI schema for account response payload.")
 public record AccountResponse(
         String accountId,
         String accountNumber,

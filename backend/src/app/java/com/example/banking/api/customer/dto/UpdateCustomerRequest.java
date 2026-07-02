@@ -3,7 +3,9 @@ package com.example.banking.api.customer.dto;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for update customer request payload.")
 public record UpdateCustomerRequest(
         @Size(max = 160, message = "legalName must not exceed 160 characters")
         String legalName,

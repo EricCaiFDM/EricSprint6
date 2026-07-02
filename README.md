@@ -2,9 +2,9 @@
 
 Full-stack banking project with a Spring Boot backend and a React frontend.
 
-## Overview
+## What is included
 
-EricSprint6 implements core banking workflows across multiple feature slices, including:
+Core feature areas implemented in this repo:
 
 - Authentication and user access flows
 - Customer lifecycle management
@@ -15,27 +15,176 @@ EricSprint6 implements core banking workflows across multiple feature slices, in
 - Monthly statements
 - Spending insights
 
-Feature specifications, plans, and OpenAPI contracts are maintained under `specs/`.
+Feature specifications, plans, task checklists, and OpenAPI contracts are under `specs/`.
 
-## Tech Stack
+## Quick Start (Run Full Stack)
 
-### Backend
+1. Clone the repository:
 
-- Java 21
-- Spring Boot 3.3.x
-- Spring Web, Validation, Security, Data JPA
-- Springdoc OpenAPI (Swagger UI)
-- MySQL (runtime default)
-- H2 (local/test usage)
+```bash
+git clone <your-repo-url>
+cd EricSprint6
+```
 
-### Frontend
+2. Start backend (Terminal 1):
 
-- React 18
-- TypeScript
-- Vite
-- Axios
-- React Query
-- Jest + React Testing Library
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+3. Start frontend (Terminal 2):
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+4. Open the app at `http://localhost:5173`.
+
+The frontend proxies `/api` requests to backend `http://localhost:8080`.
+
+---
+
+## Backend Setup (Spring Boot)
+
+### Backend prerequisites
+
+- Java 21+
+- Maven 3.9+
+- Optional: MySQL 8+ (for MySQL runtime profile)
+
+### Backend dependency installation
+
+All backend libraries are managed in `backend/pom.xml` and downloaded automatically by Maven.
+
+```bash
+cd backend
+mvn dependency:resolve
+```
+
+### Run backend with H2 (default local profile)
+
+Default profile is `local`, which uses in-memory H2.
+
+```bash
+cd backend
+mvn spring-boot:run
+```
+
+Backend URLs:
+
+- API base: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
+- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
+- H2 console (local profile): `http://localhost:8080/h2-console`
+
+### Run backend with MySQL (optional)
+
+1. Create a MySQL database and user (example):
+
+```sql
+CREATE DATABASE bankingdb;
+CREATE USER 'banking_app'@'%' IDENTIFIED BY 'banking_app';
+GRANT ALL PRIVILEGES ON bankingdb.* TO 'banking_app'@'%';
+FLUSH PRIVILEGES;
+```
+
+2. Set environment variables and run with a non-local active profile:
+
+```bash
+export SPRING_PROFILES_ACTIVE=mysql
+export DB_URL="jdbc:mysql://localhost:3306/bankingdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+export DB_USERNAME="banking_app"
+export DB_PASSWORD="banking_app"
+export JWT_SECRET="change-this-to-a-long-random-value"
+
+cd backend
+mvn spring-boot:run
+```
+
+### Backend key libraries
+
+Defined in `backend/pom.xml`:
+
+- `spring-boot-starter-web`
+- `spring-boot-starter-validation`
+- `spring-boot-starter-data-jpa`
+- `spring-boot-starter-security`
+- `spring-boot-starter-oauth2-resource-server`
+- `springdoc-openapi-starter-webmvc-ui`
+- `mysql-connector-j` (runtime)
+- `h2` (runtime)
+- `jjwt-api`, `jjwt-impl`, `jjwt-jackson`
+- Test: `spring-boot-starter-test`, `mockito-junit-jupiter`, `spring-security-test`
+
+### Backend test and build
+
+```bash
+cd backend
+mvn test
+mvn clean package
+```
+
+---
+
+## Frontend Setup (React + Vite)
+
+### Frontend prerequisites
+
+- Node.js 20+
+- npm 10+
+
+### Frontend dependency installation
+
+All frontend libraries are managed in `frontend/package.json`.
+
+```bash
+cd frontend
+npm install
+```
+
+### Run frontend
+
+```bash
+cd frontend
+npm run dev
+```
+
+Default frontend URL: `http://localhost:5173`
+
+### Frontend key libraries
+
+Runtime dependencies:
+
+- `react`
+- `react-dom`
+- `react-router-dom`
+- `@tanstack/react-query`
+- `axios`
+
+Development and test dependencies:
+
+- `vite`, `@vitejs/plugin-react`
+- `typescript`
+- `jest`, `ts-jest`, `jest-environment-jsdom`
+- `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`
+- `@stoplight/prism-cli`
+
+### Frontend test and build
+
+```bash
+cd frontend
+npm test
+npm run test:coverage
+npm run test:prism
+npm run build
+```
+
+`npm run test:prism` executes contract tests using Prism mock servers for specs in `specs/*/contracts/openapi.yaml`.
+
+---
 
 ## Repository Structure
 
@@ -43,146 +192,24 @@ Feature specifications, plans, and OpenAPI contracts are maintained under `specs
 .
 |-- backend/
 |   |-- pom.xml
-|   |-- src/
-|   |   |-- app/
-|   |   `-- test/
-|   `-- bin/
+|   `-- src/
 |-- frontend/
 |   |-- package.json
 |   `-- src/
 |-- specs/
-|   |-- 002-authentication/
-|   |-- 003-customer-management/
-|   |-- 004-account-management/
-|   |-- 005-transaction-operations/
-|   |-- 006-standing-orders/
-|   |-- 007-notifications/
-|   |-- 008-monthly-statements/
-|   `-- 009-spending-insights/
 |-- DEFINITION-OF-DONE.md
+|-- GUARDRAILS.md
 |-- TOOL-STACK.md
 `-- README.md
 ```
 
-## Prerequisites
+## Specs, Guardrails, and Quality
 
-Install the following before running locally:
-
-- Java 21+
-- Node.js 20+ and npm
-- MySQL 8+ (or configure local profile for H2 where applicable)
-
-## Local Setup
-
-### 1. Clone and enter the project
-
-```bash
-git clone <your-repo-url>
-cd EricSprint6
-```
-
-### 2. Configure backend environment
-
-Backend configuration is in `backend/src/app/resources/application.yml`.
-
-Important environment variables:
-
-- `DB_URL` (default: `jdbc:mysql://localhost:3306/bankingdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC`)
-- `DB_USERNAME` (default: `banking_app`)
-- `DB_PASSWORD` (default: `banking_app`)
-- `JWT_SECRET` (default demo value exists; set your own in non-local environments)
-
-### 3. Install frontend dependencies
-
-```bash
-cd frontend
-npm install
-cd ..
-```
-
-## Running the Application
-
-### Run backend (port 8080)
-
-```bash
-cd backend
-mvn spring-boot:run
-```
-
-Backend base URL: `http://localhost:8080`
-
-### Run frontend (Vite dev server)
-
-```bash
-cd frontend
-npm run dev
-```
-
-Frontend URL is shown by Vite at startup (commonly `http://localhost:5173`).
-
-## API Documentation
-
-With backend running:
-
-- OpenAPI JSON: `http://localhost:8080/v3/api-docs`
-- Swagger UI: `http://localhost:8080/swagger-ui/index.html`
-
-## Testing
-
-### Frontend
-
-```bash
-cd frontend
-npm test
-npm run test:coverage
-npm run test:prism
-```
-
-`npm run test:prism` executes integration-style contract checks against Prism mock servers for all feature OpenAPI contracts under `specs/*/contracts/openapi.yaml`.
-
-### Backend
-
-```bash
-cd backend
-mvn test
-```
-
-## Build
-
-### Frontend production build
-
-```bash
-cd frontend
-npm run build
-```
-
-### Backend package
-
-```bash
-cd backend
-mvn clean package
-```
-
-## Specifications and Contracts
-
-Each feature folder in `specs/` contains implementation artifacts:
-
-- `spec.md` for feature requirements
-- `plan.md` for implementation planning
-- `tasks.md` for execution checklist
-- `contracts/openapi.yaml` for API contracts
-- `quickstart.md` for validation scenarios
-
-See `specs/README.md` for standards and usage guidance.
-
-## Definition of Done
-
-Project completion criteria are documented in:
-
-- `DEFINITION-OF-DONE.md`
-- [GUARDRAILS.md](GUARDRAILS.md) (consolidated guardrail rules, enforcement points, and evidence references)
+- Specs and feature artifacts: `specs/README.md`
+- Definition of Done: `DEFINITION-OF-DONE.md`
+- Guardrail governance and enforcement map: `GUARDRAILS.md`
 
 ## Notes
 
-- Backend and frontend are expected to evolve spec-first, with OpenAPI contracts as the API source of truth.
-- Do not use production secrets in local files; prefer environment variables.
+- Use environment variables for secrets (especially `JWT_SECRET`).
+- Prefer spec-first changes and keep OpenAPI contracts aligned with implementation.

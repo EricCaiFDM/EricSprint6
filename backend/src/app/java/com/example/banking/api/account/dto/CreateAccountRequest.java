@@ -6,7 +6,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for create account request payload.")
 public record CreateAccountRequest(
         @NotBlank(message = "customerId is required")
         @Pattern(regexp = "^[0-9a-fA-F-]{36}$", message = "customerId must be a UUID")

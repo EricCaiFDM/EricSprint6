@@ -4,7 +4,9 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for create customer request payload.")
 public record CreateCustomerRequest(
         @NotBlank(message = "externalCustomerKey is required")
         @Size(max = 120, message = "externalCustomerKey must not exceed 120 characters")

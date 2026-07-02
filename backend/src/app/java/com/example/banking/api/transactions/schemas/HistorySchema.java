@@ -4,7 +4,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for history schema.")
 public class HistorySchema {
     @NotBlank(message = "scopeType is required")
     private String scopeType;

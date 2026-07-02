@@ -4,7 +4,9 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for list notification attempts schema.")
 public record ListNotificationAttemptsSchema(
         @NotBlank(message = "notificationEventId is required")
         @Pattern(regexp = "^[0-9a-fA-F-]{36}$", message = "notificationEventId must be a UUID")

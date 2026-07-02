@@ -2,7 +2,9 @@ package com.example.banking.api.standingorders.schemas;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for create standing order schema.")
 public record CreateStandingOrderSchema(
         @NotBlank(message = "sourceAccountId is required")
         @Pattern(regexp = "^[0-9a-fA-F-]{36}$", message = "sourceAccountId must be a UUID")

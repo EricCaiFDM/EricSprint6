@@ -42,7 +42,7 @@ public class StatementGenerationController {
 
     @Operation(
             summary = "Generate statement",
-            description = "Initiates statement generation for an account and month and returns an accepted processing response.")
+            description = "Initiates statement generation for an account and month and returns an accepted processing response for the requested period.")
     @ApiResponse(
             responseCode = "202",
             description = "Statement generation accepted",
@@ -57,7 +57,7 @@ public class StatementGenerationController {
                     content = @Content(
                             mediaType = "application/json",
                             schema = @Schema(implementation = GenerateStatementRequestSchema.class),
-                            examples = @ExampleObject(value = "{\"accountId\":\"a274560e-7158-41cb-8cc7-a305237b9f8c\",\"periodYearMonth\":\"2026-07\",\"generationMode\":\"ON_DEMAND\"}")))
+                            examples = @ExampleObject(value = "{\"accountId\":\"a274560e-7158-41cb-8cc7-a305237b9f8c\",\"periodYearMonth\":\"2026-07\",\"generationMode\":\"STANDARD\"}")))
             @Valid @RequestBody GenerateStatementRequestSchema request,
             Authentication authentication) {
         CustomerPrincipal principal = principalResolver.resolve(authentication);
