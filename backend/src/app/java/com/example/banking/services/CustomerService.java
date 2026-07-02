@@ -246,6 +246,7 @@ public class CustomerService {
         }
     }
 
+    @Transactional
     public void deleteCustomer(String customerId, String actorUserId, String role) {
         String actorId = normalizeActor(actorUserId);
         try {
@@ -280,9 +281,13 @@ public class CustomerService {
                 lifecycleAuditService.recordSuccess(customerId, "DELETE_POLICY_OVERRIDE", actorId, role);
             }
 
+            customer.setExternalCustomerKey(buildClosedExternalCustomerKey(customer.getCustomerId()));
+            customer.setPrimaryEmail(buildClosedCustomerEmail(customer.getCustomerId()));
             customer.setDeletedAt(Instant.now());
             customer.setUpdatedAtUtc(Instant.now());
             customerRepository.save(customer);
+
+            deactivateAuthIdentity(customer.getOwnerUserId());
 
             lifecycleAuditService.recordSuccess(customerId, "DELETE_SUCCESS", actorId, role);
         } catch (ApiErrorException exception) {
@@ -418,6 +423,18 @@ public class CustomerService {
                     exception.getMessage(),
                     "primaryEmail");
         }
+    }
+
+    private void deactivateAuthIdentity(String ownerUserId) {
+        authService.deactivateIdentity(ownerUserId);
+    }
+
+    private String buildClosedCustomerEmail(String customerId) {
+        return "closed+" + customerId.toLowerCase(Locale.ROOT) + "@customer.local";
+    }
+
+    private String buildClosedExternalCustomerKey(String customerId) {
+        return "closed-" + customerId.toLowerCase(Locale.ROOT);
     }
 
     private boolean hasAnyPatchField(UpdateCustomerRequest request) {

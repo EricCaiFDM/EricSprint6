@@ -64,8 +64,16 @@ public class AuthUserEntity {
         return role;
     }
 
+    public void setRole(String role) {
+        this.role = role;
+    }
+
     public String getAccountStatus() {
         return accountStatus;
+    }
+
+    public void setAccountStatus(String accountStatus) {
+        this.accountStatus = accountStatus;
     }
 
     public Instant getCreatedAt() {

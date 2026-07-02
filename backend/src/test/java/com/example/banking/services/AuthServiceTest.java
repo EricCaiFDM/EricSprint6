@@ -68,6 +68,43 @@ class AuthServiceTest {
     }
 
     @Test
+    void registerReactivatesClosedIdentityWhenEmailWasPreviouslyClosed() {
+        repository.findByEmailResult = Optional.of(credentials(
+                "aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb",
+                "user@example.com",
+                "hash",
+                "CUSTOMER",
+                "CLOSED"));
+
+        UUID reactivatedUserId = service.register("user@example.com", "password123", "password123", "CUSTOMER");
+
+        assertEquals(UUID.fromString("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb"), reactivatedUserId);
+        assertEquals(0, repository.createUserCalls);
+        assertEquals("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb", repository.lastReactivateUserId);
+        assertEquals(sha256Base64("password123"), repository.lastReactivatePasswordHash);
+        assertEquals("CUSTOMER", repository.lastReactivateRole);
+        assertEvent("REGISTER", "user@example.com", "SUCCESS", "IDENTITY_REACTIVATED");
+    }
+
+    @Test
+    void registerFailsWhenClosedIdentityCannotBeReactivated() {
+        repository.findByEmailResult = Optional.of(credentials(
+                "aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb",
+                "user@example.com",
+                "hash",
+                "CUSTOMER",
+                "CLOSED"));
+        repository.reactivateClosedIdentityResult = false;
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class,
+                () -> service.register("user@example.com", "password123", "password123", "CUSTOMER"));
+
+        assertEquals("Unable to reactivate closed identity", exception.getMessage());
+        assertEvent("REGISTER", "user@example.com", "FAILURE", "IDENTITY_REACTIVATION_FAILED");
+        assertEquals(0, repository.createUserCalls);
+    }
+
+    @Test
     void registerUsesDefaultCustomerRoleWhenRoleIsNull() {
         UUID createdUserId = service.register("User@Example.com", "password123", "password123", null);
 
@@ -315,6 +352,36 @@ class AuthServiceTest {
     }
 
     @Test
+    void deactivateIdentityReturnsFalseWhenUserIdMissing() {
+        boolean updated = service.deactivateIdentity("   ");
+
+        assertEquals(false, updated);
+        assertEquals(null, repository.lastUpdateStatusUserId);
+    }
+
+    @Test
+    void deactivateIdentityReturnsFalseWhenRepositoryCannotResolveUser() {
+        repository.updateStatusResult = false;
+
+        boolean updated = service.deactivateIdentity("user-2");
+
+        assertEquals(false, updated);
+        assertEquals("user-2", repository.lastUpdateStatusUserId);
+        assertEquals("CLOSED", repository.lastUpdateStatusValue);
+    }
+
+    @Test
+    void deactivateIdentitySetsClosedStatusWhenUserIsResolved() {
+        repository.updateStatusResult = true;
+
+        boolean updated = service.deactivateIdentity(" user-3 ");
+
+        assertEquals(true, updated);
+        assertEquals("user-3", repository.lastUpdateStatusUserId);
+        assertEquals("CLOSED", repository.lastUpdateStatusValue);
+    }
+
+    @Test
     void refreshAccessTokenFailsWhenRefreshTokenIsInvalid() {
         jwtTokenService.validateException = new SecurityException("Invalid");
 
@@ -414,6 +481,8 @@ class AuthServiceTest {
         boolean emailExistsResult;
         boolean updatePasswordResult;
         boolean updateEmailResult;
+        boolean updateStatusResult;
+        boolean reactivateClosedIdentityResult;
 
         UUID createdUserId;
         String createdEmail;
@@ -428,10 +497,17 @@ class AuthServiceTest {
         String lastUpdatePasswordHash;
         String lastUpdateEmailUserId;
         String lastUpdateEmailValue;
+        String lastUpdateStatusUserId;
+        String lastUpdateStatusValue;
+        String lastReactivateUserId;
+        String lastReactivatePasswordHash;
+        String lastReactivateRole;
 
         FakeAuthRepository() {
             super(null);
             updateEmailResult = true;
+            updateStatusResult = true;
+            reactivateClosedIdentityResult = true;
         }
 
         @Override
@@ -473,6 +549,21 @@ class AuthServiceTest {
             lastUpdateEmailUserId = userId;
             lastUpdateEmailValue = email;
             return updateEmailResult;
+        }
+
+        @Override
+        public boolean updateAccountStatusByUserId(String userId, String accountStatus) {
+            lastUpdateStatusUserId = userId;
+            lastUpdateStatusValue = accountStatus;
+            return updateStatusResult;
+        }
+
+        @Override
+        public boolean reactivateClosedIdentityByUserId(String userId, String passwordHash, String role) {
+            lastReactivateUserId = userId;
+            lastReactivatePasswordHash = passwordHash;
+            lastReactivateRole = role;
+            return reactivateClosedIdentityResult;
         }
     }
 

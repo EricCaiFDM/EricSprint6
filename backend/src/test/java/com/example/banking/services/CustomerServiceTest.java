@@ -559,6 +559,10 @@ class CustomerServiceTest {
         service.deleteCustomer(id, "owner", "ADMIN");
 
         assertNotNull(entity.getDeletedAt());
+        assertEquals("closed-" + id, entity.getExternalCustomerKey());
+        assertEquals("closed+" + id + "@customer.local", entity.getPrimaryEmail());
+        assertEquals(1, authService.deactivateIdentityCalls.size());
+        assertEquals("owner", authService.deactivateIdentityCalls.get(0));
         assertEquals(1, lifecycleAuditService.successCalls.stream().filter(call -> "DELETE_SUCCESS".equals(call.eventType())).count());
     }
 
@@ -589,6 +593,10 @@ class CustomerServiceTest {
         service.deleteCustomer(id, "owner", "CUSTOMER");
 
         assertNotNull(entity.getDeletedAt());
+        assertEquals("closed-" + id, entity.getExternalCustomerKey());
+        assertEquals("closed+" + id + "@customer.local", entity.getPrimaryEmail());
+        assertEquals(1, authService.deactivateIdentityCalls.size());
+        assertEquals("owner", authService.deactivateIdentityCalls.get(0));
         assertTrue(lifecycleAuditService.successCalls.stream().anyMatch(call -> "DELETE_POLICY_OVERRIDE".equals(call.eventType())));
     }
 
@@ -906,12 +914,14 @@ class CustomerServiceTest {
     private static final class CapturingAuthService extends AuthService {
         private final List<RegisterCall> registerCalls = new ArrayList<>();
         private final List<EmailUpdateCall> updateEmailCalls = new ArrayList<>();
+        private final List<String> deactivateIdentityCalls = new ArrayList<>();
         private UUID nextUserId = UUID.fromString("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
         private IllegalStateException illegalState;
         private IllegalArgumentException illegalArgument;
         private IllegalStateException emailUpdateIllegalState;
         private IllegalArgumentException emailUpdateIllegalArgument;
         private boolean nextUpdateEmailResult = true;
+        private boolean nextDeactivateIdentityResult = true;
 
         private CapturingAuthService() {
             super(null, null, null);
@@ -939,6 +949,12 @@ class CustomerServiceTest {
                 throw emailUpdateIllegalArgument;
             }
             return nextUpdateEmailResult;
+        }
+
+        @Override
+        public boolean deactivateIdentity(String userId) {
+            deactivateIdentityCalls.add(userId);
+            return nextDeactivateIdentityResult;
         }
     }
 }

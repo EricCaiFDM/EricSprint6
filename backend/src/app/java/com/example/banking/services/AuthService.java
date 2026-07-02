@@ -16,6 +16,7 @@ import com.example.banking.lib.security.JwtTokenService;
 @Service
 public class AuthService {
     private static final Set<String> ALLOWED_ROLES = Set.of("CUSTOMER", "ADMIN");
+    private static final String CLOSED_ACCOUNT_STATUS = "CLOSED";
 
     private final AuthRepository repository;
     private final JwtTokenService jwtTokenService;
@@ -31,20 +32,36 @@ public class AuthService {
     }
 
     public UUID register(String email, String password, String passwordConfirmation, String role) {
+        String normalizedIdentity = normalizeIdentity(email);
         if (password == null || !password.equals(passwordConfirmation)) {
-            authenticationAuditService.record("REGISTER", normalizeIdentity(email), "FAILURE", "PASSWORD_MISMATCH");
+            authenticationAuditService.record("REGISTER", normalizedIdentity, "FAILURE", "PASSWORD_MISMATCH");
             throw new IllegalArgumentException("Password confirmation mismatch");
-        }
-        AuthRepository.AuthUserCredentials existingUser = repository.findCredentialsByEmail(email).orElse(null);
-        if (existingUser != null) {
-            authenticationAuditService.record("REGISTER", normalizeIdentity(email), "FAILURE", "DUPLICATE_IDENTITY");
-            throw new IllegalStateException("Email already registered with role " + existingUser.role());
         }
 
         String normalizedRole = normalizeRole(role);
+        AuthRepository.AuthUserCredentials existingUser = repository.findCredentialsByEmail(normalizedIdentity).orElse(null);
+        if (existingUser != null) {
+            if (!CLOSED_ACCOUNT_STATUS.equalsIgnoreCase(existingUser.accountStatus())) {
+                authenticationAuditService.record("REGISTER", normalizedIdentity, "FAILURE", "DUPLICATE_IDENTITY");
+                throw new IllegalStateException("Email already registered with role " + existingUser.role());
+            }
+
+            boolean reactivated = repository.reactivateClosedIdentityByUserId(
+                    existingUser.userId(),
+                    hash(password),
+                    normalizedRole);
+            if (!reactivated) {
+                authenticationAuditService.record("REGISTER", normalizedIdentity, "FAILURE", "IDENTITY_REACTIVATION_FAILED");
+                throw new IllegalStateException("Unable to reactivate closed identity");
+            }
+
+            authenticationAuditService.record("REGISTER", normalizedIdentity, "SUCCESS", "IDENTITY_REACTIVATED");
+            return parseUserId(existingUser.userId());
+        }
+
         UUID userId = UUID.randomUUID();
         repository.createUser(userId, email, hash(password), normalizedRole);
-        authenticationAuditService.record("REGISTER", normalizeIdentity(email), "SUCCESS", null);
+        authenticationAuditService.record("REGISTER", normalizedIdentity, "SUCCESS", null);
         return userId;
     }
 
@@ -129,6 +146,15 @@ public class AuthService {
         return repository.updateEmailByUserId(normalizedUserId, normalizedIdentity);
     }
 
+    public boolean deactivateIdentity(String userId) {
+        String normalizedUserId = userId == null ? "" : userId.trim();
+        if (normalizedUserId.isEmpty()) {
+            return false;
+        }
+
+        return repository.updateAccountStatusByUserId(normalizedUserId, CLOSED_ACCOUNT_STATUS);
+    }
+
     public LoginTokens refreshAccessToken(String refreshToken) {
         JwtTokenService.RefreshTokenPrincipal refreshTokenPrincipal;
         try {
@@ -193,6 +219,14 @@ public class AuthService {
         }
 
         throw new IllegalArgumentException("Unsupported role. Allowed values: CUSTOMER, ADMIN");
+    }
+
+    private UUID parseUserId(String userId) {
+        try {
+            return UUID.fromString(userId);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("Stored user identifier is invalid", exception);
+        }
     }
 
     public record LoginTokens(String accessToken, String refreshToken, long expiresIn) {

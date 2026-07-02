@@ -399,6 +399,110 @@ class CustomerControllerIntegrationTest {
         }
 
     @Test
+    void customerClosureBlocksFutureLogin() throws Exception {
+        MvcResult createResult = mockMvc.perform(post("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-close-001").claim("role", "ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createPayload(
+                        "ext-close-001",
+                        "Close Login",
+                        "close.login@example.com",
+                        "+27123456789",
+                        "secret123")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+        String customerId = created.get("customerId").asText();
+        String ownerUserId = created.get("ownerUserId").asText();
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identity\":\"close.login@example.com\",\"password\":\"secret123\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString());
+
+        mockMvc.perform(delete("/customers/{customerId}", customerId)
+                        .with(jwt().jwt(jwt -> jwt.claim("sub", ownerUserId).claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELETED"));
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identity\":\"close.login@example.com\",\"password\":\"secret123\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        String storedStatus = jdbcTemplate.queryForObject(
+                "SELECT account_status FROM auth_users WHERE email = ?",
+                String.class,
+                "close.login@example.com");
+        org.junit.jupiter.api.Assertions.assertEquals("CLOSED", storedStatus);
+    }
+
+    @Test
+    void customerEmailCanBeReusedAfterClosure() throws Exception {
+        MvcResult initialCreateResult = mockMvc.perform(post("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-reuse-001").claim("role", "ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createPayload(
+                        "ext-reuse-001",
+                        "Reuse Email",
+                        "reuse.email@example.com",
+                        "+27123456789",
+                        "secret123")))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        JsonNode initialCreated = objectMapper.readTree(initialCreateResult.getResponse().getContentAsString());
+        String initialCustomerId = initialCreated.get("customerId").asText();
+        String initialOwnerUserId = initialCreated.get("ownerUserId").asText();
+
+        mockMvc.perform(delete("/customers/{customerId}", initialCustomerId)
+                        .with(jwt().jwt(jwt -> jwt.claim("sub", initialOwnerUserId).claim("role", "CUSTOMER"))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("DELETED"));
+
+        MvcResult recreatedResult = mockMvc.perform(post("/customers")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "admin-reuse-001").claim("role", "ADMIN")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createPayload(
+                        "ext-reuse-001",
+                        "Reuse Email Again",
+                        "reuse.email@example.com",
+                        "+27123456789",
+                        "secret456")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.externalCustomerKey").value("ext-reuse-001"))
+                .andExpect(jsonPath("$.primaryEmail").value("reuse.email@example.com"))
+                .andReturn();
+
+        JsonNode recreated = objectMapper.readTree(recreatedResult.getResponse().getContentAsString());
+        String recreatedOwnerUserId = recreated.get("ownerUserId").asText();
+        org.junit.jupiter.api.Assertions.assertEquals(initialOwnerUserId, recreatedOwnerUserId);
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identity\":\"reuse.email@example.com\",\"password\":\"secret123\"}"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+
+        mockMvc.perform(post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"identity\":\"reuse.email@example.com\",\"password\":\"secret456\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isString())
+                .andExpect(jsonPath("$.refreshToken").isString());
+
+        String storedStatus = jdbcTemplate.queryForObject(
+                "SELECT account_status FROM auth_users WHERE email = ?",
+                String.class,
+                "reuse.email@example.com");
+        org.junit.jupiter.api.Assertions.assertEquals("ACTIVE", storedStatus);
+    }
+
+    @Test
     void deleteCustomerSuccessRemovesFromOperationalAccess() throws Exception {
         MvcResult createResult = createCustomer("owner-206", "CUSTOMER", "ext-206", "jane206@example.com");
         JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
