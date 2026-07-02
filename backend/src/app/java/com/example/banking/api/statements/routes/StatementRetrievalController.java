@@ -43,6 +43,14 @@ import com.example.banking.services.CustomerRepository;
 import com.example.banking.services.TransactionRepository;
 import com.example.banking.services.statement.StatementAuthorizationService;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Statements")
 @RestController
 @RequestMapping("/statements")
 @Validated
@@ -73,6 +81,16 @@ public class StatementRetrievalController {
         this.customerRepository = customerRepository;
     }
 
+    @Operation(
+            summary = "Get statement by id",
+            description = "Returns statement metadata, status, and summary details for a single statement identifier.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "Statement details",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = StatementResponseSchema.class),
+                examples = @ExampleObject(value = "{\"statementId\":\"8d8a1415-b894-4cc3-ac6e-4f6c9836d5a2\",\"accountId\":\"a274560e-7158-41cb-8cc7-a305237b9f8c\",\"periodYearMonth\":\"2026-07\",\"status\":\"READY\",\"artifactVersion\":1,\"periodStartUtc\":\"2026-07-01T00:00:00Z\",\"periodEndUtc\":\"2026-08-01T00:00:00Z\",\"generatedAtUtc\":\"2026-07-31T23:59:59Z\"}")))
     @GetMapping("/{statementId}")
     public ResponseEntity<StatementResponseSchema> getById(
             @PathVariable
@@ -87,6 +105,15 @@ public class StatementRetrievalController {
         return ResponseEntity.ok(statementResponseMapper.toResponse(statement));
     }
 
+        @Operation(
+            summary = "Download statement artifact",
+            description = "Downloads the generated PDF artifact for the requested statement and artifact version.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "PDF statement artifact",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_PDF_VALUE,
+                schema = @Schema(type = "string", format = "binary")))
     @GetMapping(value = "/{statementId}/artifact/v{artifactVersion}.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> downloadArtifact(
             @PathVariable

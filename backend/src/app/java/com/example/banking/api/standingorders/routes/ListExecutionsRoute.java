@@ -16,6 +16,14 @@ import com.example.banking.services.CustomerPrincipal;
 import com.example.banking.services.CustomerPrincipalResolver;
 import com.example.banking.services.ListStandingOrderExecutionsService;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Standing Orders")
 @RestController
 @RequestMapping("/standing-orders")
 @Validated
@@ -33,6 +41,16 @@ public class ListExecutionsRoute {
         this.responseMapper = responseMapper;
     }
 
+    @Operation(
+            summary = "List standing order executions",
+            description = "Returns paginated execution events and outcomes for a single standing order.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Standing order execution page",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = StandingOrderExecutionListResponseSchema.class),
+                    examples = @ExampleObject(value = "{\"items\":[{\"executionEventId\":\"9f9f2e54-5a9d-4f2e-9a4a-198610b2a680\",\"standingOrderId\":\"c1d2e3f4-1111-4444-9999-aabbccddeeff\",\"executionState\":\"SUCCEEDED\",\"executedAtUtc\":\"2026-07-01T00:00:02Z\",\"resultingTransactionId\":\"8b7d5c3e-6d43-4e20-9b57-72f6d4028517\"}],\"page\":1,\"pageSize\":20,\"totalItems\":1,\"totalPages\":1}")))
     @GetMapping("/{standingOrderId}/executions")
     public ResponseEntity<StandingOrderExecutionListResponseSchema> listExecutions(
             @PathVariable String standingOrderId,

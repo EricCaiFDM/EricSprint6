@@ -18,8 +18,15 @@ import com.example.banking.services.CustomerPrincipal;
 import com.example.banking.services.CustomerPrincipalResolver;
 import com.example.banking.services.TriggerNotificationService;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+@Tag(name = "Notifications")
 @RestController
 @RequestMapping("/notifications/events")
 @Validated
@@ -37,8 +44,24 @@ public class TriggerNotificationRoute {
         this.responseMapper = responseMapper;
     }
 
+    @Operation(
+            summary = "Trigger notification event",
+            description = "Creates a notification event for dispatch processing and returns the accepted event reference.")
+        @ApiResponse(
+            responseCode = "202",
+            description = "Notification accepted",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = NotificationEventAcceptedResponseSchema.class),
+                examples = @ExampleObject(value = "{\"notificationEventId\":\"31f5fd3d-40cb-4f9f-bec7-d3eec559c5b8\",\"status\":\"ACCEPTED\",\"createdAtUtc\":\"2026-07-02T05:00:00Z\"}")))
     @PostMapping
     public ResponseEntity<NotificationEventAcceptedResponseSchema> trigger(
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                required = true,
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = TriggerNotificationSchema.class),
+                    examples = @ExampleObject(value = "{\"eventType\":\"LOW_BALANCE\",\"channel\":\"EMAIL\",\"recipient\":\"customer@example.com\",\"subject\":\"Low balance alert\",\"message\":\"Your account balance is below AUD 100.00\"}")))
             @Valid @RequestBody TriggerNotificationSchema request,
             Authentication authentication) {
         CustomerPrincipal principal = principalResolver.resolve(authentication);

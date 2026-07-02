@@ -180,6 +180,7 @@ See `specs/README.md` for standards and usage guidance.
 Project completion criteria are documented in:
 
 - `DEFINITION-OF-DONE.md`
+- [GUARDRAILS.md](GUARDRAILS.md) (consolidated guardrail rules, enforcement points, and evidence references)
 
 ## Notes
 
