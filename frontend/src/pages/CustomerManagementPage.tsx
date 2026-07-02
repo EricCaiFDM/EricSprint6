@@ -18,6 +18,10 @@ import {
   resolveCustomerIdFromScopeInput
 } from "../utils/customerScope";
 import { formatDate } from "../utils/formatting";
+import {
+  PHONE_NUMBER_MAX_LENGTH,
+  validatePhoneNumber
+} from "../utils/phoneValidation";
 import { useNavigate } from "react-router-dom";
 
 const initialCreate: CreateCustomerProfileInput = {
@@ -142,8 +146,15 @@ export function CustomerManagementPage() {
     setCreateError(null);
 
     const normalizedPassword = createForm.password?.trim() ?? "";
+    const normalizedPhoneNumber = createForm.phoneNumber.trim();
     if (isAdmin && normalizedPassword.length < 8) {
       setCreateError("Password must be at least 8 characters for admin-created customer profiles.");
+      return;
+    }
+
+    const phoneValidationError = validatePhoneNumber(normalizedPhoneNumber);
+    if (phoneValidationError) {
+      setCreateError(phoneValidationError);
       return;
     }
 
@@ -151,7 +162,7 @@ export function CustomerManagementPage() {
       externalCustomerKey: createForm.externalCustomerKey.trim(),
       legalName: createForm.legalName.trim(),
       primaryEmail: createForm.primaryEmail.trim(),
-      phoneNumber: createForm.phoneNumber.trim(),
+      phoneNumber: normalizedPhoneNumber,
       password: isAdmin ? normalizedPassword : undefined
     });
   };
@@ -159,10 +170,17 @@ export function CustomerManagementPage() {
   const onUpdateCustomer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const normalizedPhoneNumber = updateForm.phoneNumber?.trim() ?? "";
+    const phoneValidationError = validatePhoneNumber(normalizedPhoneNumber);
+    if (phoneValidationError) {
+      setUpdateError(phoneValidationError);
+      return;
+    }
+
     const payload: UpdateCustomerProfileInput = {
       legalName: updateForm.legalName?.trim() || undefined,
       primaryEmail: updateForm.primaryEmail?.trim() || undefined,
-      phoneNumber: updateForm.phoneNumber?.trim() || undefined,
+      phoneNumber: normalizedPhoneNumber || undefined,
       status: isAdmin ? updateForm.status : undefined
     };
 
@@ -326,6 +344,7 @@ export function CustomerManagementPage() {
                       phoneNumber: event.target.value
                     }))
                   }
+                  maxLength={PHONE_NUMBER_MAX_LENGTH}
                 />
               </label>
 
@@ -425,6 +444,7 @@ export function CustomerManagementPage() {
                     phoneNumber: event.target.value
                   }))
                 }
+                maxLength={PHONE_NUMBER_MAX_LENGTH}
                 placeholder="No change"
               />
             </label>

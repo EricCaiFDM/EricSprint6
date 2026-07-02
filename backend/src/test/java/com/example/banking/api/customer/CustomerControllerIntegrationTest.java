@@ -119,6 +119,17 @@ class CustomerControllerIntegrationTest {
                 .andExpect(jsonPath("$.field").value("password"));
     }
 
+        @Test
+        void createCustomerRejectsPhoneNumberOutsideAllowedLength() throws Exception {
+                mockMvc.perform(post("/customers")
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "user-phone-create").claim("role", "CUSTOMER")))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(createPayload("ext-phone-length-001", "Phone Length", "phone.length@example.com", "12345")))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                                .andExpect(jsonPath("$.field").value("phoneNumber"));
+        }
+
     @Test
     void createCustomerReturnsConflictForDuplicateBusinessKey() throws Exception {
         mockMvc.perform(post("/customers")
@@ -317,6 +328,21 @@ class CustomerControllerIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("CUSTOMER_VALIDATION_ERROR"));
     }
+
+        @Test
+        void patchCustomerRejectsPhoneNumberOutsideAllowedLength() throws Exception {
+                MvcResult createResult = createCustomer("owner-phone-patch", "CUSTOMER", "ext-phone-patch-001", "phone.patch@example.com");
+                JsonNode created = objectMapper.readTree(createResult.getResponse().getContentAsString());
+                String customerId = created.get("customerId").asText();
+
+                mockMvc.perform(patch("/customers/{customerId}", customerId)
+                                .with(jwt().jwt(jwt -> jwt.claim("sub", "owner-phone-patch").claim("role", "CUSTOMER")))
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"phoneNumber\":\"12345\"}"))
+                                .andExpect(status().isBadRequest())
+                                .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+                                .andExpect(jsonPath("$.field").value("phoneNumber"));
+        }
 
     @Test
     void deleteCustomerReturnsConflictWhenDependencyExists() throws Exception {

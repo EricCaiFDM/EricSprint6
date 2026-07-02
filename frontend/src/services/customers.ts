@@ -117,7 +117,7 @@ export async function updateCustomerProfile(
     const details = getApiErrorDetails(error);
     if (details.status === 400) {
       if (details.field === "phoneNumber") {
-        throw new Error("Phone number must be a valid phone number.");
+        throw new Error("Phone number must be between 7 and 32 characters and contain only digits, spaces, +, -, and parentheses.");
       }
       if (details.field === "primaryEmail") {
         throw new Error("Primary email must be valid.");

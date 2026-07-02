@@ -604,7 +604,7 @@ describe("customer experience services", () => {
         },
         "cust-801"
       )
-    ).rejects.toThrow("Phone number must be a valid phone number.");
+    ).rejects.toThrow("Phone number must be between 7 and 32 characters and contain only digits, spaces, +, -, and parentheses.");
   });
 
   it("lists accounts using explicit customer scope id", async () => {
