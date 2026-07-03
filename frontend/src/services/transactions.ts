@@ -38,6 +38,11 @@ export type TransactionHistoryResult = {
   totalPages: number;
 };
 
+export type TransactionHistoryTotals = {
+  totalCredits: number;
+  totalDebits: number;
+};
+
 export type PostingInput = {
   accountId: string;
   amount: number;
@@ -151,6 +156,55 @@ export async function fetchTransactionHistory(
 
     throw new Error(details.message);
   }
+}
+
+export async function fetchTransactionHistoryTotals(
+  query: TransactionHistoryQuery = {}
+): Promise<TransactionHistoryTotals> {
+  const scopeType = query.scopeType ?? "CUSTOMER";
+  let scopedCustomerId = query.customerId?.trim();
+  let scopedScopeId = query.scopeId?.trim();
+
+  if (scopeType === "CUSTOMER") {
+    if (!scopedScopeId) {
+      if (!scopedCustomerId) {
+        const customer = await resolveCurrentCustomerProfile();
+        scopedCustomerId = customer.customerId;
+      }
+
+      scopedScopeId = scopedCustomerId;
+    }
+  }
+
+  const baseQuery: TransactionHistoryQuery = {
+    ...query,
+    customerId: scopedCustomerId || query.customerId,
+    scopeId: scopedScopeId || query.scopeId,
+    page: 1,
+    pageSize: 100
+  };
+
+  const firstPage = await fetchTransactionHistory(baseQuery);
+  let totalCredits = sumByDirection(firstPage.items, "CREDIT");
+  let totalDebits = sumByDirection(firstPage.items, "DEBIT");
+
+  if (firstPage.totalPages > 1) {
+    const remainingPageRequests: Array<Promise<TransactionHistoryResult>> = [];
+    for (let page = 2; page <= firstPage.totalPages; page += 1) {
+      remainingPageRequests.push(fetchTransactionHistory({ ...baseQuery, page }));
+    }
+
+    const remainingPages = await Promise.all(remainingPageRequests);
+    remainingPages.forEach((pageResult) => {
+      totalCredits += sumByDirection(pageResult.items, "CREDIT");
+      totalDebits += sumByDirection(pageResult.items, "DEBIT");
+    });
+  }
+
+  return {
+    totalCredits,
+    totalDebits
+  };
 }
 
 export async function submitDeposit(input: PostingInput): Promise<PostingReceipt> {
@@ -324,6 +378,12 @@ function asTransactionType(value: unknown): TransactionType {
     return type;
   }
   return "DEPOSIT";
+}
+
+function sumByDirection(items: TransactionItem[], direction: TransactionItem["direction"]): number {
+  return items
+    .filter((item) => item.direction === direction)
+    .reduce((total, item) => total + item.amount, 0);
 }
 
 function mapDescription(transactionType: TransactionType): string {

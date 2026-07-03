@@ -179,6 +179,67 @@ describe("App", () => {
     });
   });
 
+  it("does not show a global snackbar when customer is on payments", async () => {
+    jest.useFakeTimers();
+
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    const feedMock = notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>;
+    feedMock.mockResolvedValueOnce([
+      {
+        notificationId: "notif-1",
+        title: "Deposit posted",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:00Z",
+        level: "Info"
+      }
+    ]);
+    feedMock.mockResolvedValueOnce([
+      {
+        notificationId: "notif-2",
+        title: "Transfer completed",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:05Z",
+        level: "Info"
+      },
+      {
+        notificationId: "notif-1",
+        title: "Deposit posted",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:00Z",
+        level: "Info"
+      }
+    ]);
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "customer-payments-alert",
+        email: "customer.payments.alert@example.com",
+        role: "CUSTOMER"
+      })
+    );
+
+    renderApp("/customer/payments");
+
+    expect(await screen.findByRole("heading", { name: /^Payments & transactions$/i })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(feedMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    await waitFor(() => {
+      expect(feedMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.queryByText("New alert: Transfer completed")).not.toBeInTheDocument();
+  });
+
   it("renders admin navigation for ADMIN role", async () => {
     const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
     mockedCheckHealth.mockResolvedValue("OK");

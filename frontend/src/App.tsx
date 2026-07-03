@@ -141,13 +141,13 @@ export default function App() {
 
     latestNotificationIdRef.current = latest.notificationId;
 
-    if (location.pathname !== "/customer/notifications") {
+    if (location.pathname !== "/customer/notifications" && location.pathname !== "/customer/payments") {
       setScreenAlert(`New alert: ${latest.title}`);
     }
   }, [location.pathname, notificationFeedQuery.data]);
 
   useEffect(() => {
-    if (location.pathname === "/customer/notifications" && screenAlert) {
+    if ((location.pathname === "/customer/notifications" || location.pathname === "/customer/payments") && screenAlert) {
       setScreenAlert(null);
     }
   }, [location.pathname, screenAlert]);

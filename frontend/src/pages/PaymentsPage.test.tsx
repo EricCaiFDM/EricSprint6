@@ -59,6 +59,11 @@ describe("PaymentsPage", () => {
         level: "Info"
       }
     ]);
+
+    (transactions.fetchTransactionHistoryTotals as jest.MockedFunction<typeof transactions.fetchTransactionHistoryTotals>).mockResolvedValue({
+      totalCredits: 0,
+      totalDebits: 0
+    });
   });
 
   it("renders all transaction operation controls", async () => {
@@ -198,8 +203,8 @@ describe("PaymentsPage", () => {
     expect(firstCall?.amount).toBeCloseTo(125.5);
     expect(firstCall?.customerId).toBeUndefined();
 
-    expect(await screen.findByRole("status")).toHaveTextContent(/Deposit completed\. Reference txn-1\./i);
     expect(await screen.findByRole("alert")).toHaveTextContent(/Notification sent: Deposit Posted\./i);
+    expect(screen.queryByText(/Deposit completed\. Reference/i)).not.toBeInTheDocument();
   });
 
   it("shows transaction account labels with IDs and final total account balance", async () => {
@@ -262,6 +267,63 @@ describe("PaymentsPage", () => {
     expect(screen.getByText(/Account: Everyday \(acc-1\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Final total account balance/i)).toBeInTheDocument();
     expect(screen.getByText(/\$4,250\.00/i)).toBeInTheDocument();
+  });
+
+  it("shows history credit and debit summary from filtered totals, not visible page only", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+    const fetchTotalsMock = transactions.fetchTransactionHistoryTotals as jest.MockedFunction<typeof transactions.fetchTransactionHistoryTotals>;
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [
+        {
+          transactionId: "txn-page-1",
+          accountId: "acc-1",
+          transactionType: "DEPOSIT",
+          bookedAt: "2026-06-29T10:00:00Z",
+          description: "Visible page entry",
+          category: "Deposit",
+          amount: 50,
+          currency: "USD",
+          direction: "CREDIT",
+          status: "Completed"
+        }
+      ],
+      page: 1,
+      pageSize: 10,
+      totalItems: 15,
+      totalPages: 2
+    });
+
+    fetchTotalsMock.mockResolvedValue({
+      totalCredits: 350,
+      totalDebits: 80
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(fetchTotalsMock).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByText(/History credits/i)).toBeInTheDocument();
+    expect(screen.getByText("$350.00")).toBeInTheDocument();
+    expect(screen.getByText("$80.00")).toBeInTheDocument();
   });
 
   it("does not duplicate transaction type and description in history title", async () => {

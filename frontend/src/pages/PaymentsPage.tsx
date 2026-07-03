@@ -4,6 +4,7 @@ import { fetchAccounts, type BankAccount } from "../services/accounts";
 import { fetchCustomersForAdmin } from "../services/customers";
 import { fetchRecentNotifications } from "../services/notifications";
 import {
+  fetchTransactionHistoryTotals,
   fetchTransactionHistory,
   submitDeposit,
   submitTransfer,
@@ -199,6 +200,33 @@ export function PaymentsPage() {
     placeholderData: (previous) => previous ?? emptyHistory
   });
 
+  const historyTotalsQueryParams: TransactionHistoryQuery = useMemo(
+    () => ({
+      scopeType: historyScopeType,
+      customerId: isAdmin ? customerScopeId || undefined : undefined,
+      scopeId: historyScopeType === "ACCOUNT" ? historyScopeId || undefined : undefined,
+      transactionType: historyType,
+      startDate: historyStartDate || undefined,
+      endDate: historyEndDate || undefined
+    }),
+    [
+      historyScopeType,
+      customerScopeId,
+      historyScopeId,
+      historyType,
+      historyStartDate,
+      historyEndDate,
+      isAdmin
+    ]
+  );
+
+  const historyTotalsQuery = useQuery({
+    queryKey: ["transactions", "history", "totals", historyTotalsQueryParams],
+    queryFn: () => fetchTransactionHistoryTotals(historyTotalsQueryParams),
+    enabled: (!isAdmin || Boolean(customerScopeId.trim())) && (historyScopeType === "CUSTOMER" || Boolean(historyScopeId)),
+    placeholderData: (previous) => previous ?? { totalCredits: 0, totalDebits: 0 }
+  });
+
   const applyBalancePatch = (entries: Array<{ accountId: string; balanceAfter: number }>) => {
     const patches = entries.filter(
       (entry) => entry.accountId.trim().length > 0 && Number.isFinite(entry.balanceAfter)
@@ -277,7 +305,7 @@ export function PaymentsPage() {
         }
       ]);
       setLastOperation({ kind: "deposit", receipt });
-      setFeedback(`Deposit completed. Reference ${receipt.reference}.`);
+      setFeedback(initialFeedbackMessage);
       setDepositAmount("");
       await Promise.all([
         refreshAll(),
@@ -371,19 +399,8 @@ export function PaymentsPage() {
 
   const currentHistory = historyQuery.data ?? emptyHistory;
 
-  const totalDebits = useMemo(
-    () => currentHistory.items
-      .filter((item) => item.direction === "DEBIT")
-      .reduce((total, item) => total + item.amount, 0),
-    [currentHistory.items]
-  );
-
-  const totalCredits = useMemo(
-    () => currentHistory.items
-      .filter((item) => item.direction === "CREDIT")
-      .reduce((total, item) => total + item.amount, 0),
-    [currentHistory.items]
-  );
+  const totalDebits = historyTotalsQuery.data?.totalDebits ?? 0;
+  const totalCredits = historyTotalsQuery.data?.totalCredits ?? 0;
 
   const finalTotalAccountBalance = useMemo(
     () => accounts.reduce((total, account) => total + account.currentBalance, 0),
