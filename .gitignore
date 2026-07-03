@@ -1,0 +1,27 @@
+# Node/TypeScript
+node_modules/
+dist/
+build/
+*.log
+.env*
+
+# Java
+target/
+*.class
+*.jar
+.gradle/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+
+# Universal
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/

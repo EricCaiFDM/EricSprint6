@@ -1,0 +1,66 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: banking-backend
+  profiles:
+    default: local
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/bankingdb?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME:banking_app}
+    password: ${DB_PASSWORD:banking_app}
+  jpa:
+    hibernate:
+      ddl-auto: none
+    open-in-view: false
+  sql:
+    init:
+      mode: always
+
+security:
+  jwt:
+    issuer: banking-backend
+    secret: ${JWT_SECRET:northbridge-demo-signing-secret-key-2026-at-least-32-chars}
+    access-token-ttl-minutes: 10
+    refresh-token-ttl-days: 7
+
+customer:
+  masking-enabled: true
+
+account:
+  masking-enabled: true
+
+transaction:
+  default-currency-code: AUD
+  history-max-page-size: 100
+  idempotency-ttl-hours: 24
+
+standing-order:
+  max-page-size: 100
+  scheduler-window-minutes: 5
+  scheduler-fixed-delay-ms: 60000
+  max-retry-attempts: 3
+  retry-delay-minutes: 30
+  default-retry-policy-code: STANDARD
+
+notification:
+  max-page-size: 100
+  max-retry-attempts: 2
+  retry-delay-seconds: 30
+  default-policy-code: STANDARD
+  fallback-order: EMAIL,SMS,PUSH,IN_APP
+
+statement:
+  max-page-size: 100
+  scheduler-enabled: true
+  scheduler-cron: "0 5 0 1 * *"
+  generation-batch-size: 250
+  artifact-base-uri: /statements
+
+insights:
+  minimum-transaction-count: 3
+  medium-confidence-transaction-count: 6
+  max-categories: 8
+  taxonomy-version: v1

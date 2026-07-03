@@ -1,0 +1,356 @@
+openapi: 3.0.3
+info:
+  title: Monthly Statements API
+  version: 1.0.0
+  description: Contract for monthly statement generation and authorized retrieval.
+servers:
+  - url: https://api.example.com
+paths:
+  /statements/generate:
+    post:
+      summary: Generate monthly statement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateStatementRequest'
+      responses:
+        '202':
+          description: Statement generation accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateStatementAcceptedResponse'
+              examples:
+                standardAccepted:
+                  summary: Standard generation accepted
+                  value:
+                    statementId: 2f6344df-8bd4-4d62-9c4f-0e5c8e2e2d11
+                    generationStatus: PROCESSING
+                correctionAccepted:
+                  summary: Correction generation accepted
+                  value:
+                    statementId: 56f2fbe2-3f28-4a4b-a796-c2f8ed6d7b42
+                    generationStatus: QUEUED
+        '400':
+          description: Invalid period or validation failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_VALIDATION_ERROR
+                message: periodYearMonth must follow YYYY-MM
+                field: periodYearMonth
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_FORBIDDEN
+                message: Insufficient privileges to generate statements
+                field: null
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_ACCOUNT_NOT_FOUND
+                message: No account found for the provided identifier
+                field: accountId
+        '409':
+          description: Conflict for duplicate standard generation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_CONFLICT
+                message: Standard statement already exists for the provided period
+                field: periodYearMonth
+        '500':
+          description: Generation dependency failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_DEPENDENCY_FAILURE
+                message: Statement generation failed due to dependency outage
+                field: null
+  /statements/{statementId}:
+    get:
+      summary: Retrieve statement artifact metadata and access link
+      parameters:
+        - $ref: '#/components/parameters/StatementId'
+      responses:
+        '200':
+          description: Statement retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementResponse'
+              examples:
+                generatedVersion:
+                  summary: Generated statement response
+                  value:
+                    statementId: 2f6344df-8bd4-4d62-9c4f-0e5c8e2e2d11
+                    accountId: 80b4dd6b-e48a-4d87-bf4a-f6f8da44d5f5
+                    periodYearMonth: 2026-06
+                    artifactVersion: 1
+                    openingBalance: '0.00'
+                    closingBalance: '125.50'
+                    currencyCode: USD
+                    status: GENERATED
+                    artifactUri: /statements/2f6344df-8bd4-4d62-9c4f-0e5c8e2e2d11/artifact/v1.pdf
+                    generatedAtUtc: '2026-07-01T00:05:00Z'
+                correctedVersion:
+                  summary: Corrected statement response
+                  value:
+                    statementId: 56f2fbe2-3f28-4a4b-a796-c2f8ed6d7b42
+                    accountId: 80b4dd6b-e48a-4d87-bf4a-f6f8da44d5f5
+                    periodYearMonth: 2026-06
+                    artifactVersion: 2
+                    openingBalance: '0.00'
+                    closingBalance: '130.50'
+                    currencyCode: USD
+                    status: CORRECTED
+                    artifactUri: /statements/56f2fbe2-3f28-4a4b-a796-c2f8ed6d7b42/artifact/v2.pdf
+                    generatedAtUtc: '2026-07-01T00:06:00Z'
+        '400':
+          description: Invalid identifier or malformed request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_VALIDATION_ERROR
+                message: statementId must be a UUID
+                field: statementId
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_FORBIDDEN
+                message: Insufficient privileges to read statements
+                field: null
+        '404':
+          description: Missing statement artifact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_NOT_FOUND
+                message: No statement found for the provided identifier
+                field: statementId
+  /statements:
+    get:
+      summary: List statements for account and period filters
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - $ref: '#/components/parameters/PeriodYearMonth'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Statement list returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementListResponse'
+              example:
+                items:
+                  - statementId: 56f2fbe2-3f28-4a4b-a796-c2f8ed6d7b42
+                    accountId: 80b4dd6b-e48a-4d87-bf4a-f6f8da44d5f5
+                    periodYearMonth: 2026-06
+                    artifactVersion: 2
+                    status: CORRECTED
+                    generatedAtUtc: '2026-07-01T00:06:00Z'
+                  - statementId: 2f6344df-8bd4-4d62-9c4f-0e5c8e2e2d11
+                    accountId: 80b4dd6b-e48a-4d87-bf4a-f6f8da44d5f5
+                    periodYearMonth: 2026-06
+                    artifactVersion: 1
+                    status: GENERATED
+                    generatedAtUtc: '2026-07-01T00:05:00Z'
+                page: 1
+                pageSize: 20
+                totalItems: 2
+                totalPages: 1
+        '400':
+          description: Invalid filter or pagination parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_VALIDATION_ERROR
+                message: accountId must be a UUID
+                field: accountId
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_FORBIDDEN
+                message: Insufficient privileges to read statements
+                field: null
+        '404':
+          description: Account not found for requested scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                code: STATEMENT_ACCOUNT_NOT_FOUND
+                message: No account found for the provided identifier
+                field: accountId
+components:
+  parameters:
+    StatementId:
+      name: statementId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AccountId:
+      name: accountId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PeriodYearMonth:
+      name: periodYearMonth
+      in: query
+      required: false
+      schema:
+        type: string
+        pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    GenerateStatementRequest:
+      type: object
+      required: [accountId, periodYearMonth, generationMode]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        periodYearMonth:
+          type: string
+          pattern: '^[0-9]{4}-(0[1-9]|1[0-2])$'
+        generationMode:
+          type: string
+          enum: [STANDARD, CORRECTION]
+    GenerateStatementAcceptedResponse:
+      type: object
+      required: [statementId, generationStatus]
+      properties:
+        statementId:
+          type: string
+          format: uuid
+        generationStatus:
+          type: string
+          enum: [QUEUED, PROCESSING]
+    StatementResponse:
+      type: object
+      required: [statementId, accountId, periodYearMonth, artifactVersion, openingBalance, closingBalance, status]
+      properties:
+        statementId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        periodYearMonth:
+          type: string
+        artifactVersion:
+          type: integer
+        openingBalance:
+          type: string
+        closingBalance:
+          type: string
+        currencyCode:
+          type: string
+        status:
+          type: string
+          enum: [GENERATED, CORRECTED, FAILED]
+        artifactUri:
+          type: string
+        generatedAtUtc:
+          type: string
+          format: date-time
+    StatementListItem:
+      type: object
+      required: [statementId, accountId, periodYearMonth, artifactVersion, status]
+      properties:
+        statementId:
+          type: string
+          format: uuid
+        accountId:
+          type: string
+          format: uuid
+        periodYearMonth:
+          type: string
+        artifactVersion:
+          type: integer
+        status:
+          type: string
+          enum: [GENERATED, CORRECTED, FAILED]
+        generatedAtUtc:
+          type: string
+          format: date-time
+    StatementListResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatementListItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+    ApiError:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        field:
+          type: string
+          nullable: true

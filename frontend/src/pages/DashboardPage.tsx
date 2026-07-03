@@ -1,0 +1,143 @@
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchAccounts } from "../services/accounts";
+import { fetchCustomerProfile } from "../services/customers";
+import { fetchRecentTransactions, type TransactionItem } from "../services/transactions";
+import { fetchStandingOrders } from "../services/standingOrders";
+import { formatCurrency, formatDate, formatDateTime } from "../utils/formatting";
+
+export function DashboardPage() {
+  const profileQuery = useQuery({
+    queryKey: ["customers", "self", "dashboard-welcome"],
+    queryFn: fetchCustomerProfile
+  });
+  const accountsQuery = useQuery({
+    queryKey: ["accounts"],
+    queryFn: () => fetchAccounts()
+  });
+  const transactionsQuery = useQuery({
+    queryKey: ["transactions", "recent"],
+    queryFn: fetchRecentTransactions
+  });
+  const standingOrdersQuery = useQuery({
+    queryKey: ["standing-orders"],
+    queryFn: fetchStandingOrders
+  });
+
+  const accounts = accountsQuery.data ?? [];
+  const transactions = transactionsQuery.data ?? [];
+  const standingOrders = standingOrdersQuery.data ?? [];
+
+  const totalBalance = useMemo(
+    () => accounts.reduce((sum, account) => sum + account.availableBalance, 0),
+    [accounts]
+  );
+
+  const monthlyOutflow = useMemo(
+    () => transactions
+      .filter((transaction) => transaction.direction === "DEBIT")
+      .reduce((sum, transaction) => sum + transaction.amount, 0),
+    [transactions]
+  );
+
+  const accountNameById = useMemo(
+    () => new Map(accounts.map((account) => [account.accountId, account.accountName])),
+    [accounts]
+  );
+
+  const customerName = profileQuery.data?.fullName?.trim() ? profileQuery.data.fullName.trim() : "Customer";
+  const upcomingCount = standingOrders.filter((order) => order.lifecycleState === "ACTIVE").length;
+
+  return (
+    <section className="bank-page">
+      <header className="page-header">
+        <div>
+          <h2 className="page-title">Dashboard</h2>
+          <p className="page-subtitle">
+            See balances, recent activity, and upcoming scheduled payments at a glance.
+          </p>
+        </div>
+      </header>
+
+      <article className="surface-card dashboard-welcome-card" aria-label="Welcome message">
+        <h3>Welcome back, {customerName}</h3>
+        <p className="hint-text">Here is a quick look at your banking activity today.</p>
+      </article>
+
+      <section className="summary-grid" aria-label="Account summaries">
+        <article className="summary-card">
+          <p className="summary-label">Total available balance</p>
+          <p className="summary-value">{formatCurrency(totalBalance, "AUD")}</p>
+        </article>
+        <article className="summary-card">
+          <p className="summary-label">Spending this period</p>
+          <p className="summary-value">{formatCurrency(monthlyOutflow, "AUD")}</p>
+        </article>
+        <article className="summary-card">
+          <p className="summary-label">Active scheduled payments</p>
+          <p className="summary-value">{upcomingCount}</p>
+        </article>
+      </section>
+
+      {!accountsQuery.isPending && !accountsQuery.isError && accounts.length === 0 ? (
+        <article className="surface-card">
+          <p className="hint-text">No accounts found for customer. Open your first account from the Accounts page.</p>
+        </article>
+      ) : null}
+
+      <section className="two-column-grid">
+        <article className="surface-card">
+          <h3>Recent activity</h3>
+          <ul className="activity-list">
+            {transactions.slice(0, 5).map((transaction) => (
+              <li key={transaction.transactionId} className="activity-item">
+                <div>
+                  <p className="item-title">{transaction.description}</p>
+                  <p className="item-meta">{formatDate(transaction.bookedAt)} · {transaction.category}</p>
+                  <p className="item-meta">{formatRecentActivityAccountLabel(transaction, accountNameById)}</p>
+                </div>
+                <p className={transaction.direction === "CREDIT" ? "amount-credit" : "amount-debit"}>
+                  {transaction.direction === "CREDIT" ? "+" : "-"}
+                  {formatCurrency(transaction.amount, transaction.currency)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </article>
+
+        <article className="surface-card">
+          <h3>Scheduled payments due soon</h3>
+          <ul className="stack-list">
+            {standingOrders.slice(0, 4).map((order) => (
+              <li key={order.standingOrderId} className="stack-list-item">
+                <div>
+                  <p className="item-title">
+                    {(accountNameById.get(order.sourceAccountId) ?? order.sourceAccountId)} to {(accountNameById.get(order.destinationAccountId) ?? order.destinationAccountId)}
+                  </p>
+                  <p className="item-meta">
+                    {order.cadence} · Next run {order.nextExecutionAtUtc ? formatDateTime(order.nextExecutionAtUtc) : "none"}
+                  </p>
+                </div>
+                <p className="item-emphasis">{formatCurrency(order.amount, "USD")}</p>
+              </li>
+            ))}
+          </ul>
+        </article>
+      </section>
+    </section>
+  );
+}
+
+function formatRecentActivityAccountLabel(transaction: TransactionItem, accountNameById: Map<string, string>): string {
+  const accountId = transaction.accountId?.trim();
+  if (!accountId) {
+    return "Account: unavailable";
+  }
+
+  const accountName = accountNameById.get(accountId);
+  if (!accountName) {
+    return `Account ID: ${accountId}`;
+  }
+
+  return `Account: ${accountName} (${accountId})`;
+}

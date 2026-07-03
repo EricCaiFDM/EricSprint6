@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: Authentication API
+  version: 1.0.0
+  description: Contract for registration, login, password reset request, and token refresh.
+servers:
+  - url: https://api.example.com
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Duplicate identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/login:
+    post:
+      summary: Authenticate user credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          description: Invalid credentials or ineligible account state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/password-reset/request:
+    post:
+      summary: Request password reset initiation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '202':
+          description: Generic acknowledgment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericAcknowledge'
+  /auth/password-reset/confirm:
+    post:
+      summary: Complete password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+      responses:
+        '202':
+          description: Generic acknowledgment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenericAcknowledge'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/token/refresh:
+    post:
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+    RegisterRequest:
+      type: object
+      required: [email, password, passwordConfirmation]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        passwordConfirmation:
+          type: string
+    RegisterResponse:
+      type: object
+      required: [status, userId]
+      properties:
+        status:
+          type: string
+          example: CREATED
+        userId:
+          type: string
+          format: uuid
+    LoginRequest:
+      type: object
+      required: [identity, password]
+      properties:
+        identity:
+          type: string
+        password:
+          type: string
+    LoginResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds
+    PasswordResetRequest:
+      type: object
+      required: [identity]
+      properties:
+        identity:
+          type: string
+    PasswordResetConfirmRequest:
+      type: object
+      required: [identity, password, passwordConfirmation]
+      properties:
+        identity:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+        passwordConfirmation:
+          type: string
+          minLength: 8
+          maxLength: 128
+    GenericAcknowledge:
+      type: object
+      required: [status, message]
+      properties:
+        status:
+          type: string
+          example: ACCEPTED
+        message:
+          type: string
+          example: If the account exists, reset instructions will be sent.
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+    RefreshResponse:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+      example:
+        accessToken: acc-6a3ff377-229f-49bd-b9fe-2c2a2634da10-1761322000
+        refreshToken: ref-6a3ff377-229f-49bd-b9fe-2c2a2634da10-4b7cf271-c850-4cda-9840-bec58adf4f43
+        expiresIn: 900

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+    http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="20260625-auth-user-account" author="copilot">
+        <createTable tableName="user_account">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="email" type="varchar(255)"><constraints nullable="false" unique="true"/></column>
+            <column name="password_hash" type="varchar(255)"><constraints nullable="false"/></column>
+            <column name="status" type="varchar(40)"/>
+            <column name="created_at_utc" type="timestamp"/>
+            <column name="updated_at_utc" type="timestamp"/>
+            <column name="last_login_at_utc" type="timestamp"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260625-auth-refresh-session" author="copilot">
+        <createTable tableName="refresh_session">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="user_id" type="uuid"/>
+            <column name="token_id" type="varchar(255)"><constraints nullable="false" unique="true"/></column>
+            <column name="token_hash" type="varchar(255)"/>
+            <column name="issued_at_utc" type="timestamp"/>
+            <column name="expires_at_utc" type="timestamp"/>
+            <column name="revoked_at_utc" type="timestamp"/>
+            <column name="replaced_by_token_id" type="varchar(255)"/>
+            <column name="ip_address" type="varchar(120)"/>
+            <column name="user_agent" type="varchar(255)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260625-auth-reset-request" author="copilot">
+        <createTable tableName="password_reset_request">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="user_id" type="uuid"/>
+            <column name="request_identity" type="varchar(255)"/>
+            <column name="request_token_hash" type="varchar(255)"/>
+            <column name="requested_at_utc" type="timestamp"/>
+            <column name="expires_at_utc" type="timestamp"/>
+            <column name="status" type="varchar(40)"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="20260625-auth-event" author="copilot">
+        <createTable tableName="auth_event">
+            <column name="id" type="uuid"><constraints primaryKey="true" nullable="false"/></column>
+            <column name="event_type" type="varchar(80)"/>
+            <column name="user_id" type="uuid"/>
+            <column name="occurred_at_utc" type="timestamp"/>
+            <column name="correlation_id" type="varchar(255)"/>
+            <column name="outcome" type="varchar(20)"/>
+            <column name="reason_code" type="varchar(120)"/>
+            <column name="metadata" type="varchar(1024)"/>
+        </createTable>
+    </changeSet>
+</databaseChangeLog>

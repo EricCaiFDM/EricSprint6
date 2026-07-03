@@ -1,0 +1,316 @@
+openapi: 3.0.3
+info:
+  title: Account Management API
+  version: 1.0.0
+  description: Contract for account create, retrieve, list, update, and delete operations.
+servers:
+  - url: https://api.example.com
+paths:
+  /accounts:
+    post:
+      summary: Create account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAccountRequest'
+      responses:
+        '201':
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Customer not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Unsupported account type or eligibility conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      summary: List accounts
+      parameters:
+        - $ref: '#/components/parameters/CustomerIdQuery'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/AccountTypeFilter'
+        - $ref: '#/components/parameters/StatusFilter'
+      responses:
+        '200':
+          description: Account list returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountListResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /accounts/{accountId}:
+    get:
+      summary: Get account details
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      summary: Update account
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAccountRequest'
+      responses:
+        '200':
+          description: Account updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete or close account
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Account deletion/closure succeeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeleteAccountResponse'
+        '403':
+          description: Insufficient permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Account not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Deletion blocked by dependency or retention policy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    CustomerIdQuery:
+      name: customerId
+      in: query
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    AccountTypeFilter:
+      name: accountType
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [CHECKING, SAVINGS]
+    StatusFilter:
+      name: status
+      in: query
+      required: false
+      schema:
+        type: string
+        enum: [ACTIVE, SUSPENDED, CLOSED]
+  schemas:
+    CreateAccountRequest:
+      type: object
+      required: [customerId, accountType, currencyCode]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        accountType:
+          type: string
+          enum: [CHECKING, SAVINGS]
+        currencyCode:
+          type: string
+          minLength: 3
+          maxLength: 3
+        nickname:
+          type: string
+    UpdateAccountRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+        interestRate:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Admin-only. Can be updated only for SAVINGS accounts.
+        balance:
+          type: number
+          format: decimal
+          minimum: 0
+          description: Admin-only. Sets account balance and reflected available/current balances.
+    AccountResponse:
+      type: object
+      required: [accountId, accountNumber, customerId, accountType, status, currencyCode, balance, availableBalance, currentBalance, openedAtUtc]
+      properties:
+        accountId:
+          type: string
+          format: uuid
+        accountNumber:
+          type: string
+        customerId:
+          type: string
+          format: uuid
+        accountType:
+          type: string
+          enum: [CHECKING, SAVINGS]
+        status:
+          type: string
+          enum: [ACTIVE, SUSPENDED, CLOSED]
+        currencyCode:
+          type: string
+        balance:
+          type: string
+        availableBalance:
+          type: string
+        currentBalance:
+          type: string
+        nickname:
+          type: string
+          nullable: true
+        openedAtUtc:
+          type: string
+          format: date-time
+        closedAtUtc:
+          type: string
+          format: date-time
+          nullable: true
+    AccountListResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/AccountResponse'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+    DeleteAccountResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [DELETED, CLOSED]
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        field:
+          type: string

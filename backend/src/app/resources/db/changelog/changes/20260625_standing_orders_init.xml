@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.23.xsd">
+
+    <changeSet id="20260625-standing-orders-init" author="copilot">
+        <createTable tableName="standing_orders">
+            <column name="standing_order_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="source_account_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="destination_account_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="amount" type="DECIMAL(18,2)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="currency_code" type="VARCHAR(3)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="cadence" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="schedule_config" type="TEXT"/>
+            <column name="effective_from_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="effective_to_utc" type="TIMESTAMP"/>
+            <column name="next_execution_at_utc" type="TIMESTAMP"/>
+            <column name="lifecycle_state" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="retry_policy_code" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_by_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="standing_orders" indexName="ix_standing_orders_due">
+            <column name="lifecycle_state"/>
+            <column name="next_execution_at_utc"/>
+        </createIndex>
+
+        <createIndex tableName="standing_orders" indexName="ix_standing_orders_source">
+            <column name="source_account_id"/>
+        </createIndex>
+
+        <createTable tableName="standing_order_lifecycle_events">
+            <column name="event_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="standing_order_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="event_type" type="VARCHAR(32)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_user_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="actor_role" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="occurred_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="reason_code" type="VARCHAR(128)"/>
+            <column name="metadata" type="TEXT"/>
+        </createTable>
+
+        <createIndex tableName="standing_order_lifecycle_events" indexName="ix_so_lifecycle_by_order">
+            <column name="standing_order_id"/>
+            <column name="occurred_at_utc"/>
+        </createIndex>
+
+        <createTable tableName="standing_order_execution_events">
+            <column name="execution_event_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="standing_order_id" type="VARCHAR(36)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="due_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="completed_at_utc" type="TIMESTAMP"/>
+            <column name="status" type="VARCHAR(48)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="transfer_reference_id" type="VARCHAR(36)"/>
+            <column name="attempt_number" type="INT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="next_retry_at_utc" type="TIMESTAMP"/>
+            <column name="reason_code" type="VARCHAR(128)"/>
+            <column name="metadata" type="TEXT"/>
+        </createTable>
+
+        <createIndex tableName="standing_order_execution_events" indexName="ix_so_execution_by_order">
+            <column name="standing_order_id"/>
+            <column name="started_at_utc"/>
+        </createIndex>
+
+        <createTable tableName="standing_order_schedule_cursors">
+            <column name="cursor_id" type="VARCHAR(36)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="worker_id" type="VARCHAR(64)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="window_start_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="window_end_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="claimed_at_utc" type="TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="completed_at_utc" type="TIMESTAMP"/>
+            <column name="status" type="VARCHAR(16)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="standing_order_schedule_cursors" indexName="ix_so_cursor_worker_claimed">
+            <column name="worker_id"/>
+            <column name="claimed_at_utc"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

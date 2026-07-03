@@ -18,17 +18,21 @@
   the iteration process.
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**Language/Version**: Backend Java 17+; Frontend TypeScript (React 18)
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**Backend Stack**: Java 17+, Spring Boot (Web, Security, Validation), Maven/Gradle, JUnit + MockMvc, OpenAPI Generator, GitHub Spec Kit, Git, GitHub
+
+**Frontend Stack**: React 18, Vite / CRA, TypeScript, Axios, Jest / React Testing Library, Postman, Prism mock server
+
+**Cross-cutting Stack**: GitHub Copilot, ESLint / Checkstyle / SpotBugs / SonarQube, Dependency scanners (npm audit, OWASP), GitHub Actions, Swagger UI
 
 **Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Testing**: JUnit + MockMvc for backend; Jest / React Testing Library for frontend
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Target Platform**: Linux containerized Spring Boot backend + browser-based React frontend
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**Project Type**: Full-stack web application
 
 **Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
 
@@ -111,3 +115,47 @@ directories captured above]
 |-----------|------------|-------------------------------------|
 | [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
 | [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+
+## Definition of Done Alignment
+
+Reference: [DEFINITION-OF-DONE.md](../../DEFINITION-OF-DONE.md)
+
+### Specification Complete
+- [ ] Feature spec written and approved before development
+- [ ] Business rules, acceptance criteria, negative scenarios, and error codes defined
+- [ ] OpenAPI contract complete
+- [ ] Allowed/forbidden libraries and guardrail rules documented
+
+### Implementation Complete
+- [ ] Spring Boot implementation uses required libraries and avoids forbidden patterns
+- [ ] React implementation uses spec-first client patterns and proper error handling
+- [ ] Implementation matches OpenAPI exactly with no undeclared fields
+
+### Testing Complete
+- [ ] 70%+ code coverage target defined and tracked
+- [ ] Contract tests passing
+- [ ] Negative tests implemented
+- [ ] Integration tests executed against mock server
+
+### Guardrails Enforced
+- [ ] Prompt/workflow references the feature spec
+- [ ] No insecure AI-suggested dependencies included
+- [ ] Static analysis, secret scanning, and dependency audit pass
+
+### Git Workflow Complete
+- [ ] Feature branch -> PR -> develop workflow used
+- [ ] Two peer approvals required
+- [ ] CI passing and commit messages meaningful
+- [ ] No direct commits to protected branches
+
+### Documentation Complete
+- [ ] OpenAPI updated and Swagger UI renders
+- [ ] README updated
+- [ ] Request/response examples included
+
+### Demo Ready
+- [ ] API running
+- [ ] Positive and negative paths demonstrated
+- [ ] Contract tests shown
+- [ ] Documentation presented
+- [ ] Guardrails explained

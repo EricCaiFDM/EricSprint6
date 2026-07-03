@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - include:
+      file: db/changelog/changes/20260625_auth_init.xml
+  - include:
+      file: db/changelog/changes/20260625_account_mgmt_init.xml
+  - include:
+      file: db/changelog/changes/20260625_transaction_ops_init.xml
+  - include:
+      file: db/changelog/changes/20260625_standing_orders_init.xml
+  - include:
+      file: db/changelog/changes/20260625_notifications_init.xml
+  - include:
+      file: db/changelog/changes/20260629_monthly_statements_init.xml
+  - include:
+      file: db/changelog/changes/20260629_statement_audit_events.xml

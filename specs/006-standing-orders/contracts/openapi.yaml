@@ -1,0 +1,297 @@
+openapi: 3.0.3
+info:
+  title: Standing Orders API
+  version: 1.0.0
+  description: Contract for standing-order lifecycle management and scheduled execution outcomes.
+servers:
+  - url: https://api.example.com
+paths:
+  /standing-orders:
+    get:
+      summary: List standing orders in caller scope
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Standing orders returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderListResponse'
+        '403':
+          description: Insufficient permission
+    post:
+      summary: Create standing order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStandingOrderRequest'
+      responses:
+        '201':
+          description: Standing order created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderResponse'
+        '400':
+          description: Invalid schedule or amount rules
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Ineligible source or destination account
+  /standing-orders/{standingOrderId}:
+    patch:
+      summary: Update standing order configuration
+      parameters:
+        - $ref: '#/components/parameters/StandingOrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStandingOrderRequest'
+      responses:
+        '200':
+          description: Standing order updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderResponse'
+        '400':
+          description: Invalid schedule or amount rules
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Standing order not found
+  /standing-orders/{standingOrderId}/pause:
+    post:
+      summary: Pause standing order
+      parameters:
+        - $ref: '#/components/parameters/StandingOrderId'
+      responses:
+        '200':
+          description: Standing order paused
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Standing order not found
+  /standing-orders/{standingOrderId}/resume:
+    post:
+      summary: Resume standing order
+      parameters:
+        - $ref: '#/components/parameters/StandingOrderId'
+      responses:
+        '200':
+          description: Standing order resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Standing order not found
+  /standing-orders/{standingOrderId}/cancel:
+    post:
+      summary: Cancel standing order
+      parameters:
+        - $ref: '#/components/parameters/StandingOrderId'
+      responses:
+        '200':
+          description: Standing order cancelled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Standing order not found
+  /standing-orders/{standingOrderId}/executions:
+    get:
+      summary: List standing order execution outcomes
+      parameters:
+        - $ref: '#/components/parameters/StandingOrderId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+      responses:
+        '200':
+          description: Execution outcomes returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandingOrderExecutionListResponse'
+        '403':
+          description: Insufficient permission
+        '404':
+          description: Standing order not found
+components:
+  parameters:
+    StandingOrderId:
+      name: standingOrderId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Page:
+      name: page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+  schemas:
+    CreateStandingOrderRequest:
+      type: object
+      required: [sourceAccountId, destinationAccountId, amount, cadence, effectiveFromUtc]
+      properties:
+        sourceAccountId:
+          type: string
+          format: uuid
+        destinationAccountId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+          description: Decimal value with 2 fraction digits
+        cadence:
+          type: string
+          enum: [DAILY, WEEKLY, MONTHLY]
+        effectiveFromUtc:
+          type: string
+          format: date-time
+        effectiveToUtc:
+          type: string
+          format: date-time
+          nullable: true
+        retryPolicyCode:
+          type: string
+    UpdateStandingOrderRequest:
+      type: object
+      properties:
+        amount:
+          type: string
+          description: Decimal value with 2 fraction digits
+        cadence:
+          type: string
+          enum: [DAILY, WEEKLY, MONTHLY]
+        effectiveFromUtc:
+          type: string
+          format: date-time
+        effectiveToUtc:
+          type: string
+          format: date-time
+          nullable: true
+        retryPolicyCode:
+          type: string
+    StandingOrderResponse:
+      type: object
+      required: [standingOrderId, sourceAccountId, destinationAccountId, amount, cadence, lifecycleState, nextExecutionAtUtc]
+      properties:
+        standingOrderId:
+          type: string
+          format: uuid
+        sourceAccountId:
+          type: string
+          format: uuid
+        destinationAccountId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+        cadence:
+          type: string
+          enum: [DAILY, WEEKLY, MONTHLY]
+        lifecycleState:
+          type: string
+          enum: [ACTIVE, PAUSED, CANCELLED, COMPLETED]
+        nextExecutionAtUtc:
+          type: string
+          format: date-time
+          nullable: true
+        effectiveFromUtc:
+          type: string
+          format: date-time
+        effectiveToUtc:
+          type: string
+          format: date-time
+          nullable: true
+    StandingOrderExecutionItem:
+      type: object
+      required: [executionEventId, dueAtUtc, status, attemptNumber]
+      properties:
+        executionEventId:
+          type: string
+          format: uuid
+        dueAtUtc:
+          type: string
+          format: date-time
+        startedAtUtc:
+          type: string
+          format: date-time
+        completedAtUtc:
+          type: string
+          format: date-time
+          nullable: true
+        status:
+          type: string
+          enum: [SUCCEEDED, FAILED_INSUFFICIENT_FUNDS, FAILED_INELIGIBLE_ACCOUNT, FAILED_DEPENDENCY_OUTAGE, RETRY_SCHEDULED]
+        attemptNumber:
+          type: integer
+        transferReferenceId:
+          type: string
+          format: uuid
+          nullable: true
+        reasonCode:
+          type: string
+          nullable: true
+    StandingOrderExecutionListResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StandingOrderExecutionItem'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
+    StandingOrderListResponse:
+      type: object
+      required: [items, page, pageSize, totalItems, totalPages]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/StandingOrderResponse'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalItems:
+          type: integer
+        totalPages:
+          type: integer
