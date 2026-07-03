@@ -43,7 +43,7 @@ export function StatementsPage() {
   const [feedback, setFeedback] = useState(
     isAdmin
       ? "Select a customer scope, then generate and retrieve monthly statements for that customer accounts."
-      : "Generate and retrieve monthly statements for your accounts."
+      : ""
   );
 
   const adminCustomersQuery = useQuery({
@@ -224,7 +224,7 @@ export function StatementsPage() {
         </article>
       ) : null}
 
-      <p className="output">{feedback}</p>
+      {feedback ? <p className="output">{feedback}</p> : null}
 
       <section className="summary-grid">
         <article className="summary-card">

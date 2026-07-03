@@ -45,6 +45,13 @@ describe("NotificationsPage", () => {
         level: "Info"
       }
     ]);
+
+    (notificationsService.updateNotificationPreferences as jest.MockedFunction<typeof notificationsService.updateNotificationPreferences>).mockResolvedValue({
+      pushEnabled: true,
+      emailEnabled: true,
+      smsEnabled: false,
+      marketingEnabled: false
+    });
   });
 
   afterEach(() => {
@@ -107,5 +114,20 @@ describe("NotificationsPage", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     });
+  });
+
+  it("shows an alert when preferences are saved", async () => {
+    const updatePreferencesMock = notificationsService.updateNotificationPreferences as jest.MockedFunction<typeof notificationsService.updateNotificationPreferences>;
+
+    renderPage();
+
+    const saveButton = await screen.findByRole("button", { name: /Save preferences/i });
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(updatePreferencesMock).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(/Preferences have been updated\./i);
   });
 });
