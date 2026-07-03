@@ -41,6 +41,7 @@ export function PaymentsPage() {
   const queryClient = useQueryClient();
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
+  const initialFeedbackMessage = "Deposit, withdraw, transfer, and review all transactions in one place.";
 
   const [customerScopeInput, setCustomerScopeInput] = useState("");
   const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState("");
@@ -63,7 +64,7 @@ export function PaymentsPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(10);
 
-  const [feedback, setFeedback] = useState("Deposit, withdraw, transfer, and review all transactions in one place.");
+  const [feedback, setFeedback] = useState(initialFeedbackMessage);
   const [notificationFeedback, setNotificationFeedback] = useState<string | null>(null);
   const [lastOperation, setLastOperation] = useState<OperationReceipt | null>(null);
   const [depositError, setDepositError] = useState<string | null>(null);
@@ -401,6 +402,7 @@ export function PaymentsPage() {
     transferSourceAccountId !== transferDestinationAccountId &&
     Number(transferAmount) > 0 &&
     !transferMutation.isPending;
+  const showCustomerFeedbackAlert = !isAdmin && feedback !== initialFeedbackMessage;
 
   return (
     <section className="bank-page">
@@ -415,6 +417,19 @@ export function PaymentsPage() {
         <div className="in-page-alert" role="alert">
           <span>{notificationFeedback}</span>
           <button type="button" className="in-page-alert-dismiss" onClick={() => setNotificationFeedback(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {showCustomerFeedbackAlert ? (
+        <div className="in-page-alert" role="status">
+          <span>{feedback}</span>
+          <button
+            type="button"
+            className="in-page-alert-dismiss"
+            onClick={() => setFeedback(initialFeedbackMessage)}
+          >
             Dismiss
           </button>
         </div>
@@ -762,36 +777,38 @@ export function PaymentsPage() {
         </div>
       </article>
 
-      <article className="surface-card">
-        <h3>Operation status</h3>
-        <p className="hint-text">{feedback}</p>
-        {accountsQuery.isError && (
-          <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
-        )}
-        {!hasAccounts && !accountsQuery.isPending && !accountsQuery.isError && (
-          <p className="hint-text">No accounts found for customer. Create an account before posting transactions.</p>
-        )}
-        {lastOperation ? (
-          <dl className="profile-grid payments-receipt-grid">
-            <div>
-              <dt>Operation</dt>
-              <dd>{toReadableOperation(lastOperation.kind)}</dd>
-            </div>
-            <div>
-              <dt>Reference</dt>
-              <dd>{lastOperation.receipt.reference}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{lastOperation.receipt.status}</dd>
-            </div>
-            <div>
-              <dt>Submitted</dt>
-              <dd>{formatDate(lastOperation.receipt.submittedAt)}</dd>
-            </div>
-          </dl>
-        ) : null}
-      </article>
+      {isAdmin ? (
+        <article className="surface-card">
+          <h3>Operation status</h3>
+          <p className="hint-text">{feedback}</p>
+          {accountsQuery.isError && (
+            <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
+          )}
+          {!hasAccounts && !accountsQuery.isPending && !accountsQuery.isError && (
+            <p className="hint-text">No accounts found for customer. Create an account before posting transactions.</p>
+          )}
+          {lastOperation ? (
+            <dl className="profile-grid payments-receipt-grid">
+              <div>
+                <dt>Operation</dt>
+                <dd>{toReadableOperation(lastOperation.kind)}</dd>
+              </div>
+              <div>
+                <dt>Reference</dt>
+                <dd>{lastOperation.receipt.reference}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{lastOperation.receipt.status}</dd>
+              </div>
+              <div>
+                <dt>Submitted</dt>
+                <dd>{formatDate(lastOperation.receipt.submittedAt)}</dd>
+              </div>
+            </dl>
+          ) : null}
+        </article>
+      ) : null}
     </section>
   );
 }

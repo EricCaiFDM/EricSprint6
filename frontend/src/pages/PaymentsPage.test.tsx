@@ -169,6 +169,8 @@ describe("PaymentsPage", () => {
 
     renderPage();
 
+    expect(screen.queryByRole("heading", { name: /Operation status/i })).not.toBeInTheDocument();
+
     await waitFor(() => {
       expect(fetchAccountsMock).toHaveBeenCalled();
     });
@@ -196,7 +198,7 @@ describe("PaymentsPage", () => {
     expect(firstCall?.amount).toBeCloseTo(125.5);
     expect(firstCall?.customerId).toBeUndefined();
 
-    expect(await screen.findByText(/Deposit completed\. Reference txn-1\./i)).toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/Deposit completed\. Reference txn-1\./i);
     expect(await screen.findByRole("alert")).toHaveTextContent(/Notification sent: Deposit Posted\./i);
   });
 
