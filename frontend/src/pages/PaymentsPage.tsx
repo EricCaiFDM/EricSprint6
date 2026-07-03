@@ -101,28 +101,50 @@ export function PaymentsPage() {
 
   useEffect(() => {
     if (!hasAccounts) {
+      setDepositAccountId("");
+      setWithdrawAccountId("");
+      setTransferSourceAccountId("");
+      setTransferDestinationAccountId("");
+      if (historyScopeType === "ACCOUNT" && historyScopeId) {
+        setHistoryScopeId("");
+      }
       return;
     }
 
     const primary = accounts[0].accountId;
     const secondary = accounts.find((item) => item.accountId !== primary)?.accountId ?? "";
 
-    if (!depositAccountId) {
+    const hasAccount = (accountId: string) => accounts.some((item) => item.accountId === accountId);
+
+    if (!depositAccountId || !hasAccount(depositAccountId)) {
       setDepositAccountId(primary);
     }
 
-    if (!withdrawAccountId) {
+    if (!withdrawAccountId || !hasAccount(withdrawAccountId)) {
       setWithdrawAccountId(primary);
     }
 
-    if (!transferSourceAccountId) {
+    if (!transferSourceAccountId || !hasAccount(transferSourceAccountId)) {
       setTransferSourceAccountId(primary);
     }
 
-    if (!transferDestinationAccountId) {
+    if (!transferDestinationAccountId || !hasAccount(transferDestinationAccountId)) {
       setTransferDestinationAccountId(secondary);
     }
-  }, [accounts, hasAccounts, depositAccountId, withdrawAccountId, transferSourceAccountId, transferDestinationAccountId]);
+
+    if (historyScopeType === "ACCOUNT" && historyScopeId && !hasAccount(historyScopeId)) {
+      setHistoryScopeId("");
+    }
+  }, [
+    accounts,
+    hasAccounts,
+    depositAccountId,
+    withdrawAccountId,
+    transferSourceAccountId,
+    transferDestinationAccountId,
+    historyScopeType,
+    historyScopeId
+  ]);
 
   const destinationOptions = useMemo(
     () => accounts.filter((item) => item.accountId !== transferSourceAccountId),
