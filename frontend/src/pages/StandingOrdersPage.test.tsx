@@ -10,6 +10,10 @@ jest.mock("../services/accounts");
 jest.mock("../services/standingOrders");
 
 describe("StandingOrdersPage", () => {
+  function toUtcIso(date: string, time: string): string {
+    return new Date(`${date}T${time}:00`).toISOString();
+  }
+
   function renderPage() {
     const queryClient = new QueryClient({
       defaultOptions: {
@@ -130,12 +134,21 @@ describe("StandingOrdersPage", () => {
       expect(screen.getAllByRole("option", { name: /Savings \(\*\*\*\* 0002\) · Balance \$500\.00/i }).length).toBeGreaterThan(0);
     });
 
+    fireEvent.change(screen.getByLabelText(/Effective from/i), { target: { value: "2026-07-15" } });
+    fireEvent.change(screen.getByLabelText(/Occurs at \(local time\)/i), { target: { value: "14:30" } });
     fireEvent.change(screen.getByLabelText(/Amount/i), { target: { value: "45.50" } });
     fireEvent.change(screen.getByLabelText(/Cadence/i), { target: { value: "MONTHLY" } });
     fireEvent.click(screen.getByRole("button", { name: /Create standing order/i }));
 
     await waitFor(() => {
-      expect(standingOrdersService.createStandingOrder).toHaveBeenCalled();
+      expect(standingOrdersService.createStandingOrder).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amount: 45.5,
+          cadence: "MONTHLY",
+          effectiveFromUtc: toUtcIso("2026-07-15", "14:30")
+        }),
+        expect.anything()
+      );
     });
   });
 

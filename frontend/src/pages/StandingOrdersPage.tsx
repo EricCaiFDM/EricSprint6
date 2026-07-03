@@ -19,6 +19,7 @@ type StandingOrderFormState = {
   amount: string;
   cadence: StandingOrderCadence;
   effectiveFromDate: string;
+  effectiveFromTime: string;
   effectiveToDate: string;
   retryPolicyCode: string;
 };
@@ -27,8 +28,17 @@ function todayDateInput(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-function toUtcStartOfDay(dateInputValue: string): string {
-  return new Date(`${dateInputValue}T00:00:00Z`).toISOString();
+function toUtcDateTime(dateInputValue: string, timeInputValue: string): string | null {
+  if (!dateInputValue || !timeInputValue) {
+    return null;
+  }
+
+  const localDateTime = new Date(`${dateInputValue}T${timeInputValue}:00`);
+  if (Number.isNaN(localDateTime.getTime())) {
+    return null;
+  }
+
+  return localDateTime.toISOString();
 }
 
 function cadenceMonthlyFactor(cadence: StandingOrderCadence): number {
@@ -86,6 +96,7 @@ export function StandingOrdersPage() {
     amount: "",
     cadence: "MONTHLY",
     effectiveFromDate: todayDateInput(),
+    effectiveFromTime: "09:00",
     effectiveToDate: "",
     retryPolicyCode: "STANDARD"
   });
@@ -206,13 +217,33 @@ export function StandingOrdersPage() {
       return;
     }
 
+    if (!form.effectiveFromTime) {
+      setFeedback("Execution time is required.");
+      return;
+    }
+
+    const effectiveFromUtc = toUtcDateTime(form.effectiveFromDate, form.effectiveFromTime);
+    if (!effectiveFromUtc) {
+      setFeedback("Effective from date and time are invalid.");
+      return;
+    }
+
+    const effectiveToUtc = form.effectiveToDate
+      ? toUtcDateTime(form.effectiveToDate, form.effectiveFromTime)
+      : null;
+
+    if (form.effectiveToDate && !effectiveToUtc) {
+      setFeedback("Effective to date and time are invalid.");
+      return;
+    }
+
     const payload: CreateStandingOrderInput = {
       sourceAccountId: form.sourceAccountId,
       destinationAccountId: form.destinationAccountId,
       amount,
       cadence: form.cadence,
-      effectiveFromUtc: toUtcStartOfDay(form.effectiveFromDate),
-      effectiveToUtc: form.effectiveToDate ? toUtcStartOfDay(form.effectiveToDate) : null,
+      effectiveFromUtc,
+      effectiveToUtc,
       retryPolicyCode: form.retryPolicyCode
     };
 
@@ -316,6 +347,16 @@ export function StandingOrdersPage() {
                 type="date"
                 value={form.effectiveFromDate}
                 onChange={(event) => setForm({ ...form, effectiveFromDate: event.target.value })}
+                required
+              />
+            </label>
+
+            <label>
+              Occurs at (local time)
+              <input
+                type="time"
+                value={form.effectiveFromTime}
+                onChange={(event) => setForm({ ...form, effectiveFromTime: event.target.value })}
                 required
               />
             </label>
