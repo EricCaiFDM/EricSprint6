@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { checkHealth, refreshToken as refreshSessionToken } from "./services/api";
-import { fetchRecentNotifications } from "./services/notifications";
+import {
+  fetchNotificationPreferences,
+  fetchRecentNotifications,
+  isNotificationEnabledByPreferences,
+  type NotificationItem,
+  type NotificationPreferences
+} from "./services/notifications";
 import {
   clearAuthSession,
   getAccessToken,
@@ -62,6 +68,7 @@ export default function App() {
   const [isRefreshingSession, setIsRefreshingSession] = useState(false);
   const [sessionRefreshError, setSessionRefreshError] = useState<string | null>(null);
   const latestNotificationIdRef = useRef<string | null>(null);
+  const preferencesRef = useRef<NotificationPreferences | null>(null);
   const sessionWarningTimeoutRef = useRef<number | null>(null);
   const sessionExpiryTimeoutRef = useRef<number | null>(null);
   const { isAuthenticated, role, accessToken } = authState;
@@ -117,6 +124,36 @@ export default function App() {
   });
 
   useEffect(() => {
+    if (!shouldTrackCustomerFeed) {
+      preferencesRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadPreferences = async () => {
+      try {
+        const preferences = await fetchNotificationPreferences();
+        if (!cancelled) {
+          preferencesRef.current = preferences;
+        }
+      } catch {
+        if (!cancelled) {
+          preferencesRef.current = null;
+        }
+      }
+    };
+
+    void loadPreferences();
+    const intervalId = window.setInterval(loadPreferences, 5000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [shouldTrackCustomerFeed]);
+
+  useEffect(() => {
     if (shouldTrackCustomerFeed) {
       return;
     }
@@ -136,6 +173,13 @@ export default function App() {
     }
 
     if (latest.notificationId === latestNotificationIdRef.current) {
+      return;
+    }
+
+    const preferences = preferencesRef.current;
+    if (preferences && !isNotificationEnabledByPreferences(latest, preferences)) {
+      latestNotificationIdRef.current = latest.notificationId;
+      setScreenAlert(null);
       return;
     }
 

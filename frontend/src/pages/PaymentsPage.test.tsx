@@ -14,6 +14,8 @@ jest.mock("../services/notifications");
 jest.mock("../services/session");
 jest.mock("../services/transactions");
 
+const actualNotifications = jest.requireActual("../services/notifications") as typeof notifications;
+
 describe("PaymentsPage", () => {
   function renderPage() {
     const queryClient = new QueryClient({
@@ -35,6 +37,9 @@ describe("PaymentsPage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (notifications.isNotificationEnabledByPreferences as jest.MockedFunction<typeof notifications.isNotificationEnabledByPreferences>)
+      .mockImplementation(actualNotifications.isNotificationEnabledByPreferences);
 
     (session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>).mockReturnValue("CUSTOMER");
 
@@ -59,6 +64,14 @@ describe("PaymentsPage", () => {
         level: "Info"
       }
     ]);
+
+    (notifications.fetchNotificationPreferences as jest.MockedFunction<typeof notifications.fetchNotificationPreferences>).mockResolvedValue({
+      depositAlertsEnabled: true,
+      withdrawalAlertsEnabled: true,
+      transferAlertsEnabled: true,
+      statementAlertsEnabled: true,
+      offersEnabled: false
+    });
 
     (transactions.fetchTransactionHistoryTotals as jest.MockedFunction<typeof transactions.fetchTransactionHistoryTotals>).mockResolvedValue({
       totalCredits: 0,
@@ -205,6 +218,156 @@ describe("PaymentsPage", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/Notification sent: Deposit Posted\./i);
     expect(screen.queryByText(/Deposit completed\. Reference/i)).not.toBeInTheDocument();
+  });
+
+  it("does not show notification pop-up when deposit alerts are disabled", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+    const submitDepositMock = transactions.submitDeposit as jest.MockedFunction<typeof transactions.submitDeposit>;
+    const fetchPreferencesMock = notifications.fetchNotificationPreferences as jest.MockedFunction<typeof notifications.fetchNotificationPreferences>;
+    const fetchRecentNotificationsMock = notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>;
+
+    fetchPreferencesMock.mockResolvedValue({
+      depositAlertsEnabled: false,
+      withdrawalAlertsEnabled: true,
+      transferAlertsEnabled: true,
+      statementAlertsEnabled: true,
+      offersEnabled: false
+    });
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 1
+    });
+
+    submitDepositMock.mockResolvedValue({
+      reference: "txn-2",
+      transactionType: "DEPOSIT",
+      status: "Completed",
+      submittedAt: "2026-06-26T11:15:00Z",
+      postedAmount: 125.5,
+      currency: "USD",
+      balanceAfter: 1375.5
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/^Amount$/i)[0], {
+      target: { value: "125.5" }
+    });
+
+    const depositButton = screen.getByRole("button", { name: /Submit deposit/i });
+    await waitFor(() => {
+      expect(depositButton).not.toBeDisabled();
+    });
+    fireEvent.click(depositButton);
+
+    await waitFor(() => {
+      expect(submitDepositMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(fetchPreferencesMock).toHaveBeenCalled();
+    });
+    expect(fetchRecentNotificationsMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Notification sent:/i)).not.toBeInTheDocument();
+  });
+
+  it("does not show notification pop-up when withdrawal alerts are disabled", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+    const submitWithdrawalMock = transactions.submitWithdrawal as jest.MockedFunction<typeof transactions.submitWithdrawal>;
+    const fetchPreferencesMock = notifications.fetchNotificationPreferences as jest.MockedFunction<typeof notifications.fetchNotificationPreferences>;
+    const fetchRecentNotificationsMock = notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>;
+
+    fetchPreferencesMock.mockResolvedValue({
+      depositAlertsEnabled: true,
+      withdrawalAlertsEnabled: false,
+      transferAlertsEnabled: true,
+      statementAlertsEnabled: true,
+      offersEnabled: false
+    });
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 1
+    });
+
+    submitWithdrawalMock.mockResolvedValue({
+      reference: "txn-withdraw-2",
+      transactionType: "WITHDRAWAL",
+      status: "Completed",
+      submittedAt: "2026-06-26T11:15:00Z",
+      postedAmount: 20,
+      currency: "USD",
+      balanceAfter: 1230
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalled();
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/^Amount$/i)[1], {
+      target: { value: "20" }
+    });
+
+    const withdrawButton = screen.getByRole("button", { name: /Submit withdrawal/i });
+    await waitFor(() => {
+      expect(withdrawButton).not.toBeDisabled();
+    });
+    fireEvent.click(withdrawButton);
+
+    await waitFor(() => {
+      expect(submitWithdrawalMock).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(fetchPreferencesMock).toHaveBeenCalled();
+    });
+    expect(fetchRecentNotificationsMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Notification sent:/i)).not.toBeInTheDocument();
   });
 
   it("shows transaction account labels with IDs and final total account balance", async () => {

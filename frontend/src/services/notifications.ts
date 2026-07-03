@@ -1,10 +1,11 @@
 import { apiClient } from "./api";
 
 export type NotificationPreferences = {
-  pushEnabled: boolean;
-  emailEnabled: boolean;
-  smsEnabled: boolean;
-  marketingEnabled: boolean;
+  depositAlertsEnabled: boolean;
+  withdrawalAlertsEnabled: boolean;
+  transferAlertsEnabled: boolean;
+  statementAlertsEnabled: boolean;
+  offersEnabled: boolean;
 };
 
 export type NotificationItem = {
@@ -15,14 +16,17 @@ export type NotificationItem = {
   level: "Info" | "Warning";
 };
 
+export type NotificationTopic = "deposit" | "withdrawal" | "transfer" | "statement" | "offers" | "other";
+
 export async function fetchNotificationPreferences(): Promise<NotificationPreferences> {
   const response = await apiClient.get("/notifications/preferences");
   const data = response.data as Record<string, unknown>;
   return {
-    pushEnabled: asBoolean(data.pushEnabled, false),
-    emailEnabled: asBoolean(data.emailEnabled, false),
-    smsEnabled: asBoolean(data.smsEnabled, false),
-    marketingEnabled: asBoolean(data.marketingEnabled, false)
+    depositAlertsEnabled: asBoolean(data.depositAlertsEnabled, true),
+    withdrawalAlertsEnabled: asBoolean(data.withdrawalAlertsEnabled, true),
+    transferAlertsEnabled: asBoolean(data.transferAlertsEnabled, true),
+    statementAlertsEnabled: asBoolean(data.statementAlertsEnabled, true),
+    offersEnabled: asBoolean(data.offersEnabled, false)
   };
 }
 
@@ -36,6 +40,57 @@ export async function updateNotificationPreferences(
 export async function fetchRecentNotifications(): Promise<NotificationItem[]> {
   const response = await apiClient.get("/notifications/events?size=6");
   return mapNotifications(response.data);
+}
+
+export function resolveNotificationTopic(notification: Pick<NotificationItem, "title" | "message">): NotificationTopic {
+  const normalized = `${notification.title} ${notification.message}`.toUpperCase();
+
+  if (normalized.includes("DEPOSIT")) {
+    return "deposit";
+  }
+
+  if (normalized.includes("WITHDRAW")) {
+    return "withdrawal";
+  }
+
+  if (normalized.includes("TRANSFER") || normalized.includes("STANDING ORDER")) {
+    return "transfer";
+  }
+
+  if (normalized.includes("STATEMENT")) {
+    return "statement";
+  }
+
+  if (
+    normalized.includes("PROMOTION")
+    || normalized.includes("PROMO")
+    || normalized.includes("OFFER")
+    || normalized.includes("MARKETING")
+  ) {
+    return "offers";
+  }
+
+  return "other";
+}
+
+export function isNotificationEnabledByPreferences(
+  notification: Pick<NotificationItem, "title" | "message">,
+  preferences: NotificationPreferences
+): boolean {
+  switch (resolveNotificationTopic(notification)) {
+    case "deposit":
+      return preferences.depositAlertsEnabled;
+    case "withdrawal":
+      return preferences.withdrawalAlertsEnabled;
+    case "transfer":
+      return preferences.transferAlertsEnabled;
+    case "statement":
+      return preferences.statementAlertsEnabled;
+    case "offers":
+      return preferences.offersEnabled;
+    default:
+      return true;
+  }
 }
 
 function mapNotifications(payload: unknown): NotificationItem[] {

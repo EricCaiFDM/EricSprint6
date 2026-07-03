@@ -1,11 +1,13 @@
 package com.example.banking.services;
 
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.stereotype.Service;
 
 import com.example.banking.api.common.ApiErrorException;
 import com.example.banking.api.notifications.schemas.NotificationFeedItemSchema;
+import com.example.banking.api.notifications.schemas.NotificationPreferencesResponseSchema;
 import com.example.banking.lib.security.NotificationAccessPolicy;
 import com.example.banking.models.NotificationEventEntity;
 import com.example.banking.models.NotificationEventStatus;
@@ -14,23 +16,28 @@ import com.example.banking.models.NotificationEventStatus;
 public class ListRecentNotificationsService {
     private final NotificationEventRepository notificationEventRepository;
     private final NotificationAccessPolicy notificationAccessPolicy;
+    private final NotificationPreferencesService notificationPreferencesService;
 
     public ListRecentNotificationsService(
             NotificationEventRepository notificationEventRepository,
-            NotificationAccessPolicy notificationAccessPolicy) {
+            NotificationAccessPolicy notificationAccessPolicy,
+            NotificationPreferencesService notificationPreferencesService) {
         this.notificationEventRepository = notificationEventRepository;
         this.notificationAccessPolicy = notificationAccessPolicy;
+        this.notificationPreferencesService = notificationPreferencesService;
     }
 
     public List<NotificationFeedItemSchema> listRecent(int size, String actorUserId, String role) {
         int normalizedSize = Math.max(1, Math.min(size, 50));
         String normalizedActor = actorUserId == null || actorUserId.isBlank() ? "anonymous" : actorUserId.trim();
+        NotificationPreferencesResponseSchema preferences = notificationPreferencesService.getPreferences(normalizedActor, role);
 
         int fetchSize = Math.max(25, normalizedSize * 4);
         while (true) {
             List<NotificationEventEntity> recentEvents = notificationEventRepository.listRecent(fetchSize);
             List<NotificationFeedItemSchema> visibleItems = recentEvents.stream()
                     .filter(event -> hasReadScope(event, normalizedActor, role))
+                    .filter(event -> isEventEnabledByPreferences(event, preferences))
                     .limit(normalizedSize)
                     .map(this::toFeedItem)
                     .toList();
@@ -41,6 +48,40 @@ public class ListRecentNotificationsService {
 
             fetchSize = Math.min(fetchSize * 2, 5000);
         }
+    }
+
+    private boolean isEventEnabledByPreferences(
+            NotificationEventEntity event,
+            NotificationPreferencesResponseSchema preferences) {
+        String normalizedEventType = event.getEventType() == null
+                ? ""
+                : event.getEventType().trim().toUpperCase(Locale.ROOT);
+
+        if (normalizedEventType.contains("DEPOSIT")) {
+            return preferences.depositAlertsEnabled();
+        }
+
+        if (normalizedEventType.contains("WITHDRAWAL")) {
+            return preferences.withdrawalAlertsEnabled();
+        }
+
+        if (normalizedEventType.contains("TRANSFER")) {
+            return preferences.transferAlertsEnabled();
+        }
+
+        if (normalizedEventType.contains("STATEMENT")) {
+            return preferences.statementAlertsEnabled();
+        }
+
+        if (normalizedEventType.contains("PROMOTION")
+                || normalizedEventType.contains("PROMO")
+                || normalizedEventType.contains("OFFER")
+                || normalizedEventType.contains("MARKETING")) {
+            return preferences.offersEnabled();
+        }
+
+        // Keep operational/security events visible unless explicitly mapped above.
+        return true;
     }
 
     private boolean hasReadScope(NotificationEventEntity event, String actorUserId, String role) {
