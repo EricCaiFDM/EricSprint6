@@ -32,6 +32,56 @@ export type SpendingInsightQuery = {
   categoryFilters?: string;
 };
 
+export type SpendingInsightMonthWindow = {
+  periodYearMonth: string;
+  monthLabel: string;
+  rangeLabel: string;
+  periodStartUtc: string;
+  periodEndUtc: string;
+};
+
+const PERIOD_YEAR_MONTH_PATTERN = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+export function currentLocalYearMonth(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+export function buildSpendingInsightMonthWindow(periodYearMonth: string): SpendingInsightMonthWindow {
+  const trimmedValue = periodYearMonth?.trim() ?? "";
+  const normalizedYearMonth = PERIOD_YEAR_MONTH_PATTERN.test(trimmedValue)
+    ? trimmedValue
+    : currentLocalYearMonth();
+
+  const [yearPart, monthPart] = normalizedYearMonth.split("-");
+  const year = Number(yearPart);
+  const monthIndex = Number(monthPart) - 1;
+
+  const startLocal = new Date(year, monthIndex, 1, 0, 0, 0, 0);
+  const endExclusiveLocal = new Date(year, monthIndex + 1, 1, 0, 0, 0, 0);
+  const endInclusiveLocal = new Date(endExclusiveLocal.getTime() - 1);
+
+  const monthLabel = new Intl.DateTimeFormat("en-AU", {
+    month: "long",
+    year: "numeric"
+  }).format(startLocal);
+
+  const dateFormatter = new Intl.DateTimeFormat("en-AU", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric"
+  });
+
+  return {
+    periodYearMonth: normalizedYearMonth,
+    monthLabel,
+    rangeLabel: `${dateFormatter.format(startLocal)} to ${dateFormatter.format(endInclusiveLocal)}`,
+    periodStartUtc: startLocal.toISOString(),
+    periodEndUtc: endExclusiveLocal.toISOString()
+  };
+}
+
 export async function fetchSpendingInsights(query: SpendingInsightQuery = {}): Promise<SpendingInsight> {
   const params: Record<string, string> = {};
 

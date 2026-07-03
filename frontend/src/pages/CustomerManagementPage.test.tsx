@@ -80,6 +80,8 @@ describe("CustomerManagementPage", () => {
   it("submits customer profile updates without status", async () => {
     renderPage();
 
+    expect(screen.queryByRole("heading", { name: /Operation status/i })).not.toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText(/^Legal name$/i), {
       target: { value: "Taylor Green Updated" }
     });
@@ -103,6 +105,23 @@ describe("CustomerManagementPage", () => {
         undefined
       );
     });
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/Customer updated:/i);
+  });
+
+  it("shows inline update validation errors for short phone input", async () => {
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/Phone number/i), {
+      target: { value: "12345" }
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Update customer/i }));
+
+    expect(
+      await screen.findByText("Phone number must be between 7 and 32 characters.")
+    ).toBeInTheDocument();
+    expect(customersService.updateCustomerProfile).not.toHaveBeenCalled();
   });
 
   it("shows a confirmation modal before closing customer account", async () => {

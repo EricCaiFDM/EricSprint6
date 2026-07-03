@@ -17,9 +17,15 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Example;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.repository.query.FluentQuery.FetchableFluentQuery;
 import org.springframework.http.HttpStatus;
 
 import com.example.banking.api.account.dto.AccountListResponse;
@@ -1098,6 +1104,61 @@ class AccountServiceTest {
         public void deleteAll() {
             customers.clear();
         }
+
+		@Override
+		public <S extends CustomerEntity> List<S> findAll(Example<S> example) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <S extends CustomerEntity> List<S> findAll(Example<S> example, Sort sort) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public List<CustomerEntity> findAll(Sort sort) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public Page<CustomerEntity> findAll(Pageable pageable) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <S extends CustomerEntity> Optional<S> findOne(Example<S> example) {
+			// TODO Auto-generated method stub
+			return Optional.empty();
+		}
+
+		@Override
+		public <S extends CustomerEntity> Page<S> findAll(Example<S> example, Pageable pageable) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public <S extends CustomerEntity> long count(Example<S> example) {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public <S extends CustomerEntity> boolean exists(Example<S> example) {
+			// TODO Auto-generated method stub
+			return false;
+		}
+
+		@Override
+		public <S extends CustomerEntity, R> R findBy(Example<S> example,
+				Function<FetchableFluentQuery<S>, R> queryFunction) {
+			// TODO Auto-generated method stub
+			return null;
+		}
     }
 
     private CustomerEntity customer(String customerId, String ownerUserId, String createdByUserId) {

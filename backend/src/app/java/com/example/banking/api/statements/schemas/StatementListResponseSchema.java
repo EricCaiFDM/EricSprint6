@@ -1,7 +1,9 @@
 package com.example.banking.api.statements.schemas;
 
 import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for statement list response schema payload.")
 public record StatementListResponseSchema(
         List<StatementListItemSchema> items,
         int page,

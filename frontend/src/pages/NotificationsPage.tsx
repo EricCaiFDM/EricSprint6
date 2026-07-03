@@ -60,7 +60,8 @@ export function NotificationsPage() {
   const savePreferences = async () => {
     try {
       await saveMutation.mutateAsync(preferences);
-      setFeedback("Preferences updated.");
+      setLiveAlert("Preferences have been updated.");
+      setFeedback("Choose how you want to hear from us.");
     } catch (error) {
       setFeedback(`Unable to save preferences: ${(error as Error).message}`);
     }

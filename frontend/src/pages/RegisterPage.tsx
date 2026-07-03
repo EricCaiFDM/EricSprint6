@@ -4,6 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { login, register } from "../services/api";
 import { createCustomerProfile } from "../services/customers";
 import { clearAuthSession, getNormalizedTokenRole } from "../services/session";
+import {
+  PHONE_NUMBER_MAX_LENGTH,
+  validatePhoneNumber
+} from "../utils/phoneValidation";
 
 function toExternalCustomerKey(email: string): string {
   const normalized = email
@@ -38,8 +42,17 @@ export function RegisterPage() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
-    if (isCustomer && (legalName.trim().length === 0 || phoneNumber.trim().length === 0)) {
-      setOutput("Customer accounts require legal name and mobile number.");
+    const normalizedLegalName = legalName.trim();
+    const normalizedPhoneNumber = phoneNumber.trim();
+
+    if (isCustomer && normalizedLegalName.length === 0) {
+      setOutput("Customer accounts require legal name.");
+      return;
+    }
+
+    const phoneValidationError = validatePhoneNumber(phoneNumber, isCustomer);
+    if (isCustomer && phoneValidationError) {
+      setOutput(phoneValidationError);
       return;
     }
 
@@ -72,9 +85,9 @@ export function RegisterPage() {
         try {
           await customerProfileMutation.mutateAsync({
             externalCustomerKey: toExternalCustomerKey(email),
-            legalName: legalName.trim(),
+            legalName: normalizedLegalName,
             primaryEmail: email.trim().toLowerCase(),
-            phoneNumber: phoneNumber.trim()
+            phoneNumber: normalizedPhoneNumber
           });
         } catch (customerError) {
           clearAuthSession();
@@ -155,6 +168,7 @@ export function RegisterPage() {
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="+61 412 345 678"
+                maxLength={PHONE_NUMBER_MAX_LENGTH}
                 required={isCustomer}
               />
             </label>

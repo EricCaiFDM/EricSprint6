@@ -15,6 +15,14 @@ import com.example.banking.services.CustomerPrincipal;
 import com.example.banking.services.CustomerPrincipalResolver;
 import com.example.banking.services.StandingOrderLifecycleService;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Standing Orders")
 @RestController
 @RequestMapping("/standing-orders")
 @Validated
@@ -32,6 +40,16 @@ public class StandingOrderLifecycleRoute {
         this.responseMapper = responseMapper;
     }
 
+    @Operation(
+            summary = "Pause standing order",
+            description = "Transitions an active standing order into a paused state to stop future automatic executions.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "Standing order paused",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = StandingOrderResponseSchema.class),
+                examples = @ExampleObject(value = "{\"standingOrderId\":\"c1d2e3f4-1111-4444-9999-aabbccddeeff\",\"lifecycleState\":\"PAUSED\",\"nextExecutionAtUtc\":\"2026-08-01T00:00:00Z\"}")))
     @PostMapping("/{standingOrderId}/pause")
     public ResponseEntity<StandingOrderResponseSchema> pause(
             @PathVariable String standingOrderId,
@@ -41,6 +59,16 @@ public class StandingOrderLifecycleRoute {
         return ResponseEntity.ok(responseMapper.toResponse(paused));
     }
 
+        @Operation(
+            summary = "Resume standing order",
+            description = "Reactivates a paused standing order so scheduled executions continue.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "Standing order resumed",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = StandingOrderResponseSchema.class),
+                examples = @ExampleObject(value = "{\"standingOrderId\":\"c1d2e3f4-1111-4444-9999-aabbccddeeff\",\"lifecycleState\":\"ACTIVE\",\"nextExecutionAtUtc\":\"2026-08-01T00:00:00Z\"}")))
     @PostMapping("/{standingOrderId}/resume")
     public ResponseEntity<StandingOrderResponseSchema> resume(
             @PathVariable String standingOrderId,
@@ -50,6 +78,16 @@ public class StandingOrderLifecycleRoute {
         return ResponseEntity.ok(responseMapper.toResponse(resumed));
     }
 
+        @Operation(
+            summary = "Cancel standing order",
+            description = "Cancels a standing order and prevents future executions under that instruction.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "Standing order cancelled",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = StandingOrderResponseSchema.class),
+                examples = @ExampleObject(value = "{\"standingOrderId\":\"c1d2e3f4-1111-4444-9999-aabbccddeeff\",\"lifecycleState\":\"CANCELLED\",\"nextExecutionAtUtc\":\"N/A\"}")))
     @PostMapping("/{standingOrderId}/cancel")
     public ResponseEntity<StandingOrderResponseSchema> cancel(
             @PathVariable String standingOrderId,

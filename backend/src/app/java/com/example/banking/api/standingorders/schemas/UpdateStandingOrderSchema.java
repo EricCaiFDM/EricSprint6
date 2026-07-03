@@ -1,7 +1,9 @@
 package com.example.banking.api.standingorders.schemas;
 
 import jakarta.validation.constraints.Pattern;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for update standing order schema.")
 public record UpdateStandingOrderSchema(
         String amount,
 

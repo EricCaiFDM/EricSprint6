@@ -4,6 +4,7 @@ import { fetchAccounts, type BankAccount } from "../services/accounts";
 import { fetchCustomersForAdmin } from "../services/customers";
 import { fetchRecentNotifications } from "../services/notifications";
 import {
+  fetchTransactionHistoryTotals,
   fetchTransactionHistory,
   submitDeposit,
   submitTransfer,
@@ -41,6 +42,7 @@ export function PaymentsPage() {
   const queryClient = useQueryClient();
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
+  const initialFeedbackMessage = "Deposit, withdraw, transfer, and review all transactions in one place.";
 
   const [customerScopeInput, setCustomerScopeInput] = useState("");
   const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState("");
@@ -63,7 +65,7 @@ export function PaymentsPage() {
   const [historyPage, setHistoryPage] = useState(1);
   const [historyPageSize, setHistoryPageSize] = useState(10);
 
-  const [feedback, setFeedback] = useState("Deposit, withdraw, transfer, and review all transactions in one place.");
+  const [feedback, setFeedback] = useState(initialFeedbackMessage);
   const [notificationFeedback, setNotificationFeedback] = useState<string | null>(null);
   const [lastOperation, setLastOperation] = useState<OperationReceipt | null>(null);
   const [depositError, setDepositError] = useState<string | null>(null);
@@ -101,28 +103,50 @@ export function PaymentsPage() {
 
   useEffect(() => {
     if (!hasAccounts) {
+      setDepositAccountId("");
+      setWithdrawAccountId("");
+      setTransferSourceAccountId("");
+      setTransferDestinationAccountId("");
+      if (historyScopeType === "ACCOUNT" && historyScopeId) {
+        setHistoryScopeId("");
+      }
       return;
     }
 
     const primary = accounts[0].accountId;
     const secondary = accounts.find((item) => item.accountId !== primary)?.accountId ?? "";
 
-    if (!depositAccountId) {
+    const hasAccount = (accountId: string) => accounts.some((item) => item.accountId === accountId);
+
+    if (!depositAccountId || !hasAccount(depositAccountId)) {
       setDepositAccountId(primary);
     }
 
-    if (!withdrawAccountId) {
+    if (!withdrawAccountId || !hasAccount(withdrawAccountId)) {
       setWithdrawAccountId(primary);
     }
 
-    if (!transferSourceAccountId) {
+    if (!transferSourceAccountId || !hasAccount(transferSourceAccountId)) {
       setTransferSourceAccountId(primary);
     }
 
-    if (!transferDestinationAccountId) {
+    if (!transferDestinationAccountId || !hasAccount(transferDestinationAccountId)) {
       setTransferDestinationAccountId(secondary);
     }
-  }, [accounts, hasAccounts, depositAccountId, withdrawAccountId, transferSourceAccountId, transferDestinationAccountId]);
+
+    if (historyScopeType === "ACCOUNT" && historyScopeId && !hasAccount(historyScopeId)) {
+      setHistoryScopeId("");
+    }
+  }, [
+    accounts,
+    hasAccounts,
+    depositAccountId,
+    withdrawAccountId,
+    transferSourceAccountId,
+    transferDestinationAccountId,
+    historyScopeType,
+    historyScopeId
+  ]);
 
   const destinationOptions = useMemo(
     () => accounts.filter((item) => item.accountId !== transferSourceAccountId),
@@ -174,6 +198,33 @@ export function PaymentsPage() {
     queryFn: () => fetchTransactionHistory(historyQueryParams),
     enabled: (!isAdmin || Boolean(customerScopeId.trim())) && (historyScopeType === "CUSTOMER" || Boolean(historyScopeId)),
     placeholderData: (previous) => previous ?? emptyHistory
+  });
+
+  const historyTotalsQueryParams: TransactionHistoryQuery = useMemo(
+    () => ({
+      scopeType: historyScopeType,
+      customerId: isAdmin ? customerScopeId || undefined : undefined,
+      scopeId: historyScopeType === "ACCOUNT" ? historyScopeId || undefined : undefined,
+      transactionType: historyType,
+      startDate: historyStartDate || undefined,
+      endDate: historyEndDate || undefined
+    }),
+    [
+      historyScopeType,
+      customerScopeId,
+      historyScopeId,
+      historyType,
+      historyStartDate,
+      historyEndDate,
+      isAdmin
+    ]
+  );
+
+  const historyTotalsQuery = useQuery({
+    queryKey: ["transactions", "history", "totals", historyTotalsQueryParams],
+    queryFn: () => fetchTransactionHistoryTotals(historyTotalsQueryParams),
+    enabled: (!isAdmin || Boolean(customerScopeId.trim())) && (historyScopeType === "CUSTOMER" || Boolean(historyScopeId)),
+    placeholderData: (previous) => previous ?? { totalCredits: 0, totalDebits: 0 }
   });
 
   const applyBalancePatch = (entries: Array<{ accountId: string; balanceAfter: number }>) => {
@@ -254,7 +305,7 @@ export function PaymentsPage() {
         }
       ]);
       setLastOperation({ kind: "deposit", receipt });
-      setFeedback(`Deposit completed. Reference ${receipt.reference}.`);
+      setFeedback(initialFeedbackMessage);
       setDepositAmount("");
       await Promise.all([
         refreshAll(),
@@ -348,19 +399,8 @@ export function PaymentsPage() {
 
   const currentHistory = historyQuery.data ?? emptyHistory;
 
-  const totalDebits = useMemo(
-    () => currentHistory.items
-      .filter((item) => item.direction === "DEBIT")
-      .reduce((total, item) => total + item.amount, 0),
-    [currentHistory.items]
-  );
-
-  const totalCredits = useMemo(
-    () => currentHistory.items
-      .filter((item) => item.direction === "CREDIT")
-      .reduce((total, item) => total + item.amount, 0),
-    [currentHistory.items]
-  );
+  const totalDebits = historyTotalsQuery.data?.totalDebits ?? 0;
+  const totalCredits = historyTotalsQuery.data?.totalCredits ?? 0;
 
   const finalTotalAccountBalance = useMemo(
     () => accounts.reduce((total, account) => total + account.currentBalance, 0),
@@ -379,6 +419,7 @@ export function PaymentsPage() {
     transferSourceAccountId !== transferDestinationAccountId &&
     Number(transferAmount) > 0 &&
     !transferMutation.isPending;
+  const showCustomerFeedbackAlert = !isAdmin && feedback !== initialFeedbackMessage;
 
   return (
     <section className="bank-page">
@@ -393,6 +434,19 @@ export function PaymentsPage() {
         <div className="in-page-alert" role="alert">
           <span>{notificationFeedback}</span>
           <button type="button" className="in-page-alert-dismiss" onClick={() => setNotificationFeedback(null)}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {showCustomerFeedbackAlert ? (
+        <div className="in-page-alert" role="status">
+          <span>{feedback}</span>
+          <button
+            type="button"
+            className="in-page-alert-dismiss"
+            onClick={() => setFeedback(initialFeedbackMessage)}
+          >
             Dismiss
           </button>
         </div>
@@ -702,7 +756,7 @@ export function PaymentsPage() {
             {currentHistory.items.map((item) => (
               <li key={item.transactionId} className="activity-item">
                 <div>
-                  <p className="item-title">{toReadableType(item.transactionType)} · {item.description}</p>
+                  <p className="item-title">{formatHistoryTitle(item)}</p>
                   <p className="item-meta">{formatDate(item.bookedAt)} · Ref {item.transactionId}</p>
                   <p className="item-meta">
                     {formatHistoryAccountLabel(item, accountNameById, historyScopeType, historyScopeId)}
@@ -740,36 +794,38 @@ export function PaymentsPage() {
         </div>
       </article>
 
-      <article className="surface-card">
-        <h3>Operation status</h3>
-        <p className="hint-text">{feedback}</p>
-        {accountsQuery.isError && (
-          <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
-        )}
-        {!hasAccounts && !accountsQuery.isPending && !accountsQuery.isError && (
-          <p className="hint-text">No accounts found for customer. Create an account before posting transactions.</p>
-        )}
-        {lastOperation ? (
-          <dl className="profile-grid payments-receipt-grid">
-            <div>
-              <dt>Operation</dt>
-              <dd>{toReadableOperation(lastOperation.kind)}</dd>
-            </div>
-            <div>
-              <dt>Reference</dt>
-              <dd>{lastOperation.receipt.reference}</dd>
-            </div>
-            <div>
-              <dt>Status</dt>
-              <dd>{lastOperation.receipt.status}</dd>
-            </div>
-            <div>
-              <dt>Submitted</dt>
-              <dd>{formatDate(lastOperation.receipt.submittedAt)}</dd>
-            </div>
-          </dl>
-        ) : null}
-      </article>
+      {isAdmin ? (
+        <article className="surface-card">
+          <h3>Operation status</h3>
+          <p className="hint-text">{feedback}</p>
+          {accountsQuery.isError && (
+            <p className="hint-text">Unable to load accounts: {(accountsQuery.error as Error).message}</p>
+          )}
+          {!hasAccounts && !accountsQuery.isPending && !accountsQuery.isError && (
+            <p className="hint-text">No accounts found for customer. Create an account before posting transactions.</p>
+          )}
+          {lastOperation ? (
+            <dl className="profile-grid payments-receipt-grid">
+              <div>
+                <dt>Operation</dt>
+                <dd>{toReadableOperation(lastOperation.kind)}</dd>
+              </div>
+              <div>
+                <dt>Reference</dt>
+                <dd>{lastOperation.receipt.reference}</dd>
+              </div>
+              <div>
+                <dt>Status</dt>
+                <dd>{lastOperation.receipt.status}</dd>
+              </div>
+              <div>
+                <dt>Submitted</dt>
+                <dd>{formatDate(lastOperation.receipt.submittedAt)}</dd>
+              </div>
+            </dl>
+          ) : null}
+        </article>
+      ) : null}
     </section>
   );
 }
@@ -800,6 +856,21 @@ function toReadableOperation(kind: OperationReceipt["kind"]): string {
     default:
       return kind;
   }
+}
+
+function formatHistoryTitle(item: TransactionItem): string {
+  const typeLabel = toReadableType(item.transactionType);
+  const description = item.description?.trim() ?? "";
+
+  if (!description) {
+    return typeLabel;
+  }
+
+  if (description.toLocaleLowerCase() === typeLabel.toLocaleLowerCase()) {
+    return typeLabel;
+  }
+
+  return `${typeLabel} · ${description}`;
 }
 
 function formatAccountLabel(account: BankAccount): string {

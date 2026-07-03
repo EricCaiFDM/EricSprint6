@@ -18,6 +18,10 @@ import {
   resolveCustomerIdFromScopeInput
 } from "../utils/customerScope";
 import { formatDate } from "../utils/formatting";
+import {
+  PHONE_NUMBER_MAX_LENGTH,
+  validatePhoneNumber
+} from "../utils/phoneValidation";
 import { useNavigate } from "react-router-dom";
 
 const initialCreate: CreateCustomerProfileInput = {
@@ -40,10 +44,11 @@ export function CustomerManagementPage() {
   const navigate = useNavigate();
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
+  const initialFeedbackMessage = "Retrieve and update customer profiles. Admins can create and delete customers.";
 
   const [selectedCustomerScopeInput, setSelectedCustomerScopeInput] = useState("");
   const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState("");
-  const [feedback, setFeedback] = useState("Retrieve and update customer profiles. Admins can create and delete customers.");
+  const [feedback, setFeedback] = useState(initialFeedbackMessage);
   const [createForm, setCreateForm] = useState<CreateCustomerProfileInput>(initialCreate);
   const [updateForm, setUpdateForm] = useState<UpdateCustomerProfileInput>(initialUpdate);
   const [isCloseConfirmOpen, setIsCloseConfirmOpen] = useState(false);
@@ -142,8 +147,15 @@ export function CustomerManagementPage() {
     setCreateError(null);
 
     const normalizedPassword = createForm.password?.trim() ?? "";
+    const normalizedPhoneNumber = createForm.phoneNumber.trim();
     if (isAdmin && normalizedPassword.length < 8) {
       setCreateError("Password must be at least 8 characters for admin-created customer profiles.");
+      return;
+    }
+
+    const phoneValidationError = validatePhoneNumber(normalizedPhoneNumber);
+    if (phoneValidationError) {
+      setCreateError(phoneValidationError);
       return;
     }
 
@@ -151,7 +163,7 @@ export function CustomerManagementPage() {
       externalCustomerKey: createForm.externalCustomerKey.trim(),
       legalName: createForm.legalName.trim(),
       primaryEmail: createForm.primaryEmail.trim(),
-      phoneNumber: createForm.phoneNumber.trim(),
+      phoneNumber: normalizedPhoneNumber,
       password: isAdmin ? normalizedPassword : undefined
     });
   };
@@ -159,10 +171,17 @@ export function CustomerManagementPage() {
   const onUpdateCustomer = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    const normalizedPhoneNumber = updateForm.phoneNumber?.trim() ?? "";
+    const phoneValidationError = validatePhoneNumber(normalizedPhoneNumber);
+    if (phoneValidationError) {
+      setUpdateError(phoneValidationError);
+      return;
+    }
+
     const payload: UpdateCustomerProfileInput = {
       legalName: updateForm.legalName?.trim() || undefined,
       primaryEmail: updateForm.primaryEmail?.trim() || undefined,
-      phoneNumber: updateForm.phoneNumber?.trim() || undefined,
+      phoneNumber: normalizedPhoneNumber || undefined,
       status: isAdmin ? updateForm.status : undefined
     };
 
@@ -219,6 +238,97 @@ export function CustomerManagementPage() {
   };
 
   const shownProfile = isAdmin ? selectedProfileQuery.data : selfProfileQuery.data;
+  const showCustomerFeedbackAlert = !isAdmin && feedback !== initialFeedbackMessage;
+  const updateCustomerProfileCard = (
+    <article className="surface-card">
+      <h3>Update customer profile</h3>
+      <form className="form" onSubmit={onUpdateCustomer}>
+        <label>
+          Legal name
+          <input
+            value={updateForm.legalName ?? ""}
+            onChange={(event) =>
+              setUpdateForm((previous) => ({
+                ...previous,
+                legalName: event.target.value
+              }))
+            }
+            placeholder="No change"
+          />
+        </label>
+
+        <label>
+          Primary email
+          <input
+            type="email"
+            value={updateForm.primaryEmail ?? ""}
+            onChange={(event) =>
+              setUpdateForm((previous) => ({
+                ...previous,
+                primaryEmail: event.target.value
+              }))
+            }
+            placeholder="No change"
+          />
+        </label>
+
+        <label>
+          Phone number
+          <input
+            value={updateForm.phoneNumber ?? ""}
+            onChange={(event) =>
+              setUpdateForm((previous) => ({
+                ...previous,
+                phoneNumber: event.target.value
+              }))
+            }
+            maxLength={PHONE_NUMBER_MAX_LENGTH}
+            placeholder="No change"
+          />
+        </label>
+
+        {isAdmin ? (
+          <label>
+            Status
+            <select
+              value={updateForm.status ?? ""}
+              onChange={(event) =>
+                setUpdateForm((previous) => ({
+                  ...previous,
+                  status: event.target.value
+                    ? (event.target.value as "ACTIVE" | "SUSPENDED" | "CLOSED")
+                    : undefined
+                }))
+              }
+            >
+              <option value="">No change</option>
+              <option value="ACTIVE">Active</option>
+              <option value="SUSPENDED">Suspended</option>
+              <option value="CLOSED">Closed</option>
+            </select>
+          </label>
+        ) : null}
+
+        <div className="actions">
+          <button type="submit" disabled={updateMutation.isPending}>
+            {updateMutation.isPending ? "Updating..." : "Update customer"}
+          </button>
+          {isAdmin ? (
+            <button
+              type="button"
+              className="button-secondary"
+              onClick={onDeleteCustomer}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete customer"}
+            </button>
+          ) : null}
+        </div>
+        {updateError ? <p className="inline-error" role="alert">{updateError}</p> : null}
+        {isAdmin && deleteError ? <p className="inline-error" role="alert">{deleteError}</p> : null}
+      </form>
+    </article>
+  );
 
   return (
     <section className="bank-page">
@@ -267,7 +377,7 @@ export function CustomerManagementPage() {
         </article>
       ) : null}
 
-      <section className={isAdmin ? "two-column-grid" : undefined}>
+      <section className="two-column-grid">
         {isAdmin ? (
           <article className="surface-card">
             <h3>Create customer</h3>
@@ -326,6 +436,7 @@ export function CustomerManagementPage() {
                       phoneNumber: event.target.value
                     }))
                   }
+                  maxLength={PHONE_NUMBER_MAX_LENGTH}
                 />
               </label>
 
@@ -380,102 +491,33 @@ export function CustomerManagementPage() {
             <CustomerDetails profile={shownProfile} />
           )}
         </article>
+
+        {!isAdmin ? updateCustomerProfileCard : null}
       </section>
 
-      <section className="two-column-grid">
-        <article className="surface-card">
-          <h3>Update customer profile</h3>
-          <form className="form" onSubmit={onUpdateCustomer}>
-            <label>
-              Legal name
-              <input
-                value={updateForm.legalName ?? ""}
-                onChange={(event) =>
-                  setUpdateForm((previous) => ({
-                    ...previous,
-                    legalName: event.target.value
-                  }))
-                }
-                placeholder="No change"
-              />
-            </label>
+      {isAdmin ? (
+        <section className="two-column-grid">
+          {updateCustomerProfileCard}
 
-            <label>
-              Primary email
-              <input
-                type="email"
-                value={updateForm.primaryEmail ?? ""}
-                onChange={(event) =>
-                  setUpdateForm((previous) => ({
-                    ...previous,
-                    primaryEmail: event.target.value
-                  }))
-                }
-                placeholder="No change"
-              />
-            </label>
+          <article className="surface-card">
+            <h3>Operation status</h3>
+            <p className="hint-text">{feedback}</p>
+          </article>
+        </section>
+      ) : null}
 
-            <label>
-              Phone number
-              <input
-                value={updateForm.phoneNumber ?? ""}
-                onChange={(event) =>
-                  setUpdateForm((previous) => ({
-                    ...previous,
-                    phoneNumber: event.target.value
-                  }))
-                }
-                placeholder="No change"
-              />
-            </label>
-
-            {isAdmin ? (
-              <label>
-                Status
-                <select
-                  value={updateForm.status ?? ""}
-                  onChange={(event) =>
-                    setUpdateForm((previous) => ({
-                      ...previous,
-                      status: event.target.value
-                        ? (event.target.value as "ACTIVE" | "SUSPENDED" | "CLOSED")
-                        : undefined
-                    }))
-                  }
-                >
-                  <option value="">No change</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="SUSPENDED">Suspended</option>
-                  <option value="CLOSED">Closed</option>
-                </select>
-              </label>
-            ) : null}
-
-            <div className="actions">
-              <button type="submit" disabled={updateMutation.isPending}>
-                {updateMutation.isPending ? "Updating..." : "Update customer"}
-              </button>
-              {isAdmin ? (
-                <button
-                  type="button"
-                  className="button-secondary"
-                  onClick={onDeleteCustomer}
-                  disabled={deleteMutation.isPending}
-                >
-                  {deleteMutation.isPending ? "Deleting..." : "Delete customer"}
-                </button>
-              ) : null}
-            </div>
-            {updateError ? <p className="inline-error" role="alert">{updateError}</p> : null}
-            {isAdmin && deleteError ? <p className="inline-error" role="alert">{deleteError}</p> : null}
-          </form>
-        </article>
-
-        <article className="surface-card">
-          <h3>Operation status</h3>
-          <p className="hint-text">{feedback}</p>
-        </article>
-      </section>
+      {showCustomerFeedbackAlert ? (
+        <div className="in-page-alert" role="status">
+          <span>{feedback}</span>
+          <button
+            type="button"
+            className="in-page-alert-dismiss"
+            onClick={() => setFeedback(initialFeedbackMessage)}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
 
       {!isAdmin ? (
         <article className="surface-card customer-close-card">

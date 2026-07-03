@@ -1,11 +1,13 @@
 const ACCESS_TOKEN_KEY = "nb_access_token";
 const REFRESH_TOKEN_KEY = "nb_refresh_token";
 const CUSTOMER_ID_KEY = "nb_customer_id";
+const ACCESS_TOKEN_EXPIRES_AT_KEY = "nb_access_token_expires_at";
 
 type JwtClaims = {
   sub?: string;
   email?: string;
   role?: string;
+  exp?: number;
 };
 
 export type UserRole = "ADMIN" | "CUSTOMER";
@@ -35,12 +37,18 @@ function notifyAuthChanged(): void {
   window.dispatchEvent(new Event("nb-auth-changed"));
 }
 
-export function saveAuthSession(accessToken: string, refreshToken: string): void {
+export function saveAuthSession(accessToken: string, refreshToken: string, expiresInSeconds?: number): void {
   if (hasStorage()) {
     window.localStorage.removeItem(CUSTOMER_ID_KEY);
   }
   writeStorage(ACCESS_TOKEN_KEY, accessToken);
   writeStorage(REFRESH_TOKEN_KEY, refreshToken);
+  const expiresAtMs = resolveTokenExpiryMs(accessToken, expiresInSeconds);
+  if (expiresAtMs !== null) {
+    writeStorage(ACCESS_TOKEN_EXPIRES_AT_KEY, String(expiresAtMs));
+  } else if (hasStorage()) {
+    window.localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
+  }
   notifyAuthChanged();
 }
 
@@ -51,6 +59,7 @@ export function clearAuthSession(): void {
   window.localStorage.removeItem(ACCESS_TOKEN_KEY);
   window.localStorage.removeItem(REFRESH_TOKEN_KEY);
   window.localStorage.removeItem(CUSTOMER_ID_KEY);
+  window.localStorage.removeItem(ACCESS_TOKEN_EXPIRES_AT_KEY);
   notifyAuthChanged();
 }
 
@@ -60,6 +69,23 @@ export function getAccessToken(): string | null {
 
 export function getRefreshToken(): string | null {
   return readStorage(REFRESH_TOKEN_KEY);
+}
+
+export function getAccessTokenExpiresAtMs(): number | null {
+  const persistedValue = readStorage(ACCESS_TOKEN_EXPIRES_AT_KEY);
+  if (persistedValue) {
+    const parsed = Number(persistedValue);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  const expClaim = getTokenClaims()?.exp;
+  if (typeof expClaim === "number" && Number.isFinite(expClaim) && expClaim > 0) {
+    return expClaim * 1000;
+  }
+
+  return null;
 }
 
 export function setActiveCustomerId(customerId: string): void {
@@ -143,4 +169,26 @@ function decodeBase64Url(value: string): string {
   const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
   const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
   return atob(padded);
+}
+
+function resolveTokenExpiryMs(accessToken: string, expiresInSeconds?: number): number | null {
+  if (typeof expiresInSeconds === "number" && Number.isFinite(expiresInSeconds) && expiresInSeconds > 0) {
+    return Date.now() + expiresInSeconds * 1000;
+  }
+
+  const segments = accessToken.split(".");
+  if (segments.length < 2) {
+    return null;
+  }
+
+  try {
+    const decoded = decodeBase64Url(segments[1]);
+    const claims = JSON.parse(decoded) as JwtClaims;
+    if (typeof claims.exp !== "number" || !Number.isFinite(claims.exp) || claims.exp <= 0) {
+      return null;
+    }
+    return claims.exp * 1000;
+  } catch {
+    return null;
+  }
 }

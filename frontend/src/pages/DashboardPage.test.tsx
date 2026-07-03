@@ -4,10 +4,12 @@ import { MemoryRouter } from "react-router-dom";
 
 import { DashboardPage } from "./DashboardPage";
 import * as accounts from "../services/accounts";
+import * as customers from "../services/customers";
 import * as standingOrders from "../services/standingOrders";
 import * as transactions from "../services/transactions";
 
 jest.mock("../services/accounts");
+jest.mock("../services/customers");
 jest.mock("../services/standingOrders");
 jest.mock("../services/transactions");
 
@@ -32,6 +34,15 @@ describe("DashboardPage", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    (customers.fetchCustomerProfile as jest.MockedFunction<typeof customers.fetchCustomerProfile>).mockResolvedValue({
+      customerId: "cust-1",
+      fullName: "Jordan Patel",
+      email: "jordan.patel@example.com",
+      mobile: "+61000000000",
+      status: "ACTIVE",
+      joinedAt: "2026-01-01T00:00:00Z"
+    });
 
     (accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>).mockResolvedValue([
       {
@@ -69,6 +80,7 @@ describe("DashboardPage", () => {
   it("shows account names and IDs in recent activity", async () => {
     renderPage();
 
+    expect(await screen.findByRole("heading", { name: /Welcome back, Jordan Patel/i })).toBeInTheDocument();
     expect(await screen.findByText(/Salary/i)).toBeInTheDocument();
 
     await waitFor(() => {

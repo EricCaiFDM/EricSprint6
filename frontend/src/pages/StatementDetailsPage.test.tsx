@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 
 import { StatementDetailsPage } from "./StatementDetailsPage";
 import * as statements from "../services/statements";
+import { formatDate, formatStatementPeriod } from "../utils/formatting";
 
 jest.mock("../services/statements");
 
@@ -99,10 +100,87 @@ describe("StatementDetailsPage", () => {
     });
 
     const table = await screen.findByRole("table", { name: /Statement transactions table/i });
+    expect(await screen.findByText(formatStatementPeriod("2026-06"))).toBeInTheDocument();
+    expect(within(table).getByRole("columnheader", { name: /^Date$/i })).toBeInTheDocument();
     expect(within(table).getByText(/Opening balance/i)).toBeInTheDocument();
     expect(within(table).getByText(/Ref txn-1/i)).toBeInTheDocument();
     expect(within(table).getByText(/Transfer sent/i)).toBeInTheDocument();
     expect(within(table).getByText(/Closing balance/i)).toBeInTheDocument();
+  });
+
+  it("renders transaction posting dates using user-local timezone", async () => {
+    (statements.fetchStatementTransactions as jest.MockedFunction<typeof statements.fetchStatementTransactions>).mockResolvedValue([
+      {
+        transactionId: "txn-utc-boundary",
+        transactionType: "DEPOSIT",
+        bookedAt: "2026-06-30T23:30:00Z",
+        description: "Late June deposit",
+        category: "Deposit",
+        amount: 15,
+        currency: "USD",
+        direction: "CREDIT",
+        status: "Completed"
+      }
+    ]);
+
+    renderPage();
+
+    const expectedLocalDate = formatDate("2026-06-30T23:30:00Z");
+    expect(await screen.findByText(expectedLocalDate)).toBeInTheDocument();
+    expect(screen.queryByText(/Date \(UTC\)/i)).not.toBeInTheDocument();
+  });
+
+  it("derives opening balance from first local-month transaction balance", async () => {
+    (statements.fetchStatement as jest.MockedFunction<typeof statements.fetchStatement>).mockResolvedValue({
+      statementId: "stmt-1",
+      accountId: "acc-1",
+      periodYearMonth: "2026-06",
+      artifactVersion: 1,
+      openingBalance: 0,
+      closingBalance: 0,
+      currencyCode: "USD",
+      status: "GENERATED",
+      artifactUri: "/statements/stmt-1/artifact/v1.pdf",
+      generatedAtUtc: "2026-06-30T00:05:00Z"
+    });
+
+    (statements.fetchStatementTransactions as jest.MockedFunction<typeof statements.fetchStatementTransactions>).mockResolvedValue([
+      {
+        transactionId: "txn-first",
+        transactionType: "DEPOSIT",
+        bookedAt: "2026-06-03T09:00:00Z",
+        balanceAfter: 125,
+        description: "Deposit",
+        category: "Deposit",
+        amount: 25,
+        currency: "USD",
+        direction: "CREDIT",
+        status: "Completed"
+      },
+      {
+        transactionId: "txn-second",
+        transactionType: "WITHDRAWAL",
+        bookedAt: "2026-06-04T09:00:00Z",
+        balanceAfter: 100,
+        description: "Withdrawal",
+        category: "Withdrawal",
+        amount: 25,
+        currency: "USD",
+        direction: "DEBIT",
+        status: "Completed"
+      }
+    ]);
+
+    renderPage();
+
+    const table = await screen.findByRole("table", { name: /Statement transactions table/i });
+    const openingRow = within(table).getByText("Opening balance").closest("tr");
+    const closingRow = within(table).getByText("Closing balance").closest("tr");
+
+    expect(openingRow).not.toBeNull();
+    expect(closingRow).not.toBeNull();
+    expect(within(openingRow as HTMLElement).getByText("$100.00")).toBeInTheDocument();
+    expect(within(closingRow as HTMLElement).getByText("$100.00")).toBeInTheDocument();
   });
 
   it("shows a friendly message when statement period has no transactions", async () => {

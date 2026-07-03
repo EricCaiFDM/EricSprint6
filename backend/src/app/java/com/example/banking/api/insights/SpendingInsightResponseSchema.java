@@ -1,7 +1,9 @@
 package com.example.banking.api.insights;
 
 import java.util.List;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for spending insight response schema payload.")
 public record SpendingInsightResponseSchema(
         String periodLabel,
         String periodStartUtc,

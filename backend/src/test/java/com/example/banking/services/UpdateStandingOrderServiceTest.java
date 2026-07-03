@@ -14,9 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Example;
+import org.springframework.data.repository.query.FluentQuery.FetchableFluentQuery;
 
 import com.example.banking.api.common.ApiErrorException;
 import com.example.banking.api.standingorders.schemas.UpdateStandingOrderSchema;
@@ -553,5 +556,12 @@ class UpdateStandingOrderServiceTest {
         public org.springframework.data.domain.Page<StandingOrderLifecycleEventEntity> findAll(org.springframework.data.domain.Pageable pageable) {
             return org.springframework.data.domain.Page.empty();
         }
+
+		@Override
+		public <S extends StandingOrderLifecycleEventEntity, R> R findBy(Example<S> example,
+				Function<FetchableFluentQuery<S>, R> queryFunction) {
+			// TODO Auto-generated method stub
+			return null;
+		}
     }
 }

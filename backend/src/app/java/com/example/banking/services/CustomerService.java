@@ -206,6 +206,11 @@ public class CustomerService {
                             "primaryEmail already exists",
                             "primaryEmail");
                 }
+
+                if (!normalizedEmail.equalsIgnoreCase(customer.getPrimaryEmail())) {
+                    syncAuthIdentityEmail(customer.getOwnerUserId(), normalizedEmail);
+                }
+
                 customer.setPrimaryEmail(normalizedEmail);
             }
             if (request.phoneNumber() != null) {
@@ -241,6 +246,7 @@ public class CustomerService {
         }
     }
 
+    @Transactional
     public void deleteCustomer(String customerId, String actorUserId, String role) {
         String actorId = normalizeActor(actorUserId);
         try {
@@ -275,9 +281,13 @@ public class CustomerService {
                 lifecycleAuditService.recordSuccess(customerId, "DELETE_POLICY_OVERRIDE", actorId, role);
             }
 
+            customer.setExternalCustomerKey(buildClosedExternalCustomerKey(customer.getCustomerId()));
+            customer.setPrimaryEmail(buildClosedCustomerEmail(customer.getCustomerId()));
             customer.setDeletedAt(Instant.now());
             customer.setUpdatedAtUtc(Instant.now());
             customerRepository.save(customer);
+
+            deactivateAuthIdentity(customer.getOwnerUserId());
 
             lifecycleAuditService.recordSuccess(customerId, "DELETE_SUCCESS", actorId, role);
         } catch (ApiErrorException exception) {
@@ -388,6 +398,43 @@ public class CustomerService {
                     "primaryEmail already exists",
                     "primaryEmail");
         }
+    }
+
+    private void syncAuthIdentityEmail(String ownerUserId, String normalizedEmail) {
+        try {
+            boolean updated = authService.updateIdentityEmail(ownerUserId, normalizedEmail);
+            if (!updated) {
+                throw new ApiErrorException(
+                        HttpStatus.CONFLICT,
+                        "CUSTOMER_CONFLICT",
+                        "primaryEmail cannot be updated because the linked sign-in identity is unavailable",
+                        "primaryEmail");
+            }
+        } catch (IllegalStateException exception) {
+            throw new ApiErrorException(
+                    HttpStatus.CONFLICT,
+                    "CUSTOMER_CONFLICT",
+                    exception.getMessage(),
+                    "primaryEmail");
+        } catch (IllegalArgumentException exception) {
+            throw new ApiErrorException(
+                    HttpStatus.BAD_REQUEST,
+                    "CUSTOMER_VALIDATION_ERROR",
+                    exception.getMessage(),
+                    "primaryEmail");
+        }
+    }
+
+    private void deactivateAuthIdentity(String ownerUserId) {
+        authService.deactivateIdentity(ownerUserId);
+    }
+
+    private String buildClosedCustomerEmail(String customerId) {
+        return "closed+" + customerId.toLowerCase(Locale.ROOT) + "@customer.local";
+    }
+
+    private String buildClosedExternalCustomerKey(String customerId) {
+        return "closed-" + customerId.toLowerCase(Locale.ROOT);
     }
 
     private boolean hasAnyPatchField(UpdateCustomerRequest request) {

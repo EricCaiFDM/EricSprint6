@@ -189,4 +189,31 @@ describe("RegisterPage", () => {
     expect(createCustomerProfileMock).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
+
+  it("rejects customer sign-up when mobile number length is invalid", async () => {
+    const registerMock = api.register as jest.MockedFunction<typeof api.register>;
+    const createCustomerProfileMock = customers.createCustomerProfile as jest.MockedFunction<
+      typeof customers.createCustomerProfile
+    >;
+
+    renderPage();
+
+    fireEvent.change(screen.getByLabelText(/Email address/i), {
+      target: { value: "customer2@example.com" }
+    });
+    fireEvent.change(screen.getByLabelText(/Password \(min 8 characters\)/i), {
+      target: { value: "secret123" }
+    });
+    fireEvent.change(screen.getByLabelText(/Legal name/i), {
+      target: { value: "Customer Two" }
+    });
+    fireEvent.change(screen.getByLabelText(/Mobile number/i), {
+      target: { value: "12345" }
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Create Account/i }));
+
+    expect(await screen.findByText("Phone number must be between 7 and 32 characters.")).toBeInTheDocument();
+    expect(registerMock).not.toHaveBeenCalled();
+    expect(createCustomerProfileMock).not.toHaveBeenCalled();
+  });
 });

@@ -156,7 +156,7 @@ export async function fetchStatementTransactions(query: StatementTransactionsQue
     throw new Error("Select an account to load statement transactions.");
   }
 
-  const { startDate, endDate } = normalizeStatementPeriod(query.periodYearMonth);
+  const { startDate, endDate, localYear, localMonthIndex } = normalizeStatementPeriod(query.periodYearMonth);
   const accountId = query.accountId.trim();
   const pageSize = 100;
 
@@ -179,7 +179,34 @@ export async function fetchStatementTransactions(query: StatementTransactionsQue
     page += 1;
   } while (page <= totalPages);
 
-  return items.sort((left, right) => Date.parse(right.bookedAt) - Date.parse(left.bookedAt));
+  const groupedItems = items.filter((item) => {
+    const bookedAtEpoch = parseTimestampAsUtcEpoch(item.bookedAt);
+    if (!Number.isFinite(bookedAtEpoch)) {
+      return true;
+    }
+
+    const localBookedAt = new Date(bookedAtEpoch);
+    return localBookedAt.getFullYear() === localYear && localBookedAt.getMonth() === localMonthIndex;
+  });
+
+  return groupedItems.sort((left, right) => {
+    const leftEpoch = parseTimestampAsUtcEpoch(left.bookedAt);
+    const rightEpoch = parseTimestampAsUtcEpoch(right.bookedAt);
+
+    if (Number.isFinite(leftEpoch) && Number.isFinite(rightEpoch) && leftEpoch !== rightEpoch) {
+      return rightEpoch - leftEpoch;
+    }
+
+    if (Number.isFinite(leftEpoch) && !Number.isFinite(rightEpoch)) {
+      return -1;
+    }
+
+    if (!Number.isFinite(leftEpoch) && Number.isFinite(rightEpoch)) {
+      return 1;
+    }
+
+    return left.transactionId.localeCompare(right.transactionId);
+  });
 }
 
 export async function fetchStatementPdf(input: StatementPdfInput): Promise<StatementPdfResult> {
@@ -360,7 +387,9 @@ function parseContentDispositionFileName(headers: unknown): string | null {
   return plainMatch?.[1]?.trim() || null;
 }
 
-function normalizeStatementPeriod(periodYearMonth: string): { startDate: string; endDate: string } {
+function normalizeStatementPeriod(
+  periodYearMonth: string
+): { startDate: string; endDate: string; localYear: number; localMonthIndex: number } {
   const value = periodYearMonth?.trim() ?? "";
   const match = value.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
   if (!match) {
@@ -369,11 +398,26 @@ function normalizeStatementPeriod(periodYearMonth: string): { startDate: string;
 
   const year = Number(match[1]);
   const month = Number(match[2]);
+  const localMonthIndex = month - 1;
   const startDate = `${match[1]}-${match[2]}-01`;
-  const endDate = new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10);
+  const endDay = `${new Date(year, month, 0).getDate()}`.padStart(2, "0");
+  const endDate = `${match[1]}-${match[2]}-${endDay}`;
 
   return {
     startDate,
-    endDate
+    endDate,
+    localYear: year,
+    localMonthIndex
   };
+}
+
+function parseTimestampAsUtcEpoch(value: string): number {
+  const raw = value?.trim();
+  if (!raw) {
+    return Number.NaN;
+  }
+
+  const hasTimezoneDesignator = /[zZ]$|[+-]\d{2}:\d{2}$/.test(raw);
+  const normalized = hasTimezoneDesignator ? raw : `${raw}Z`;
+  return Date.parse(normalized);
 }

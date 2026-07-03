@@ -8,7 +8,7 @@ import org.springframework.stereotype.Component;
 @Component
 @ConfigurationProperties(prefix = "transaction")
 public class TransactionModuleConfig {
-    private String defaultCurrencyCode = "USD";
+    private String defaultCurrencyCode = "AUD";
     private int historyMaxPageSize = 100;
     private int idempotencyTtlHours = 24;
 
@@ -18,7 +18,7 @@ public class TransactionModuleConfig {
 
     public void setDefaultCurrencyCode(String defaultCurrencyCode) {
         if (defaultCurrencyCode == null || defaultCurrencyCode.isBlank()) {
-            this.defaultCurrencyCode = "USD";
+            this.defaultCurrencyCode = "AUD";
             return;
         }
         this.defaultCurrencyCode = defaultCurrencyCode.trim().toUpperCase(Locale.ROOT);

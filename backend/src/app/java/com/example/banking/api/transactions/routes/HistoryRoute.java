@@ -14,8 +14,15 @@ import com.example.banking.services.CustomerPrincipal;
 import com.example.banking.services.CustomerPrincipalResolver;
 import com.example.banking.services.TransactionHistoryService;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 
+@Tag(name = "Transactions")
 @RestController
 @RequestMapping("/transactions")
 @Validated
@@ -28,6 +35,16 @@ public class HistoryRoute {
         this.principalResolver = principalResolver;
     }
 
+    @Operation(
+            summary = "Get transaction history",
+            description = "Returns paginated transaction history filtered by scope, date range, and other optional query criteria.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "Transaction history page",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = TransactionHistoryResponseSchema.class),
+                examples = @ExampleObject(value = "{\"items\":[{\"transactionId\":\"8b7d5c3e-6d43-4e20-9b57-72f6d4028517\",\"accountId\":\"a274560e-7158-41cb-8cc7-a305237b9f8c\",\"transactionType\":\"DEPOSIT\",\"amount\":\"250.00\",\"currencyCode\":\"AUD\",\"description\":\"Cash deposit\",\"postedAtUtc\":\"2026-07-02T04:10:00Z\",\"balanceAfter\":\"1750.00\"}],\"page\":1,\"pageSize\":20,\"totalItems\":1,\"totalPages\":1}")))
     @GetMapping("/history")
     public ResponseEntity<TransactionHistoryResponseSchema> getHistory(
             @Valid @ModelAttribute HistorySchema request,

@@ -10,6 +10,7 @@ export type TransactionItem = {
   accountId?: string;
   transactionType: TransactionType;
   bookedAt: string;
+  balanceAfter?: number;
   description: string;
   category: string;
   amount: number;
@@ -35,6 +36,11 @@ export type TransactionHistoryResult = {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+};
+
+export type TransactionHistoryTotals = {
+  totalCredits: number;
+  totalDebits: number;
 };
 
 export type PostingInput = {
@@ -150,6 +156,55 @@ export async function fetchTransactionHistory(
 
     throw new Error(details.message);
   }
+}
+
+export async function fetchTransactionHistoryTotals(
+  query: TransactionHistoryQuery = {}
+): Promise<TransactionHistoryTotals> {
+  const scopeType = query.scopeType ?? "CUSTOMER";
+  let scopedCustomerId = query.customerId?.trim();
+  let scopedScopeId = query.scopeId?.trim();
+
+  if (scopeType === "CUSTOMER") {
+    if (!scopedScopeId) {
+      if (!scopedCustomerId) {
+        const customer = await resolveCurrentCustomerProfile();
+        scopedCustomerId = customer.customerId;
+      }
+
+      scopedScopeId = scopedCustomerId;
+    }
+  }
+
+  const baseQuery: TransactionHistoryQuery = {
+    ...query,
+    customerId: scopedCustomerId || query.customerId,
+    scopeId: scopedScopeId || query.scopeId,
+    page: 1,
+    pageSize: 100
+  };
+
+  const firstPage = await fetchTransactionHistory(baseQuery);
+  let totalCredits = sumByDirection(firstPage.items, "CREDIT");
+  let totalDebits = sumByDirection(firstPage.items, "DEBIT");
+
+  if (firstPage.totalPages > 1) {
+    const remainingPageRequests: Array<Promise<TransactionHistoryResult>> = [];
+    for (let page = 2; page <= firstPage.totalPages; page += 1) {
+      remainingPageRequests.push(fetchTransactionHistory({ ...baseQuery, page }));
+    }
+
+    const remainingPages = await Promise.all(remainingPageRequests);
+    remainingPages.forEach((pageResult) => {
+      totalCredits += sumByDirection(pageResult.items, "CREDIT");
+      totalDebits += sumByDirection(pageResult.items, "DEBIT");
+    });
+  }
+
+  return {
+    totalCredits,
+    totalDebits
+  };
 }
 
 export async function submitDeposit(input: PostingInput): Promise<PostingReceipt> {
@@ -296,6 +351,7 @@ function mapTransactions(payload: unknown): TransactionItem[] {
 
       const transactionType = asTransactionType(data.transactionType);
       const amount = asNumber(data.amount, 0);
+      const balanceAfter = asOptionalNumber(data.balanceAfter);
       const direction: TransactionItem["direction"] =
         transactionType === "DEPOSIT" || transactionType === "TRANSFER_CREDIT" ? "CREDIT" : "DEBIT";
 
@@ -304,6 +360,7 @@ function mapTransactions(payload: unknown): TransactionItem[] {
         accountId: asString(data.accountId, "") || undefined,
         transactionType,
         bookedAt: asString(data.postedAtUtc, new Date().toISOString()),
+        ...(balanceAfter === undefined ? {} : { balanceAfter }),
         description: asString(data.description, mapDescription(transactionType)),
         category: asString(data.category, mapCategory(transactionType)),
         amount,
@@ -321,6 +378,12 @@ function asTransactionType(value: unknown): TransactionType {
     return type;
   }
   return "DEPOSIT";
+}
+
+function sumByDirection(items: TransactionItem[], direction: TransactionItem["direction"]): number {
+  return items
+    .filter((item) => item.direction === direction)
+    .reduce((total, item) => total + item.amount, 0);
 }
 
 function mapDescription(transactionType: TransactionType): string {
@@ -382,14 +445,52 @@ function toStartOfDayUtc(value?: string): string | undefined {
   if (!value || !value.trim()) {
     return undefined;
   }
-  return `${value.trim()}T00:00:00.000Z`;
+
+  const parsed = parseLocalDate(value);
+  if (!parsed) {
+    return `${value.trim()}T00:00:00.000Z`;
+  }
+
+  parsed.setHours(0, 0, 0, 0);
+  return parsed.toISOString();
 }
 
 function toEndOfDayUtc(value?: string): string | undefined {
   if (!value || !value.trim()) {
     return undefined;
   }
-  return `${value.trim()}T23:59:59.999Z`;
+
+  const parsed = parseLocalDate(value);
+  if (!parsed) {
+    return `${value.trim()}T23:59:59.999Z`;
+  }
+
+  parsed.setHours(23, 59, 59, 999);
+  return parsed.toISOString();
+}
+
+function parseLocalDate(value: string): Date | null {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return null;
+  }
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+
+  const parsed = new Date(year, monthIndex, day, 0, 0, 0, 0);
+  if (
+    Number.isNaN(parsed.getTime())
+    || parsed.getFullYear() !== year
+    || parsed.getMonth() !== monthIndex
+    || parsed.getDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsed;
 }
 
 function buildIdempotencyKey(operation: string): string {
@@ -410,4 +511,17 @@ function asNumber(value: unknown, fallback: number): number {
     return Number.isFinite(parsed) ? parsed : fallback;
   }
   return fallback;
+}
+
+function asOptionalNumber(value: unknown): number | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
 }

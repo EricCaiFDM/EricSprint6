@@ -83,7 +83,7 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isString())
                 .andExpect(jsonPath("$.refreshToken").isString())
-                .andExpect(jsonPath("$.expiresIn").value(900));
+                .andExpect(jsonPath("$.expiresIn").value(600));
     }
 
     @Test
@@ -295,7 +295,7 @@ class AuthControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").isString())
                 .andExpect(jsonPath("$.refreshToken").isString())
-                .andExpect(jsonPath("$.expiresIn").value(900));
+                .andExpect(jsonPath("$.expiresIn").value(600));
     }
 
     @Test

@@ -1,7 +1,9 @@
 package com.example.banking.api.insights;
 
 import jakarta.validation.constraints.Pattern;
+import io.swagger.v3.oas.annotations.media.Schema;
 
+@Schema(description = "OpenAPI schema for spending insight query parameters.")
 public class SpendingInsightQuery {
     @Pattern(regexp = "^(?i)(ACCOUNT|CUSTOMER)?$", message = "scopeType must be ACCOUNT or CUSTOMER")
     private String scopeType;

@@ -110,7 +110,7 @@ paths:
 								invalidFilter:
 									value:
 										code: INSIGHT_VALIDATION_ERROR
-										message: Unsupported category filter: TRAVEL
+										message: 'Unsupported category filter: TRAVEL'
 										field: categoryFilters
 				'403':
 					description: Caller is not allowed to access this scope.

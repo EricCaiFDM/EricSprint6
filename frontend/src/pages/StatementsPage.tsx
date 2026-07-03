@@ -15,7 +15,7 @@ import {
   formatCustomerScopeOption,
   resolveCustomerIdFromScopeInput
 } from "../utils/customerScope";
-import { formatDateTime } from "../utils/formatting";
+import { formatDateTime, formatStatementPeriod } from "../utils/formatting";
 
 const emptyStatements: StatementListResult = {
   items: [],
@@ -43,7 +43,7 @@ export function StatementsPage() {
   const [feedback, setFeedback] = useState(
     isAdmin
       ? "Select a customer scope, then generate and retrieve monthly statements for that customer accounts."
-      : "Generate and retrieve monthly statements for your accounts."
+      : ""
   );
 
   const adminCustomersQuery = useQuery({
@@ -224,7 +224,7 @@ export function StatementsPage() {
         </article>
       ) : null}
 
-      <p className="output">{feedback}</p>
+      {feedback ? <p className="output">{feedback}</p> : null}
 
       <section className="summary-grid">
         <article className="summary-card">
@@ -380,7 +380,7 @@ export function StatementsPage() {
               <tbody>
                 {statements.items.map((statement) => (
                   <tr key={statement.statementId}>
-                    <td data-label="Period">{statement.periodYearMonth}</td>
+                    <td data-label="Period">{formatStatementPeriod(statement.periodYearMonth)}</td>
                     <td data-label="Version">v{statement.artifactVersion}</td>
                     <td data-label="Account">{statement.accountId}</td>
                     <td data-label="Generated">{formatDateTime(statement.generatedAtUtc)}</td>

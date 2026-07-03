@@ -6,6 +6,7 @@ import { StatementsPage } from "./StatementsPage";
 import * as accounts from "../services/accounts";
 import * as customers from "../services/customers";
 import * as statements from "../services/statements";
+import { formatStatementPeriod } from "../utils/formatting";
 
 jest.mock("../services/accounts");
 jest.mock("../services/customers");
@@ -155,6 +156,8 @@ describe("StatementsPage", () => {
         pageSize: 20
       });
     });
+
+    expect(await screen.findByText(formatStatementPeriod("2026-06"))).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole("button", { name: /View details/i }));
 

@@ -2,6 +2,7 @@ package com.example.banking.lib;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Locale;
 
 import org.springframework.stereotype.Repository;
 
@@ -9,6 +10,8 @@ import com.example.banking.models.AuthUserEntity;
 
 @Repository
 public class AuthRepository {
+    private static final String ACTIVE_ACCOUNT_STATUS = "ACTIVE";
+
     private final AuthUserJpaRepository authUserJpaRepository;
 
     public AuthRepository(AuthUserJpaRepository authUserJpaRepository) {
@@ -61,8 +64,54 @@ public class AuthRepository {
         return true;
     }
 
+    public boolean updateEmailByUserId(String userId, String email) {
+        Optional<AuthUserEntity> candidate = authUserJpaRepository.findById(userId);
+        if (candidate.isEmpty()) {
+            return false;
+        }
+
+        AuthUserEntity authUserEntity = candidate.get();
+        authUserEntity.setEmail(normalizeEmail(email));
+        authUserJpaRepository.save(authUserEntity);
+        return true;
+    }
+
+    public boolean updateAccountStatusByUserId(String userId, String accountStatus) {
+        Optional<AuthUserEntity> candidate = authUserJpaRepository.findById(userId);
+        if (candidate.isEmpty()) {
+            return false;
+        }
+
+        AuthUserEntity authUserEntity = candidate.get();
+        authUserEntity.setAccountStatus(normalizeStatus(accountStatus));
+        authUserJpaRepository.save(authUserEntity);
+        return true;
+    }
+
+    public boolean reactivateClosedIdentityByUserId(String userId, String passwordHash, String role) {
+        Optional<AuthUserEntity> candidate = authUserJpaRepository.findById(userId);
+        if (candidate.isEmpty()) {
+            return false;
+        }
+
+        AuthUserEntity authUserEntity = candidate.get();
+        authUserEntity.setPasswordHash(passwordHash);
+        authUserEntity.setRole(normalizeRole(role));
+        authUserEntity.setAccountStatus(ACTIVE_ACCOUNT_STATUS);
+        authUserJpaRepository.save(authUserEntity);
+        return true;
+    }
+
     private String normalizeEmail(String email) {
         return email == null ? "" : email.trim().toLowerCase();
+    }
+
+    private String normalizeStatus(String accountStatus) {
+        return accountStatus == null ? "" : accountStatus.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private String normalizeRole(String role) {
+        return role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
     }
 
     public record AuthUserCredentials(String userId, String email, String passwordHash, String role,

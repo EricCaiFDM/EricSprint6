@@ -1,17 +1,19 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Navigate, NavLink, Route, Routes, useNavigate } from "react-router-dom";
-import { checkHealth } from "./services/api";
+import { Navigate, NavLink, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { checkHealth, refreshToken as refreshSessionToken } from "./services/api";
+import { fetchRecentNotifications } from "./services/notifications";
 import {
   clearAuthSession,
   getAccessToken,
+  getAccessTokenExpiresAtMs,
   getNormalizedTokenRole,
+  getRefreshToken,
   type UserRole
 } from "./services/session";
 import { LoginPage } from "./pages/LoginPage";
 import { RegisterPage } from "./pages/RegisterPage";
 import { ResetRequestPage } from "./pages/ResetRequestPage";
-import { TokenRefreshPage } from "./pages/TokenRefreshPage";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminCustomerDetailsPage } from "./pages/AdminCustomerDetailsPage";
 import { DashboardPage } from "./pages/DashboardPage";
@@ -27,12 +29,17 @@ import { SpendingInsightsPage } from "./pages/SpendingInsightsPage";
 
 type AuthState = {
   isAuthenticated: boolean;
+  accessToken: string | null;
   role: UserRole | null;
 };
 
+const SESSION_WARNING_WINDOW_MS = 3 * 60 * 1000;
+
 function readAuthState(): AuthState {
+  const accessToken = getAccessToken();
   return {
-    isAuthenticated: Boolean(getAccessToken()),
+    isAuthenticated: Boolean(accessToken),
+    accessToken,
     role: getNormalizedTokenRole()
   };
 }
@@ -47,8 +54,38 @@ function roleWorkspacePrefix(role: UserRole): "admin" | "customer" {
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [authState, setAuthState] = useState<AuthState>(() => readAuthState());
-  const { isAuthenticated, role } = authState;
+  const [screenAlert, setScreenAlert] = useState<string | null>(null);
+  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
+  const [showSessionExpiryDialog, setShowSessionExpiryDialog] = useState(false);
+  const [isRefreshingSession, setIsRefreshingSession] = useState(false);
+  const [sessionRefreshError, setSessionRefreshError] = useState<string | null>(null);
+  const latestNotificationIdRef = useRef<string | null>(null);
+  const sessionWarningTimeoutRef = useRef<number | null>(null);
+  const sessionExpiryTimeoutRef = useRef<number | null>(null);
+  const { isAuthenticated, role, accessToken } = authState;
+  const shouldTrackCustomerFeed = isAuthenticated && role === "CUSTOMER";
+
+  const clearSessionExpiryTimeouts = useCallback(() => {
+    if (sessionWarningTimeoutRef.current !== null) {
+      window.clearTimeout(sessionWarningTimeoutRef.current);
+      sessionWarningTimeoutRef.current = null;
+    }
+    if (sessionExpiryTimeoutRef.current !== null) {
+      window.clearTimeout(sessionExpiryTimeoutRef.current);
+      sessionExpiryTimeoutRef.current = null;
+    }
+  }, []);
+
+  const onLogout = useCallback(() => {
+    clearSessionExpiryTimeouts();
+    setShowSessionExpiryDialog(false);
+    setIsRefreshingSession(false);
+    setSessionRefreshError(null);
+    clearAuthSession();
+    navigate("/security/login", { replace: true });
+  }, [clearSessionExpiryTimeouts, navigate]);
 
   useEffect(() => {
     const syncAuthState = () => {
@@ -70,6 +107,125 @@ export default function App() {
     queryFn: checkHealth,
     retry: 0
   });
+
+  const notificationFeedQuery = useQuery({
+    queryKey: ["notification-feed"],
+    queryFn: fetchRecentNotifications,
+    enabled: shouldTrackCustomerFeed,
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true
+  });
+
+  useEffect(() => {
+    if (shouldTrackCustomerFeed) {
+      return;
+    }
+    latestNotificationIdRef.current = null;
+    setScreenAlert(null);
+  }, [shouldTrackCustomerFeed]);
+
+  useEffect(() => {
+    const latest = notificationFeedQuery.data?.[0];
+    if (!latest) {
+      return;
+    }
+
+    if (latestNotificationIdRef.current === null) {
+      latestNotificationIdRef.current = latest.notificationId;
+      return;
+    }
+
+    if (latest.notificationId === latestNotificationIdRef.current) {
+      return;
+    }
+
+    latestNotificationIdRef.current = latest.notificationId;
+
+    if (location.pathname !== "/customer/notifications" && location.pathname !== "/customer/payments") {
+      setScreenAlert(`New alert: ${latest.title}`);
+    }
+  }, [location.pathname, notificationFeedQuery.data]);
+
+  useEffect(() => {
+    if ((location.pathname === "/customer/notifications" || location.pathname === "/customer/payments") && screenAlert) {
+      setScreenAlert(null);
+    }
+  }, [location.pathname, screenAlert]);
+
+  useEffect(() => {
+    if (!screenAlert) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setScreenAlert(null);
+    }, 4500);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [screenAlert]);
+
+  useEffect(() => {
+    setIsNavMenuOpen(false);
+  }, [location.pathname, isAuthenticated, role]);
+
+  useEffect(() => {
+    clearSessionExpiryTimeouts();
+    setShowSessionExpiryDialog(false);
+    setIsRefreshingSession(false);
+    setSessionRefreshError(null);
+
+    if (!isAuthenticated) {
+      return;
+    }
+
+    const expiresAtMs = getAccessTokenExpiresAtMs();
+    if (!expiresAtMs) {
+      return;
+    }
+
+    const now = Date.now();
+    const msUntilExpiry = expiresAtMs - now;
+
+    if (msUntilExpiry <= 0) {
+      onLogout();
+      return;
+    }
+
+    const msUntilWarning = Math.max(msUntilExpiry - SESSION_WARNING_WINDOW_MS, 0);
+
+    sessionWarningTimeoutRef.current = window.setTimeout(() => {
+      setSessionRefreshError(null);
+      setShowSessionExpiryDialog(true);
+    }, msUntilWarning);
+
+    sessionExpiryTimeoutRef.current = window.setTimeout(() => {
+      onLogout();
+    }, msUntilExpiry);
+
+    return clearSessionExpiryTimeouts;
+  }, [accessToken, clearSessionExpiryTimeouts, isAuthenticated, onLogout]);
+
+  const onStaySignedIn = async () => {
+    const refreshToken = getRefreshToken();
+    if (!refreshToken) {
+      onLogout();
+      return;
+    }
+
+    setIsRefreshingSession(true);
+    setSessionRefreshError(null);
+
+    try {
+      await refreshSessionToken({ refreshToken });
+      setShowSessionExpiryDialog(false);
+    } catch {
+      setSessionRefreshError("Unable to extend session. Please try again or log out.");
+    } finally {
+      setIsRefreshingSession(false);
+    }
+  };
 
   const healthState: "checking" | "online" | "offline" = healthQuery.isPending
     ? "checking"
@@ -134,11 +290,6 @@ export default function App() {
 
   const showAdminSwitch = !isAuthenticated;
 
-  const onLogout = () => {
-    clearAuthSession();
-    navigate("/security/login", { replace: true });
-  };
-
   return (
     <main className="bank-app">
       <header className="top-header">
@@ -165,38 +316,98 @@ export default function App() {
           </li>
         </ul>
       </header>
-      <nav className="main-nav" aria-label="Primary banking navigation">
-        {navLinks.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) => (isActive ? "main-nav-link active" : "main-nav-link")}
-          >
-            {link.label}
-          </NavLink>
-        ))}
-        {showAdminSwitch ? (
-          <NavLink
-            to="/security/login"
-            className={({ isActive }) =>
-              isActive
-                ? "main-nav-link main-nav-link--admin-switch active"
-                : "main-nav-link main-nav-link--admin-switch"
-            }
-          >
-            Admin Pages
-          </NavLink>
-        ) : null}
-        {isAuthenticated ? (
-          <button
-            type="button"
-            className="main-nav-action main-nav-action--logout"
-            onClick={onLogout}
-          >
-            Log out
-          </button>
-        ) : null}
+      <nav className={isNavMenuOpen ? "main-nav main-nav--open" : "main-nav"} aria-label="Primary banking navigation">
+        <button
+          type="button"
+          className="main-nav-toggle"
+          aria-expanded={isNavMenuOpen}
+          aria-controls="primary-banking-nav-links"
+          onClick={() => setIsNavMenuOpen((isOpen) => !isOpen)}
+        >
+          <span className="main-nav-toggle-icon" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>{isNavMenuOpen ? "Close menu" : "Menu"}</span>
+        </button>
+
+        <div id="primary-banking-nav-links" className="main-nav-links">
+          {navLinks.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) => (isActive ? "main-nav-link active" : "main-nav-link")}
+              onClick={() => setIsNavMenuOpen(false)}
+            >
+              {link.label}
+            </NavLink>
+          ))}
+          {showAdminSwitch ? (
+            <NavLink
+              to="/security/login"
+              className={({ isActive }) =>
+                isActive
+                  ? "main-nav-link main-nav-link--admin-switch active"
+                  : "main-nav-link main-nav-link--admin-switch"
+              }
+              onClick={() => setIsNavMenuOpen(false)}
+            >
+              Admin Pages
+            </NavLink>
+          ) : null}
+          {isAuthenticated ? (
+            <button
+              type="button"
+              className="main-nav-action main-nav-action--logout"
+              onClick={() => {
+                setIsNavMenuOpen(false);
+                onLogout();
+              }}
+            >
+              Log out
+            </button>
+          ) : null}
+        </div>
       </nav>
+
+      {screenAlert ? (
+        <aside className="screen-snackbar" role="alert" aria-live="assertive" aria-atomic="true">
+          <p className="screen-snackbar-message">{screenAlert}</p>
+          <button type="button" className="screen-snackbar-dismiss" onClick={() => setScreenAlert(null)}>
+            Dismiss
+          </button>
+        </aside>
+      ) : null}
+
+      {showSessionExpiryDialog && isAuthenticated ? (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="confirm-modal session-expiry-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="session-expiry-title"
+            aria-describedby="session-expiry-description"
+          >
+            <h3 id="session-expiry-title">Session expiring soon</h3>
+            <p id="session-expiry-description">Your session is about to expire. Stay signed in?</p>
+            {sessionRefreshError ? <p className="inline-error">{sessionRefreshError}</p> : null}
+            <div className="actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={onLogout}
+                disabled={isRefreshingSession}
+              >
+                Log out
+              </button>
+              <button type="button" onClick={onStaySignedIn} disabled={isRefreshingSession}>
+                {isRefreshingSession ? "Refreshing..." : "Stay signed in"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
 
       <section className="content-layout">
         <section className="content-surface">
@@ -229,13 +440,13 @@ export default function App() {
             <Route path="/security/register" element={<RegisterPage />} />
             <Route path="/security/create-customer" element={<Navigate to="/security/register" replace />} />
             <Route path="/security/reset" element={<ResetRequestPage />} />
-            <Route path="/security/refresh" element={<TokenRefreshPage />} />
+            <Route path="/security/refresh" element={<Navigate to="/security/login" replace />} />
 
             <Route path="/login" element={<Navigate to="/security/login" replace />} />
             <Route path="/register" element={<Navigate to="/security/register" replace />} />
             <Route path="/create-customer" element={<Navigate to="/security/register" replace />} />
             <Route path="/reset" element={<Navigate to="/security/reset" replace />} />
-            <Route path="/refresh" element={<Navigate to="/security/refresh" replace />} />
+            <Route path="/refresh" element={<Navigate to="/security/login" replace />} />
 
             <Route path="/dashboard" element={<Navigate to={roleScopedTarget("dashboard")} replace />} />
             <Route path="/accounts" element={<Navigate to={roleScopedTarget("accounts")} replace />} />
@@ -266,7 +477,6 @@ export default function App() {
               <li><NavLink to="/security/register">Create account</NavLink></li>
               <li><NavLink to="/security/login">Sign in</NavLink></li>
               <li><NavLink to="/security/reset">Recover account</NavLink></li>
-              <li><NavLink to="/security/refresh">Refresh session</NavLink></li>
             </ul>
           </article>
 

@@ -5,6 +5,10 @@ import {
   createCustomerProfile,
   type CreateCustomerProfileInput
 } from "../services/customers";
+import {
+  PHONE_NUMBER_MAX_LENGTH,
+  validatePhoneNumber
+} from "../utils/phoneValidation";
 
 const initialForm: CreateCustomerProfileInput = {
   externalCustomerKey: "",
@@ -43,7 +47,17 @@ export function CreateCustomerPage() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await createMutation.mutateAsync(form).catch(() => {
+
+    const phoneValidationError = validatePhoneNumber(form.phoneNumber, true);
+    if (phoneValidationError) {
+      setOutput(phoneValidationError);
+      return;
+    }
+
+    await createMutation.mutateAsync({
+      ...form,
+      phoneNumber: form.phoneNumber.trim()
+    }).catch(() => {
       // Error text is set in onError handler.
     });
   };
@@ -98,6 +112,7 @@ export function CreateCustomerPage() {
             value={form.phoneNumber}
             onChange={(event) => setForm({ ...form, phoneNumber: event.target.value })}
             placeholder="+61 412 345 678"
+            maxLength={PHONE_NUMBER_MAX_LENGTH}
             required
           />
         </label>

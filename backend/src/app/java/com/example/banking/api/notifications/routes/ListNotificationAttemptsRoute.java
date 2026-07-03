@@ -18,6 +18,14 @@ import com.example.banking.services.CustomerPrincipal;
 import com.example.banking.services.CustomerPrincipalResolver;
 import com.example.banking.services.ListNotificationAttemptsService;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Notifications")
 @RestController
 @RequestMapping("/notifications/events")
 @Validated
@@ -35,6 +43,16 @@ public class ListNotificationAttemptsRoute {
         this.responseMapper = responseMapper;
     }
 
+    @Operation(
+            summary = "List notification attempts",
+            description = "Returns paginated dispatch attempts and channel outcomes for a notification event.")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Notification attempt page",
+            content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(implementation = NotificationAttemptListResponseSchema.class),
+                    examples = @ExampleObject(value = "{\"items\":[{\"attemptId\":\"fef39f26-2f7c-4d74-b0c4-5a8f2065fdbb\",\"notificationEventId\":\"31f5fd3d-40cb-4f9f-bec7-d3eec559c5b8\",\"channel\":\"EMAIL\",\"status\":\"DELIVERED\",\"attemptedAtUtc\":\"2026-07-02T05:00:02Z\",\"providerReference\":\"smtp-20260702050002\"}],\"page\":1,\"pageSize\":20,\"totalItems\":1,\"totalPages\":1}")))
     @GetMapping("/{notificationEventId}/attempts")
     public ResponseEntity<NotificationAttemptListResponseSchema> listAttempts(
             @PathVariable String notificationEventId,

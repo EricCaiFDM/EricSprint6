@@ -5,8 +5,11 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.time.YearMonth;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -28,34 +31,66 @@ import org.springframework.web.bind.annotation.RestController;
 import com.example.banking.api.statements.StatementResponseMapper;
 import com.example.banking.api.statements.schemas.StatementResponseSchema;
 import com.example.banking.lib.errors.StatementErrors;
+import com.example.banking.models.AccountEntity;
+import com.example.banking.models.CustomerEntity;
 import com.example.banking.models.statement.MonthlyStatement;
 import com.example.banking.models.TransactionEntity;
 import com.example.banking.models.TransactionType;
+import com.example.banking.services.AccountRepository;
 import com.example.banking.services.CustomerPrincipal;
 import com.example.banking.services.CustomerPrincipalResolver;
+import com.example.banking.services.CustomerRepository;
 import com.example.banking.services.TransactionRepository;
 import com.example.banking.services.statement.StatementAuthorizationService;
 
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "Statements")
 @RestController
 @RequestMapping("/statements")
 @Validated
 public class StatementRetrievalController {
+    private static final ZoneId PDF_ZONE = ZoneId.systemDefault();
+    private static final DateTimeFormatter PDF_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(PDF_ZONE);
+    private static final DateTimeFormatter PDF_PERIOD_DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+
     private final StatementAuthorizationService statementAuthorizationService;
     private final CustomerPrincipalResolver principalResolver;
     private final StatementResponseMapper statementResponseMapper;
     private final TransactionRepository transactionRepository;
+    private final AccountRepository accountRepository;
+    private final CustomerRepository customerRepository;
 
     public StatementRetrievalController(
             StatementAuthorizationService statementAuthorizationService,
             CustomerPrincipalResolver principalResolver,
             StatementResponseMapper statementResponseMapper,
-            TransactionRepository transactionRepository) {
+            TransactionRepository transactionRepository,
+            AccountRepository accountRepository,
+            CustomerRepository customerRepository) {
         this.statementAuthorizationService = statementAuthorizationService;
         this.principalResolver = principalResolver;
         this.statementResponseMapper = statementResponseMapper;
         this.transactionRepository = transactionRepository;
+        this.accountRepository = accountRepository;
+        this.customerRepository = customerRepository;
     }
 
+    @Operation(
+            summary = "Get statement by id",
+            description = "Returns statement metadata, status, and summary details for a single statement identifier.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "Statement details",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = StatementResponseSchema.class),
+                examples = @ExampleObject(value = "{\"statementId\":\"8d8a1415-b894-4cc3-ac6e-4f6c9836d5a2\",\"accountId\":\"a274560e-7158-41cb-8cc7-a305237b9f8c\",\"periodYearMonth\":\"2026-07\",\"status\":\"READY\",\"artifactVersion\":1,\"periodStartUtc\":\"2026-07-01T00:00:00Z\",\"periodEndUtc\":\"2026-08-01T00:00:00Z\",\"generatedAtUtc\":\"2026-07-31T23:59:59Z\"}")))
     @GetMapping("/{statementId}")
     public ResponseEntity<StatementResponseSchema> getById(
             @PathVariable
@@ -70,6 +105,15 @@ public class StatementRetrievalController {
         return ResponseEntity.ok(statementResponseMapper.toResponse(statement));
     }
 
+        @Operation(
+            summary = "Download statement artifact",
+            description = "Downloads the generated PDF artifact for the requested statement and artifact version.")
+        @ApiResponse(
+            responseCode = "200",
+            description = "PDF statement artifact",
+            content = @Content(
+                mediaType = MediaType.APPLICATION_PDF_VALUE,
+                schema = @Schema(type = "string", format = "binary")))
     @GetMapping(value = "/{statementId}/artifact/v{artifactVersion}.pdf", produces = MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> downloadArtifact(
             @PathVariable
@@ -94,7 +138,12 @@ public class StatementRetrievalController {
             statement.getPeriodStartUtc(),
             statement.getPeriodEndUtc());
 
-        byte[] artifact = renderStatementPdf(statement, statementTransactions);
+        AccountEntity account = accountRepository.findActiveById(statement.getAccountId()).orElse(null);
+        CustomerEntity customer = account == null
+            ? null
+            : customerRepository.findActiveById(account.getCustomerId()).orElse(null);
+
+        byte[] artifact = renderStatementPdf(statement, statementTransactions, account, customer);
         String fileName = buildArtifactFileName(statement, artifactVersion);
 
         return ResponseEntity.ok()
@@ -103,8 +152,12 @@ public class StatementRetrievalController {
                 .body(artifact);
     }
 
-    private byte[] renderStatementPdf(MonthlyStatement statement, List<TransactionEntity> statementTransactions) {
-        String contentStream = buildStatementContentStream(statement, statementTransactions);
+    private byte[] renderStatementPdf(
+            MonthlyStatement statement,
+            List<TransactionEntity> statementTransactions,
+            AccountEntity account,
+            CustomerEntity customer) {
+        String contentStream = buildStatementContentStream(statement, statementTransactions, account, customer);
         byte[] contentBytes = contentStream.getBytes(StandardCharsets.US_ASCII);
 
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -136,68 +189,75 @@ public class StatementRetrievalController {
         return output.toByteArray();
     }
 
-    private String buildStatementContentStream(MonthlyStatement statement, List<TransactionEntity> statementTransactions) {
-        String status = safeText(statement.getStatus() == null ? null : statement.getStatus().name());
-        String generatedAt = safeInstant(statement.getGeneratedAtUtc());
+    private String buildStatementContentStream(
+            MonthlyStatement statement,
+            List<TransactionEntity> statementTransactions,
+            AccountEntity account,
+            CustomerEntity customer) {
         String currencyCode = safeText(statement.getCurrencyCode());
+        String accountName = resolveAccountName(account);
+        String customerName = safeText(customer == null ? null : customer.getLegalName());
+        String statementPeriod = formatStatementPeriodRange(statement);
+        String generatedDate = formatGeneratedDate(statement.getGeneratedAtUtc());
         BigDecimal openingBalance = safeAmountValue(statement.getOpeningBalance());
         BigDecimal closingBalance = safeAmountValue(statement.getClosingBalance());
         BigDecimal netMovement = closingBalance.subtract(openingBalance);
         List<TransactionEntity> transactions = statementTransactions == null ? List.of() : statementTransactions;
 
         StringBuilder builder = new StringBuilder();
-        builder.append("0.94 g\n");
+        builder.append("0.18 g\n");
         builder.append("36 728 540 44 re f\n");
+        builder.append("0.95 g\n");
+        builder.append("36 688 540 18 re f\n");
+        builder.append("36 516 540 18 re f\n");
+        builder.append("0.92 g\n");
+        builder.append("36 500 540 16 re f\n");
+        builder.append("0.97 g\n");
+        builder.append("36 146 540 56 re f\n");
 
-        builder.append("0.80 G\n");
+        builder.append("0.72 G\n");
         builder.append("0.8 w\n");
         appendRectangleStroke(builder, 36, 548, 540, 160);
-        appendRectangleStroke(builder, 36, 486, 540, 52);
-        appendRectangleStroke(builder, 36, 212, 540, 264);
+        appendRectangleStroke(builder, 36, 212, 540, 326);
         appendRectangleStroke(builder, 36, 146, 540, 56);
 
         builder.append("0.88 G\n");
         builder.append("0.5 w\n");
-        appendHorizontalRule(builder, 36, 576, 692);
-        appendHorizontalRule(builder, 36, 576, 502);
-        appendHorizontalRule(builder, 36, 576, 458);
-        appendHorizontalRule(builder, 36, 576, 442);
-        appendVerticalRule(builder, 318, 548, 692);
-        appendVerticalRule(builder, 146, 212, 442);
-        appendVerticalRule(builder, 286, 212, 442);
-        appendVerticalRule(builder, 406, 212, 442);
-        appendVerticalRule(builder, 496, 212, 442);
+        appendHorizontalRule(builder, 36, 576, 688);
+        appendHorizontalRule(builder, 36, 576, 516);
+        appendHorizontalRule(builder, 36, 576, 500);
+        appendVerticalRule(builder, 318, 548, 688);
+        appendVerticalRule(builder, 146, 212, 500);
+        appendVerticalRule(builder, 286, 212, 500);
+        appendVerticalRule(builder, 406, 212, 500);
+        appendVerticalRule(builder, 496, 212, 500);
+
+        builder.append("1 g\n");
+        appendText(builder, "F2", 18, 50, 748, "NorthBridge Bank");
+        appendText(builder, "F1", 10, 50, 734, "Official Monthly Statement");
+        appendText(builder, "F1", 9, 332, 748, "Statement Ref: " + formatStatementReference(statement.getStatementId()));
 
         builder.append("0 g\n");
-        appendText(builder, "F2", 18, 50, 748, "NorthBridge Bank");
-        appendText(builder, "F1", 11, 50, 734, "Monthly Account Statement");
-        appendText(builder, "F1", 10, 380, 748, "Status: " + status);
-        appendText(builder, "F1", 10, 380, 734, "Generated: " + generatedAt);
+        appendText(builder, "F2", 11, 50, 694, "Account Summary");
+        appendText(builder, "F1", 10, 50, 668, "Customer Name: " + customerName);
+        appendText(builder, "F1", 10, 50, 650, "Account Name: " + accountName);
+        appendText(builder, "F1", 10, 50, 632, "Statement Period: " + statementPeriod);
+        appendText(builder, "F1", 10, 50, 614, "Currency: " + currencyCode);
 
-        appendText(builder, "F2", 11, 50, 700, "Account Summary");
-        appendText(builder, "F1", 10, 50, 674, "Statement ID: " + safeText(statement.getStatementId()));
-        appendText(builder, "F1", 10, 50, 656, "Account ID: " + safeText(statement.getAccountId()));
-        appendText(builder, "F1", 10, 50, 638, "Statement Period: " + safeText(statement.getPeriodYearMonth()));
-        appendText(builder, "F1", 10, 50, 620, "Artifact Version: " + safeVersion(statement.getArtifactVersion()));
+        appendText(builder, "F1", 10, 332, 668, "Opening Balance: " + formatMoney(openingBalance, currencyCode));
+        appendText(builder, "F1", 10, 332, 650, "Closing Balance: " + formatMoney(closingBalance, currencyCode));
+        appendText(builder, "F1", 10, 332, 632, "Net Activity: " + formatSignedMoney(netMovement, currencyCode));
+        appendText(builder, "F1", 10, 332, 614, "Generated Date: " + generatedDate);
 
-        appendText(builder, "F1", 10, 332, 674, "Currency: " + currencyCode);
-        appendText(builder, "F1", 10, 332, 656, "Opening Balance: " + formatMoney(openingBalance, currencyCode));
-        appendText(builder, "F1", 10, 332, 638, "Closing Balance: " + formatMoney(closingBalance, currencyCode));
-        appendText(builder, "F1", 10, 332, 620, "Net Movement: " + formatSignedMoney(netMovement, currencyCode));
+        appendText(builder, "F2", 11, 50, 522, "Statement Transactions");
+        appendText(builder, "F2", 9, 50, 504, "Date");
+        appendText(builder, "F2", 9, 152, 504, "Type");
+        appendText(builder, "F2", 9, 292, 504, "Amount");
+        appendText(builder, "F2", 9, 412, 504, "Balance");
+        appendText(builder, "F2", 9, 502, 504, "Txn Ref");
 
-        appendText(builder, "F2", 11, 50, 516, "Balance Snapshot");
-        appendText(builder, "F1", 10, 50, 496, "Opening this period: " + formatMoney(openingBalance, currencyCode));
-        appendText(builder, "F1", 10, 332, 496, "Closing this period: " + formatMoney(closingBalance, currencyCode));
-
-        appendText(builder, "F2", 11, 50, 462, "Statement Transactions");
-        appendText(builder, "F2", 9, 50, 446, "Date");
-        appendText(builder, "F2", 9, 152, 446, "Type");
-        appendText(builder, "F2", 9, 292, 446, "Amount");
-        appendText(builder, "F2", 9, 412, 446, "Balance");
-        appendText(builder, "F2", 9, 502, 446, "Txn Ref");
-
-        int rowY = 428;
-        int maxRows = 13;
+        int rowY = 486;
+        int maxRows = 16;
         int rendered = 0;
         for (TransactionEntity transaction : transactions) {
             if (rendered >= maxRows) {
@@ -215,15 +275,15 @@ public class StatementRetrievalController {
         }
 
         if (transactions.isEmpty()) {
-            appendText(builder, "F1", 9, 50, 426, "No transactions were posted in this statement period.");
+            appendText(builder, "F1", 9, 50, 484, "No transactions were posted in this statement period.");
         } else if (transactions.size() > rendered) {
-            appendText(builder, "F1", 8, 50, 220,
+            appendText(builder, "F1", 8, 50, 244,
                     "Showing first " + rendered + " of " + transactions.size() + " transactions in this period.");
         }
 
         appendText(builder, "F2", 11, 50, 186, "Important Information");
         appendText(builder, "F1", 9, 50, 168,
-                "This statement reflects posted transactions within month-end UTC boundaries for the selected period.");
+            "This statement is an official record of your account activity for the period shown above.");
         appendText(builder, "F1", 9, 50, 154,
                 "If you spot discrepancies, contact NorthBridge support within 30 days of statement delivery.");
 
@@ -323,12 +383,69 @@ public class StatementRetrievalController {
     }
 
     private String formatTransactionDate(Instant value) {
+        return formatLocalDate(value);
+    }
+
+    private String formatStatementPeriodRange(MonthlyStatement statement) {
+        String yearMonth = safeText(statement == null ? null : statement.getPeriodYearMonth());
+        if (statement == null) {
+            return yearMonth;
+        }
+
+        try {
+            YearMonth period = YearMonth.parse(yearMonth);
+            return PDF_PERIOD_DATE_FORMAT.format(period.atDay(1))
+                    + "-"
+                    + PDF_PERIOD_DATE_FORMAT.format(period.atEndOfMonth());
+        } catch (DateTimeParseException ignored) {
+            // Fall through to the stored UTC boundaries when periodYearMonth is not parseable.
+        }
+
+        if (statement.getPeriodStartUtc() == null || statement.getPeriodEndUtc() == null) {
+            return yearMonth;
+        }
+
+        Instant startUtc = statement.getPeriodStartUtc();
+        Instant endExclusiveUtc = statement.getPeriodEndUtc();
+        Instant endInclusiveUtc = endExclusiveUtc.isAfter(startUtc)
+                ? endExclusiveUtc.minusMillis(1)
+                : endExclusiveUtc;
+
+        return PDF_PERIOD_DATE_FORMAT.format(startUtc.atZone(ZoneOffset.UTC).toLocalDate())
+            + "-"
+            + PDF_PERIOD_DATE_FORMAT.format(endInclusiveUtc.atZone(ZoneOffset.UTC).toLocalDate());
+    }
+
+    private String formatLocalDate(Instant value) {
         if (value == null) {
             return "N/A";
         }
-        return DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                .withZone(ZoneOffset.UTC)
-                .format(value);
+        return PDF_DATE_FORMAT.format(value);
+    }
+
+    private String formatGeneratedDate(Instant value) {
+        if (value == null) {
+            return "N/A";
+        }
+        return PDF_PERIOD_DATE_FORMAT.format(value.atZone(PDF_ZONE).toLocalDate());
+    }
+
+    private String resolveAccountName(AccountEntity account) {
+        if (account == null) {
+            return "N/A";
+        }
+
+        if (account.getNickname() != null && !account.getNickname().isBlank()) {
+            return safeText(account.getNickname());
+        }
+
+        String type = safeText(account.getAccountType());
+        Integer checkingNumber = account.getCheckingNumber();
+        if (checkingNumber != null && checkingNumber > 0) {
+            return type + " #" + checkingNumber;
+        }
+
+        return type + " Account";
     }
 
     private String toReadableTransactionType(TransactionType type) {
@@ -351,17 +468,16 @@ public class StatementRetrievalController {
         return transactionId.substring(0, 8) + "...";
     }
 
-    private String safeVersion(Integer value) {
-        if (value == null || value < 1) {
-            return "1";
+    private String formatStatementReference(String value) {
+        String statementReference = safeText(value);
+        if ("N/A".equals(statementReference) || statementReference.length() <= 24) {
+            return statementReference;
         }
-        return Integer.toString(value);
+
+        return statementReference.substring(0, 12)
+                + "..."
+                + statementReference.substring(statementReference.length() - 8);
     }
 
-    private String safeInstant(Instant value) {
-        if (value == null) {
-            return "N/A";
-        }
-        return value.toString();
-    }
 }
+
