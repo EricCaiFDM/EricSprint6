@@ -150,4 +150,61 @@ describe("StandingOrdersPage", () => {
       expect(standingOrdersService.pauseStandingOrder).toHaveBeenCalledWith("so-1");
     });
   });
+
+  it("hides cancelled standing orders from configured list", async () => {
+    (standingOrdersService.fetchStandingOrders as jest.MockedFunction<typeof standingOrdersService.fetchStandingOrders>).mockResolvedValueOnce([
+      {
+        standingOrderId: "so-cancelled",
+        sourceAccountId: "acc-a",
+        destinationAccountId: "acc-b",
+        amount: 15,
+        cadence: "MONTHLY",
+        lifecycleState: "CANCELLED",
+        nextExecutionAtUtc: null,
+        effectiveFromUtc: "2026-06-01T00:00:00Z",
+        effectiveToUtc: null
+      }
+    ]);
+
+    renderPage();
+
+    expect(await screen.findByText(/Configured standing orders/i)).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(screen.queryByText(/Everyday to Savings/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Pause/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Cancel/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("asks for confirmation before cancelling a standing order", async () => {
+    renderPage();
+
+    expect(await screen.findByText(/Everyday to Savings/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
+
+    expect(screen.getByRole("dialog", { name: /Cancel standing order\?/i })).toBeInTheDocument();
+    expect(standingOrdersService.cancelStandingOrder).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Yes, cancel order/i }));
+
+    await waitFor(() => {
+      expect(standingOrdersService.cancelStandingOrder).toHaveBeenCalledWith("so-1");
+    });
+  });
+
+  it("allows dismissing the cancellation confirmation modal", async () => {
+    renderPage();
+
+    expect(await screen.findByText(/Everyday to Savings/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Cancel$/i }));
+    expect(screen.getByRole("dialog", { name: /Cancel standing order\?/i })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Keep order/i }));
+
+    expect(screen.queryByRole("dialog", { name: /Cancel standing order\?/i })).not.toBeInTheDocument();
+    expect(standingOrdersService.cancelStandingOrder).not.toHaveBeenCalled();
+  });
 });

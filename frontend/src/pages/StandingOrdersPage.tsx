@@ -90,6 +90,7 @@ export function StandingOrdersPage() {
     retryPolicyCode: "STANDARD"
   });
   const [feedback, setFeedback] = useState("Create recurring transfers between eligible accounts.");
+  const [pendingCancellationOrder, setPendingCancellationOrder] = useState<StandingOrder | null>(null);
 
   useEffect(() => {
     if (accounts.length === 0) {
@@ -142,7 +143,13 @@ export function StandingOrdersPage() {
     },
     onSuccess: (_result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["standing-orders"] });
+      if (variables.action === "cancel") {
+        setPendingCancellationOrder(null);
+      }
       setFeedback(`Standing order ${variables.action} action completed.`);
+    },
+    onError: (error, variables) => {
+      setFeedback(`Unable to ${variables.action} standing order: ${(error as Error).message}`);
     }
   });
 
@@ -153,7 +160,22 @@ export function StandingOrdersPage() {
     [ordersQuery.data]
   );
 
+  const configuredOrders = useMemo(
+    () => (ordersQuery.data ?? []).filter((order) => order.lifecycleState !== "CANCELLED"),
+    [ordersQuery.data]
+  );
+
   const accountNameById = useMemo(() => new Map(accounts.map((account) => [account.accountId, account.accountName])), [accounts]);
+
+  const pendingCancellationOrderLabel = useMemo(() => {
+    if (!pendingCancellationOrder) {
+      return "";
+    }
+
+    const sourceName = accountNameById.get(pendingCancellationOrder.sourceAccountId) ?? pendingCancellationOrder.sourceAccountId;
+    const destinationName = accountNameById.get(pendingCancellationOrder.destinationAccountId) ?? pendingCancellationOrder.destinationAccountId;
+    return `${sourceName} to ${destinationName}`;
+  }, [accountNameById, pendingCancellationOrder]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -199,6 +221,17 @@ export function StandingOrdersPage() {
     } catch (error) {
       setFeedback(`Unable to create standing order: ${(error as Error).message}`);
     }
+  };
+
+  const onConfirmCancellation = () => {
+    if (!pendingCancellationOrder) {
+      return;
+    }
+
+    lifecycleMutation.mutate({
+      action: "cancel",
+      standingOrderId: pendingCancellationOrder.standingOrderId
+    });
   };
 
   return (
@@ -325,7 +358,7 @@ export function StandingOrdersPage() {
           <h3>Configured standing orders</h3>
           <p className="hint-text">Estimated monthly committed amount: {formatCurrency(monthlyCommitted, "USD")}</p>
           <ul className="stack-list">
-            {(ordersQuery.data ?? []).map((order) => {
+            {configuredOrders.map((order) => {
               const sourceName = accountNameById.get(order.sourceAccountId) ?? order.sourceAccountId;
               const destinationName = accountNameById.get(order.destinationAccountId) ?? order.destinationAccountId;
               const canPause = order.lifecycleState === "ACTIVE";
@@ -368,7 +401,7 @@ export function StandingOrdersPage() {
                       <button
                         type="button"
                         disabled={lifecycleMutation.isPending}
-                        onClick={() => lifecycleMutation.mutate({ action: "cancel", standingOrderId: order.standingOrderId })}
+                        onClick={() => setPendingCancellationOrder(order)}
                       >
                         Cancel
                       </button>
@@ -382,6 +415,37 @@ export function StandingOrdersPage() {
           {ordersQuery.isError ? <p className="hint-text">Unable to load standing orders.</p> : null}
         </article>
       </section>
+
+      {pendingCancellationOrder ? (
+        <div className="modal-backdrop" role="presentation">
+          <section
+            className="confirm-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="cancel-standing-order-title"
+            aria-describedby="cancel-standing-order-description"
+          >
+            <h3 id="cancel-standing-order-title">Cancel standing order?</h3>
+            <p id="cancel-standing-order-description">
+              This will stop all future executions for {pendingCancellationOrderLabel}.
+            </p>
+            <p>You can create a new standing order later if needed.</p>
+            <div className="actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setPendingCancellationOrder(null)}
+                disabled={lifecycleMutation.isPending}
+              >
+                Keep order
+              </button>
+              <button type="button" onClick={onConfirmCancellation} disabled={lifecycleMutation.isPending}>
+                {lifecycleMutation.isPending ? "Cancelling..." : "Yes, cancel order"}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }
