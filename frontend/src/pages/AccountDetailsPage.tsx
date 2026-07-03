@@ -28,6 +28,7 @@ export function AccountDetailsPage() {
   const accountId = routeAccountId.trim();
   const customerScopeId = searchParams.get("customerId")?.trim() ?? "";
   const isAdminPath = location.pathname.startsWith("/admin/");
+  const initialFeedbackMessage = "Review account information and submit updates from this page.";
 
   const backPath = useMemo(() => {
     if (!isAdminPath) {
@@ -42,7 +43,7 @@ export function AccountDetailsPage() {
   const [updateForm, setUpdateForm] = useState<AccountUpdateForm>(initialUpdateForm);
   const [adminBalanceInput, setAdminBalanceInput] = useState("");
   const [adminInterestRateInput, setAdminInterestRateInput] = useState("");
-  const [feedback, setFeedback] = useState("Review account information and submit updates from this page.");
+  const [feedback, setFeedback] = useState(initialFeedbackMessage);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -179,6 +180,7 @@ export function AccountDetailsPage() {
   };
 
   const account = detailsQuery.data;
+  const showCustomerFeedbackAlert = !isAdminPath && feedback !== initialFeedbackMessage;
 
   return (
     <section className="bank-page">
@@ -319,10 +321,25 @@ export function AccountDetailsPage() {
         </article>
       </section>
 
-      <article className="surface-card">
-        <h3>Operation status</h3>
-        <p className="hint-text">{feedback}</p>
-      </article>
+      {showCustomerFeedbackAlert ? (
+        <div className="in-page-alert" role="status">
+          <span>{feedback}</span>
+          <button
+            type="button"
+            className="in-page-alert-dismiss"
+            onClick={() => setFeedback(initialFeedbackMessage)}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {isAdminPath ? (
+        <article className="surface-card">
+          <h3>Operation status</h3>
+          <p className="hint-text">{feedback}</p>
+        </article>
+      ) : null}
 
       {!isAdminPath && isDeleteConfirmOpen ? (
         <div className="modal-backdrop" role="presentation" onClick={onCancelDeleteAccount}>

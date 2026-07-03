@@ -22,12 +22,12 @@ export function AccountManagementPage() {
   const role = getNormalizedTokenRole();
   const isAdmin = role === "ADMIN";
   const initialScopeId = isAdmin ? (searchParams.get("customerId") ?? "") : "";
+  const initialFeedbackMessage =
+    "Create and list accounts in this workspace, then open a specific account to view and update it.";
 
   const [customerScopeInput, setCustomerScopeInput] = useState(initialScopeId);
   const [selectedCustomerScopeId, setSelectedCustomerScopeId] = useState(initialScopeId);
-  const [feedback, setFeedback] = useState(
-    "Create and list accounts in this workspace, then open a specific account to view and update it."
-  );
+  const [feedback, setFeedback] = useState(initialFeedbackMessage);
   const [createError, setCreateError] = useState<string | null>(null);
 
   const [openForm, setOpenForm] = useState<CreateCustomerAccountInput>({
@@ -115,6 +115,7 @@ export function AccountManagementPage() {
   };
 
   const accounts = accountsQuery.data ?? [];
+  const showCustomerFeedbackAlert = !isAdmin && feedback !== initialFeedbackMessage;
 
   return (
     <section className="bank-page">
@@ -284,10 +285,25 @@ export function AccountManagementPage() {
         </article>
       </section>
 
-      <article className="surface-card">
-        <h3>Operation status</h3>
-        <p className="hint-text">{feedback}</p>
-      </article>
+      {showCustomerFeedbackAlert ? (
+        <div className="in-page-alert" role="status">
+          <span>{feedback}</span>
+          <button
+            type="button"
+            className="in-page-alert-dismiss"
+            onClick={() => setFeedback(initialFeedbackMessage)}
+          >
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+
+      {isAdmin ? (
+        <article className="surface-card">
+          <h3>Operation status</h3>
+          <p className="hint-text">{feedback}</p>
+        </article>
+      ) : null}
     </section>
   );
 }

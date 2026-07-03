@@ -59,6 +59,11 @@ describe("PaymentsPage", () => {
         level: "Info"
       }
     ]);
+
+    (transactions.fetchTransactionHistoryTotals as jest.MockedFunction<typeof transactions.fetchTransactionHistoryTotals>).mockResolvedValue({
+      totalCredits: 0,
+      totalDebits: 0
+    });
   });
 
   it("renders all transaction operation controls", async () => {
@@ -169,6 +174,8 @@ describe("PaymentsPage", () => {
 
     renderPage();
 
+    expect(screen.queryByRole("heading", { name: /Operation status/i })).not.toBeInTheDocument();
+
     await waitFor(() => {
       expect(fetchAccountsMock).toHaveBeenCalled();
     });
@@ -196,8 +203,8 @@ describe("PaymentsPage", () => {
     expect(firstCall?.amount).toBeCloseTo(125.5);
     expect(firstCall?.customerId).toBeUndefined();
 
-    expect(await screen.findByText(/Deposit completed\. Reference txn-1\./i)).toBeInTheDocument();
     expect(await screen.findByRole("alert")).toHaveTextContent(/Notification sent: Deposit Posted\./i);
+    expect(screen.queryByText(/Deposit completed\. Reference/i)).not.toBeInTheDocument();
   });
 
   it("shows transaction account labels with IDs and final total account balance", async () => {
@@ -260,6 +267,63 @@ describe("PaymentsPage", () => {
     expect(screen.getByText(/Account: Everyday \(acc-1\)/i)).toBeInTheDocument();
     expect(screen.getByText(/Final total account balance/i)).toBeInTheDocument();
     expect(screen.getByText(/\$4,250\.00/i)).toBeInTheDocument();
+  });
+
+  it("shows history credit and debit summary from filtered totals, not visible page only", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+    const fetchTotalsMock = transactions.fetchTransactionHistoryTotals as jest.MockedFunction<typeof transactions.fetchTransactionHistoryTotals>;
+
+    fetchAccountsMock.mockResolvedValue([
+      {
+        accountId: "acc-1",
+        accountName: "Everyday",
+        accountType: "Everyday",
+        accountNumberMasked: "**** 1234",
+        checkingNumber: 1,
+        interestRate: 0,
+        availableBalance: 1250,
+        currentBalance: 1250,
+        currency: "USD",
+        status: "Active"
+      }
+    ]);
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [
+        {
+          transactionId: "txn-page-1",
+          accountId: "acc-1",
+          transactionType: "DEPOSIT",
+          bookedAt: "2026-06-29T10:00:00Z",
+          description: "Visible page entry",
+          category: "Deposit",
+          amount: 50,
+          currency: "USD",
+          direction: "CREDIT",
+          status: "Completed"
+        }
+      ],
+      page: 1,
+      pageSize: 10,
+      totalItems: 15,
+      totalPages: 2
+    });
+
+    fetchTotalsMock.mockResolvedValue({
+      totalCredits: 350,
+      totalDebits: 80
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(fetchTotalsMock).toHaveBeenCalled();
+    });
+
+    expect(await screen.findByText(/History credits/i)).toBeInTheDocument();
+    expect(screen.getByText("$350.00")).toBeInTheDocument();
+    expect(screen.getByText("$80.00")).toBeInTheDocument();
   });
 
   it("does not duplicate transaction type and description in history title", async () => {
@@ -462,5 +526,131 @@ describe("PaymentsPage", () => {
     });
 
     expect(screen.getByLabelText(/Target customer name or ID/i)).toHaveValue("Casey");
+  });
+
+  it("resets payment account scope when admin switches customers", async () => {
+    (session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>).mockReturnValue("ADMIN");
+
+    (customers.fetchCustomersForAdmin as jest.MockedFunction<typeof customers.fetchCustomersForAdmin>).mockResolvedValue([
+      {
+        customerId: "cust-200",
+        externalCustomerKey: "ext-200",
+        fullName: "Casey Admin",
+        email: "casey@example.com",
+        mobile: "+61 400 000 200",
+        status: "ACTIVE",
+        joinedAt: "2024-05-01T00:00:00Z"
+      },
+      {
+        customerId: "cust-201",
+        externalCustomerKey: "ext-201",
+        fullName: "Casey Delta",
+        email: "casey.delta@example.com",
+        mobile: "+61 400 000 201",
+        status: "ACTIVE",
+        joinedAt: "2024-05-02T00:00:00Z"
+      }
+    ]);
+
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const fetchHistoryMock = transactions.fetchTransactionHistory as jest.MockedFunction<typeof transactions.fetchTransactionHistory>;
+    const submitDepositMock = transactions.submitDeposit as jest.MockedFunction<typeof transactions.submitDeposit>;
+
+    fetchAccountsMock.mockImplementation(async (customerId?: string) => {
+      if (customerId === "cust-201") {
+        return [
+          {
+            accountId: "acc-9",
+            accountName: "Delta Everyday",
+            accountType: "Everyday",
+            accountNumberMasked: "**** 9999",
+            checkingNumber: 9,
+            interestRate: 0,
+            availableBalance: 910,
+            currentBalance: 910,
+            currency: "USD",
+            status: "Active"
+          }
+        ];
+      }
+
+      return [
+        {
+          accountId: "acc-1",
+          accountName: "Admin Everyday",
+          accountType: "Everyday",
+          accountNumberMasked: "**** 1111",
+          checkingNumber: 1,
+          interestRate: 0,
+          availableBalance: 110,
+          currentBalance: 110,
+          currency: "USD",
+          status: "Active"
+        }
+      ];
+    });
+
+    fetchHistoryMock.mockResolvedValue({
+      items: [],
+      page: 1,
+      pageSize: 10,
+      totalItems: 0,
+      totalPages: 1
+    });
+
+    submitDepositMock.mockResolvedValue({
+      reference: "txn-admin-switch-1",
+      transactionType: "DEPOSIT",
+      status: "Completed",
+      submittedAt: "2026-06-26T11:15:00Z",
+      postedAmount: 10,
+      currency: "USD",
+      balanceAfter: 920
+    });
+
+    renderPage();
+
+    fireEvent.change(await screen.findByLabelText(/Target customer name or ID/i), {
+      target: { value: "Casey" }
+    });
+
+    const matchingCustomers = screen.getByLabelText(/Matching customers/i);
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-200" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-200");
+      expect(screen.getAllByRole("option", { name: /Admin Everyday \(\*\*\*\* 1111\)/i }).length).toBeGreaterThan(0);
+    });
+
+    fireEvent.change(matchingCustomers, {
+      target: { value: "cust-201" }
+    });
+
+    await waitFor(() => {
+      expect(fetchAccountsMock).toHaveBeenCalledWith("cust-201");
+      expect(screen.getAllByRole("option", { name: /Delta Everyday \(\*\*\*\* 9999\)/i }).length).toBeGreaterThan(0);
+      expect(screen.queryAllByRole("option", { name: /Admin Everyday \(\*\*\*\* 1111\)/i }).length).toBe(0);
+    });
+
+    fireEvent.change(screen.getAllByLabelText(/^Amount$/i)[0], {
+      target: { value: "10" }
+    });
+
+    const depositButton = screen.getByRole("button", { name: /Submit deposit/i });
+    await waitFor(() => {
+      expect(depositButton).not.toBeDisabled();
+    });
+    fireEvent.click(depositButton);
+
+    await waitFor(() => {
+      expect(submitDepositMock).toHaveBeenCalled();
+    });
+
+    const firstCall = submitDepositMock.mock.calls[0]?.[0];
+    expect(firstCall?.customerId).toBe("cust-201");
+    expect(firstCall?.accountId).toBe("acc-9");
   });
 });

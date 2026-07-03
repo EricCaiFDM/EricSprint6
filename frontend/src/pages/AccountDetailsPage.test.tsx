@@ -86,7 +86,8 @@ describe("AccountDetailsPage", () => {
       expect(updateAccountMock).toHaveBeenCalled();
     });
 
-    expect(await screen.findByText(/Account updated:/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /Operation status/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole("status")).toHaveTextContent(/Account updated:/i);
   });
 
   it("does not show admin-only financial update fields on customer route", async () => {

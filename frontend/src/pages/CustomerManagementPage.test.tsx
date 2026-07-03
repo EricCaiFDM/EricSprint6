@@ -80,6 +80,8 @@ describe("CustomerManagementPage", () => {
   it("submits customer profile updates without status", async () => {
     renderPage();
 
+    expect(screen.queryByRole("heading", { name: /Operation status/i })).not.toBeInTheDocument();
+
     fireEvent.change(screen.getByLabelText(/^Legal name$/i), {
       target: { value: "Taylor Green Updated" }
     });
@@ -103,6 +105,8 @@ describe("CustomerManagementPage", () => {
         undefined
       );
     });
+
+    expect(await screen.findByRole("status")).toHaveTextContent(/Customer updated:/i);
   });
 
   it("shows inline update validation errors for short phone input", async () => {

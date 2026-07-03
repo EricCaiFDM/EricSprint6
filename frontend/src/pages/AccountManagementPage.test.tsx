@@ -115,6 +115,37 @@ describe("AccountManagementPage", () => {
     });
   });
 
+  it("shows customer operation feedback as dismissible alert instead of status section", async () => {
+    const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
+    const createCustomerAccountMock = accounts.createCustomerAccount as jest.MockedFunction<typeof accounts.createCustomerAccount>;
+
+    fetchAccountsMock.mockResolvedValue([]);
+    createCustomerAccountMock.mockResolvedValue({
+      accountId: "acc-400",
+      accountName: "Daily Spending",
+      accountType: "Everyday",
+      accountNumberMasked: "**** 0400",
+      checkingNumber: 4,
+      interestRate: 0,
+      availableBalance: 0,
+      currentBalance: 0,
+      currency: "USD",
+      status: "Active"
+    });
+
+    renderPage();
+
+    expect(screen.queryByRole("heading", { name: /Operation status/i })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Create account/i }));
+
+    const feedbackAlert = await screen.findByRole("status");
+    expect(feedbackAlert).toHaveTextContent(/Account created:/i);
+
+    fireEvent.click(screen.getByRole("button", { name: /Dismiss/i }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
   it("resolves admin scope by customer name for account creation", async () => {
     const getRoleMock = session.getNormalizedTokenRole as jest.MockedFunction<typeof session.getNormalizedTokenRole>;
     const fetchAccountsMock = accounts.fetchAccounts as jest.MockedFunction<typeof accounts.fetchAccounts>;
