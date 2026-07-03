@@ -8,6 +8,8 @@ import * as notifications from "./services/notifications";
 jest.mock("./services/api");
 jest.mock("./services/notifications");
 
+const actualNotifications = jest.requireActual("./services/notifications") as typeof notifications;
+
 function createMockJwt(claims: Record<string, unknown>): string {
   const payload = window
     .btoa(JSON.stringify(claims))
@@ -40,6 +42,17 @@ describe("App", () => {
   beforeEach(() => {
     window.localStorage.clear();
     jest.clearAllMocks();
+
+    (notifications.isNotificationEnabledByPreferences as jest.MockedFunction<typeof notifications.isNotificationEnabledByPreferences>)
+      .mockImplementation(actualNotifications.isNotificationEnabledByPreferences);
+
+    (notifications.fetchNotificationPreferences as jest.MockedFunction<typeof notifications.fetchNotificationPreferences>).mockResolvedValue({
+      depositAlertsEnabled: true,
+      withdrawalAlertsEnabled: true,
+      transferAlertsEnabled: true,
+      statementAlertsEnabled: true,
+      offersEnabled: false
+    });
 
     (notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>).mockResolvedValue([]);
   });
@@ -238,6 +251,76 @@ describe("App", () => {
     });
 
     expect(screen.queryByText("New alert: Transfer completed")).not.toBeInTheDocument();
+  });
+
+  it("does not show global snackbar for disabled offers notifications", async () => {
+    jest.useFakeTimers();
+
+    const mockedCheckHealth = api.checkHealth as jest.MockedFunction<typeof api.checkHealth>;
+    mockedCheckHealth.mockResolvedValue("OK");
+
+    const preferencesMock = notifications.fetchNotificationPreferences as jest.MockedFunction<typeof notifications.fetchNotificationPreferences>;
+    preferencesMock.mockResolvedValue({
+      depositAlertsEnabled: true,
+      withdrawalAlertsEnabled: true,
+      transferAlertsEnabled: true,
+      statementAlertsEnabled: true,
+      offersEnabled: false
+    });
+
+    const feedMock = notifications.fetchRecentNotifications as jest.MockedFunction<typeof notifications.fetchRecentNotifications>;
+    feedMock.mockResolvedValueOnce([
+      {
+        notificationId: "notif-10",
+        title: "Deposit posted",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:00Z",
+        level: "Info"
+      }
+    ]);
+    feedMock.mockResolvedValueOnce([
+      {
+        notificationId: "notif-11",
+        title: "Special offer available",
+        message: "Marketing promotion",
+        occurredAt: "2026-07-01T10:00:05Z",
+        level: "Info"
+      },
+      {
+        notificationId: "notif-10",
+        title: "Deposit posted",
+        message: "Delivered successfully",
+        occurredAt: "2026-07-01T10:00:00Z",
+        level: "Info"
+      }
+    ]);
+
+    window.localStorage.setItem(
+      "nb_access_token",
+      createMockJwt({
+        sub: "customer-global-offers-disabled",
+        email: "customer.global.offers.disabled@example.com",
+        role: "CUSTOMER"
+      })
+    );
+
+    renderApp("/customer/dashboard");
+
+    expect(await screen.findByRole("heading", { name: /^Dashboard$/i })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(feedMock).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {
+      jest.advanceTimersByTime(5000);
+    });
+
+    await waitFor(() => {
+      expect(feedMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(screen.queryByText("New alert: Special offer available")).not.toBeInTheDocument();
   });
 
   it("renders admin navigation for ADMIN role", async () => {

@@ -58,16 +58,18 @@ class NotificationControllerIntegrationTest {
         mockMvc.perform(get("/notifications/preferences")
                 .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-pref-100").claim("role", "CUSTOMER"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pushEnabled").value(false))
-                .andExpect(jsonPath("$.emailEnabled").value(true))
-                .andExpect(jsonPath("$.smsEnabled").value(true))
-                .andExpect(jsonPath("$.marketingEnabled").value(false));
+                .andExpect(jsonPath("$.depositAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.withdrawalAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.transferAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.statementAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.offersEnabled").value(false));
 
         String updatePayload = "{" +
-                "\"pushEnabled\":true," +
-                "\"emailEnabled\":false," +
-                "\"smsEnabled\":false," +
-                "\"marketingEnabled\":true" +
+                "\"depositAlertsEnabled\":true," +
+                "\"withdrawalAlertsEnabled\":false," +
+                "\"transferAlertsEnabled\":false," +
+                "\"statementAlertsEnabled\":true," +
+                "\"offersEnabled\":true" +
                 "}";
 
         mockMvc.perform(patch("/notifications/preferences")
@@ -75,18 +77,20 @@ class NotificationControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(updatePayload))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pushEnabled").value(true))
-                .andExpect(jsonPath("$.emailEnabled").value(false))
-                .andExpect(jsonPath("$.smsEnabled").value(false))
-                .andExpect(jsonPath("$.marketingEnabled").value(true));
+                .andExpect(jsonPath("$.depositAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.withdrawalAlertsEnabled").value(false))
+                .andExpect(jsonPath("$.transferAlertsEnabled").value(false))
+                .andExpect(jsonPath("$.statementAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.offersEnabled").value(true));
 
         mockMvc.perform(get("/notifications/preferences")
                 .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-pref-100").claim("role", "CUSTOMER"))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.pushEnabled").value(true))
-                .andExpect(jsonPath("$.emailEnabled").value(false))
-                .andExpect(jsonPath("$.smsEnabled").value(false))
-                .andExpect(jsonPath("$.marketingEnabled").value(true));
+                .andExpect(jsonPath("$.depositAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.withdrawalAlertsEnabled").value(false))
+                .andExpect(jsonPath("$.transferAlertsEnabled").value(false))
+                .andExpect(jsonPath("$.statementAlertsEnabled").value(true))
+                .andExpect(jsonPath("$.offersEnabled").value(true));
     }
 
     @Test
@@ -262,5 +266,60 @@ class NotificationControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].message").isNotEmpty())
                 .andExpect(jsonPath("$[0].occurredAt").isNotEmpty())
                 .andExpect(jsonPath("$[0].level").isNotEmpty());
+    }
+
+    @Test
+    void recentEventsFeedRespectsTopicPreferences() throws Exception {
+        String customerId = createCustomer("notif-owner-105", "105");
+
+        String updatePayload = "{" +
+                "\"depositAlertsEnabled\":true," +
+                "\"withdrawalAlertsEnabled\":true," +
+                "\"transferAlertsEnabled\":false," +
+                "\"statementAlertsEnabled\":true," +
+                "\"offersEnabled\":false" +
+                "}";
+
+        mockMvc.perform(patch("/notifications/preferences")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-105").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updatePayload))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.transferAlertsEnabled").value(false));
+
+        String depositTriggerPayload = "{" +
+                "\"eventType\":\"DEPOSIT_POSTED\"," +
+                "\"recipientScopeType\":\"CUSTOMER\"," +
+                "\"recipientScopeId\":\"" + customerId + "\"," +
+                "\"templateCode\":\"DEPOSIT_RECEIPT\"," +
+                "\"templateContext\":{\"title\":\"Deposit posted\"}" +
+                "}";
+
+        String transferTriggerPayload = "{" +
+                "\"eventType\":\"TRANSFER_COMPLETED\"," +
+                "\"recipientScopeType\":\"CUSTOMER\"," +
+                "\"recipientScopeId\":\"" + customerId + "\"," +
+                "\"templateCode\":\"TRANSFER_RECEIPT\"," +
+                "\"templateContext\":{\"title\":\"Transfer complete\"}" +
+                "}";
+
+        mockMvc.perform(post("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-105").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(depositTriggerPayload))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(post("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-105").claim("role", "CUSTOMER")))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(transferTriggerPayload))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/notifications/events")
+                .with(jwt().jwt(jwt -> jwt.claim("sub", "notif-owner-105").claim("role", "CUSTOMER")))
+                .param("size", "6"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].title").value("Deposit Posted"));
     }
 }

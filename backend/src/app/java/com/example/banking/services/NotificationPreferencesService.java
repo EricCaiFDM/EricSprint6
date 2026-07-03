@@ -31,17 +31,18 @@ public class NotificationPreferencesService {
         String actor = normalizeActor(actorUserId);
 
         NotificationPreferencesResponseSchema updated = new NotificationPreferencesResponseSchema(
-                Boolean.TRUE.equals(request.pushEnabled()),
-                Boolean.TRUE.equals(request.emailEnabled()),
-                Boolean.TRUE.equals(request.smsEnabled()),
-                Boolean.TRUE.equals(request.marketingEnabled()));
+            Boolean.TRUE.equals(request.depositAlertsEnabled()),
+            Boolean.TRUE.equals(request.withdrawalAlertsEnabled()),
+            Boolean.TRUE.equals(request.transferAlertsEnabled()),
+            Boolean.TRUE.equals(request.statementAlertsEnabled()),
+            Boolean.TRUE.equals(request.offersEnabled()));
 
         preferenceStore.put(actor, updated);
         return updated;
     }
 
     private NotificationPreferencesResponseSchema defaultPreferences() {
-        return new NotificationPreferencesResponseSchema(false, true, true, false);
+        return new NotificationPreferencesResponseSchema(true, true, true, true, false);
     }
 
     private String normalizeActor(String actorUserId) {

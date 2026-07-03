@@ -1,6 +1,7 @@
 package com.example.banking.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.Instant;
@@ -13,6 +14,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 import com.example.banking.api.notifications.schemas.NotificationFeedItemSchema;
+import com.example.banking.api.notifications.schemas.NotificationPreferencesRequestSchema;
 import com.example.banking.lib.errors.NotificationErrors;
 import com.example.banking.lib.security.NotificationAccessPolicy;
 import com.example.banking.models.NotificationEventEntity;
@@ -32,8 +34,9 @@ class ListRecentNotificationsServiceTest {
 
         TrackingRecentRepository repository = new TrackingRecentRepository(events, events);
         TrackingNotificationAccessPolicy accessPolicy = new TrackingNotificationAccessPolicy(Set.of());
+        NotificationPreferencesService preferencesService = new NotificationPreferencesService(accessPolicy);
 
-        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy);
+        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy, preferencesService);
         List<NotificationFeedItemSchema> feed = service.listRecent(5, null, "CUSTOMER");
 
         assertEquals(5, feed.size());
@@ -89,8 +92,9 @@ class ListRecentNotificationsServiceTest {
 
         TrackingRecentRepository repository = new TrackingRecentRepository(firstWindow, secondWindow);
         TrackingNotificationAccessPolicy accessPolicy = new TrackingNotificationAccessPolicy(forbiddenScopes);
+        NotificationPreferencesService preferencesService = new NotificationPreferencesService(accessPolicy);
 
-        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy);
+        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy, preferencesService);
         List<NotificationFeedItemSchema> feed = service.listRecent(3, " actor-100 ", "CUSTOMER");
 
         assertEquals(3, feed.size());
@@ -114,8 +118,9 @@ class ListRecentNotificationsServiceTest {
         TrackingRecentRepository repository = new TrackingRecentRepository(fullWindow, fullWindow);
         TrackingNotificationAccessPolicy accessPolicy = new TrackingNotificationAccessPolicy(Set.copyOf(
                 fullWindow.stream().map(NotificationEventEntity::getRecipientScopeId).toList()));
+        NotificationPreferencesService preferencesService = new NotificationPreferencesService(accessPolicy);
 
-        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy);
+        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy, preferencesService);
         List<NotificationFeedItemSchema> feed = service.listRecent(60, "   ", "CUSTOMER");
 
         assertEquals(List.of(), feed);
@@ -132,14 +137,44 @@ class ListRecentNotificationsServiceTest {
 
         TrackingRecentRepository repository = new TrackingRecentRepository(events, events);
         TrackingNotificationAccessPolicy accessPolicy = new TrackingNotificationAccessPolicy(Set.of());
+        NotificationPreferencesService preferencesService = new NotificationPreferencesService(accessPolicy);
 
-        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy);
+        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy, preferencesService);
         List<NotificationFeedItemSchema> feed = service.listRecent(3, "actor", "CUSTOMER");
 
         assertEquals(3, feed.size());
         assertEquals("Notification", feed.get(0).title());
         assertEquals("A B", feed.get(1).title());
         assertEquals("X", feed.get(2).title());
+    }
+
+    @Test
+    void listRecentRespectsSavedTopicPreferences() {
+        List<NotificationEventEntity> events = List.of(
+                event("evt-pref-1", "DEPOSIT_POSTED", NotificationEventStatus.COMPLETED, "scope-pref-1", Instant.parse("2026-06-30T08:00:00Z"), Instant.parse("2026-06-30T08:05:00Z")),
+                event("evt-pref-2", "TRANSFER_COMPLETED", NotificationEventStatus.COMPLETED, "scope-pref-2", Instant.parse("2026-06-30T09:00:00Z"), Instant.parse("2026-06-30T09:05:00Z")),
+                event("evt-pref-3", "STATEMENT_READY", NotificationEventStatus.COMPLETED, "scope-pref-3", Instant.parse("2026-06-30T10:00:00Z"), Instant.parse("2026-06-30T10:05:00Z")),
+                event("evt-pref-4", "PROMOTION", NotificationEventStatus.COMPLETED, "scope-pref-4", Instant.parse("2026-06-30T11:00:00Z"), Instant.parse("2026-06-30T11:05:00Z")),
+                event("evt-pref-5", "PASSWORD_RESET", NotificationEventStatus.COMPLETED, "scope-pref-5", Instant.parse("2026-06-30T12:00:00Z"), Instant.parse("2026-06-30T12:05:00Z")));
+
+        TrackingRecentRepository repository = new TrackingRecentRepository(events, events);
+        TrackingNotificationAccessPolicy accessPolicy = new TrackingNotificationAccessPolicy(Set.of());
+        NotificationPreferencesService preferencesService = new NotificationPreferencesService(accessPolicy);
+
+        preferencesService.updatePreferences(
+                "actor-pref",
+                "CUSTOMER",
+                new NotificationPreferencesRequestSchema(false, true, true, false, false));
+
+        ListRecentNotificationsService service = new ListRecentNotificationsService(repository, accessPolicy, preferencesService);
+        List<NotificationFeedItemSchema> feed = service.listRecent(10, "actor-pref", "CUSTOMER");
+
+        List<String> titles = feed.stream().map(NotificationFeedItemSchema::title).toList();
+        assertTrue(titles.contains("Transfer Completed"));
+        assertTrue(titles.contains("Password Reset"));
+        assertFalse(titles.contains("Deposit Posted"));
+        assertFalse(titles.contains("Statement Ready"));
+        assertFalse(titles.contains("Promotion"));
     }
 
     private NotificationEventEntity event(

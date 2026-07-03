@@ -2,7 +2,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchAccounts, type BankAccount } from "../services/accounts";
 import { fetchCustomersForAdmin } from "../services/customers";
-import { fetchRecentNotifications } from "../services/notifications";
+import {
+  fetchNotificationPreferences,
+  fetchRecentNotifications,
+  isNotificationEnabledByPreferences,
+  type NotificationItem
+} from "../services/notifications";
 import {
   fetchTransactionHistoryTotals,
   fetchTransactionHistory,
@@ -29,6 +34,8 @@ type OperationReceipt = {
   kind: "deposit" | "withdrawal" | "transfer";
   receipt: PostingReceipt | TransferReceipt;
 };
+
+type NotificationTopic = "deposit" | "transfer" | "withdrawal";
 
 const emptyHistory: TransactionHistoryResult = {
   items: [],
@@ -283,14 +290,53 @@ export function PaymentsPage() {
     ]);
   };
 
-  const refreshNotificationFeed = async (fallbackTitle: string) => {
+  const isNotificationTopicEnabled = async (topic: NotificationTopic): Promise<boolean> => {
+    try {
+      const preferences = await fetchNotificationPreferences();
+      if (topic === "deposit") {
+        return preferences.depositAlertsEnabled;
+      }
+      if (topic === "withdrawal") {
+        return preferences.withdrawalAlertsEnabled;
+      }
+      return preferences.transferAlertsEnabled;
+    } catch {
+      return false;
+    }
+  };
+
+  const refreshNotificationFeed = async (topic: NotificationTopic) => {
+    const topicEnabled = await isNotificationTopicEnabled(topic);
+    if (!topicEnabled) {
+      setNotificationFeedback(null);
+      return;
+    }
+
+    const previousLatestId = queryClient.getQueryData<NotificationItem[]>(["notification-feed"])?.[0]?.notificationId;
+
     try {
       const latest = await fetchRecentNotifications();
       queryClient.setQueryData(["notification-feed"], latest);
-      const title = latest[0]?.title ?? fallbackTitle;
-      setNotificationFeedback(`Notification sent: ${title}.`);
+      const newest = latest[0];
+      if (!newest) {
+        setNotificationFeedback(null);
+        return;
+      }
+
+      const preferences = await fetchNotificationPreferences();
+      if (!isNotificationEnabledByPreferences(newest, preferences)) {
+        setNotificationFeedback(null);
+        return;
+      }
+
+      if (previousLatestId && newest.notificationId === previousLatestId) {
+        setNotificationFeedback(null);
+        return;
+      }
+
+      setNotificationFeedback(`Notification sent: ${newest.title}.`);
     } catch {
-      setNotificationFeedback(`Notification sent: ${fallbackTitle}.`);
+      setNotificationFeedback(null);
     }
   };
 
@@ -309,7 +355,7 @@ export function PaymentsPage() {
       setDepositAmount("");
       await Promise.all([
         refreshAll(),
-        refreshNotificationFeed("Deposit Posted")
+        refreshNotificationFeed("deposit")
       ]);
     },
     onError: (error) => setDepositError(`Deposit failed: ${(error as Error).message}`)
@@ -328,7 +374,10 @@ export function PaymentsPage() {
       setLastOperation({ kind: "withdrawal", receipt });
       setFeedback(`Withdrawal completed. Reference ${receipt.reference}.`);
       setWithdrawAmount("");
-      await refreshAll();
+      await Promise.all([
+        refreshAll(),
+        refreshNotificationFeed("withdrawal")
+      ]);
     },
     onError: (error) => setWithdrawError(`Withdrawal failed: ${(error as Error).message}`)
   });
@@ -352,7 +401,7 @@ export function PaymentsPage() {
       setTransferAmount("");
       await Promise.all([
         refreshAll(),
-        refreshNotificationFeed("Transfer Completed")
+        refreshNotificationFeed("transfer")
       ]);
     },
     onError: (error) => setTransferError(`Transfer failed: ${(error as Error).message}`)

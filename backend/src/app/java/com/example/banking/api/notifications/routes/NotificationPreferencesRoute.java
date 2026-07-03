@@ -40,14 +40,14 @@ public class NotificationPreferencesRoute {
 
     @Operation(
             summary = "Get notification preferences",
-            description = "Returns current channel and marketing notification preferences for the authenticated user.")
+            description = "Returns current notification topic preferences for the authenticated user.")
         @ApiResponse(
             responseCode = "200",
             description = "Current notification preferences",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = NotificationPreferencesResponseSchema.class),
-                examples = @ExampleObject(value = "{\"emailEnabled\":true,\"smsEnabled\":false,\"pushEnabled\":true,\"marketingOptIn\":false,\"updatedAtUtc\":\"2026-07-02T05:10:00Z\"}")))
+                examples = @ExampleObject(value = "{\"depositAlertsEnabled\":true,\"withdrawalAlertsEnabled\":true,\"transferAlertsEnabled\":true,\"statementAlertsEnabled\":true,\"offersEnabled\":false}")))
     @GetMapping
     public ResponseEntity<NotificationPreferencesResponseSchema> getPreferences(Authentication authentication) {
         CustomerPrincipal principal = principalResolver.resolve(authentication);
@@ -59,14 +59,14 @@ public class NotificationPreferencesRoute {
 
         @Operation(
             summary = "Update notification preferences",
-            description = "Updates channel and marketing notification preferences for the authenticated user.")
+            description = "Updates notification topic preferences for the authenticated user.")
         @ApiResponse(
             responseCode = "200",
             description = "Updated notification preferences",
             content = @Content(
                 mediaType = "application/json",
                 schema = @Schema(implementation = NotificationPreferencesResponseSchema.class),
-                examples = @ExampleObject(value = "{\"emailEnabled\":true,\"smsEnabled\":true,\"pushEnabled\":false,\"marketingOptIn\":true,\"updatedAtUtc\":\"2026-07-02T05:15:00Z\"}")))
+                examples = @ExampleObject(value = "{\"depositAlertsEnabled\":true,\"withdrawalAlertsEnabled\":false,\"transferAlertsEnabled\":true,\"statementAlertsEnabled\":true,\"offersEnabled\":true}")))
     @PatchMapping
     public ResponseEntity<NotificationPreferencesResponseSchema> updatePreferences(
             @io.swagger.v3.oas.annotations.parameters.RequestBody(
@@ -74,7 +74,7 @@ public class NotificationPreferencesRoute {
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(implementation = NotificationPreferencesRequestSchema.class),
-                    examples = @ExampleObject(value = "{\"emailEnabled\":true,\"smsEnabled\":true,\"pushEnabled\":false,\"marketingOptIn\":true}")))
+                    examples = @ExampleObject(value = "{\"depositAlertsEnabled\":true,\"withdrawalAlertsEnabled\":false,\"transferAlertsEnabled\":true,\"statementAlertsEnabled\":true,\"offersEnabled\":true}")))
             @Valid @RequestBody NotificationPreferencesRequestSchema request,
             Authentication authentication) {
         CustomerPrincipal principal = principalResolver.resolve(authentication);

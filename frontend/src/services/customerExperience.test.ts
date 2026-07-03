@@ -1040,19 +1040,21 @@ describe("customer experience services", () => {
   it("reads notification preferences from API response", async () => {
     jest.spyOn(apiClient, "get").mockResolvedValue({
       data: {
-        pushEnabled: false,
-        emailEnabled: true,
-        smsEnabled: true,
-        marketingEnabled: false
+        depositAlertsEnabled: true,
+        withdrawalAlertsEnabled: false,
+        transferAlertsEnabled: true,
+        statementAlertsEnabled: true,
+        offersEnabled: false
       }
     } as never);
 
     const preferences = await fetchNotificationPreferences();
 
-    expect(preferences.pushEnabled).toBe(false);
-    expect(preferences.emailEnabled).toBe(true);
-    expect(preferences.smsEnabled).toBe(true);
-    expect(preferences.marketingEnabled).toBe(false);
+    expect(preferences.depositAlertsEnabled).toBe(true);
+    expect(preferences.withdrawalAlertsEnabled).toBe(false);
+    expect(preferences.transferAlertsEnabled).toBe(true);
+    expect(preferences.statementAlertsEnabled).toBe(true);
+    expect(preferences.offersEnabled).toBe(false);
   });
 
   it("throws when statement endpoint is unavailable", async () => {

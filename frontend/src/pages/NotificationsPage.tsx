@@ -3,6 +3,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   fetchNotificationPreferences,
   fetchRecentNotifications,
+  isNotificationEnabledByPreferences,
   updateNotificationPreferences,
   type NotificationPreferences
 } from "../services/notifications";
@@ -21,12 +22,13 @@ export function NotificationsPage() {
   });
 
   const [preferences, setPreferences] = useState<NotificationPreferences>({
-    pushEnabled: false,
-    emailEnabled: false,
-    smsEnabled: false,
-    marketingEnabled: false
+    depositAlertsEnabled: true,
+    withdrawalAlertsEnabled: true,
+    transferAlertsEnabled: true,
+    statementAlertsEnabled: true,
+    offersEnabled: false
   });
-  const [feedback, setFeedback] = useState("Choose how you want to hear from us.");
+  const [feedback, setFeedback] = useState("Choose which account activity and updates you want to be notified about.");
   const [liveAlert, setLiveAlert] = useState<string | null>(null);
   const latestNotificationIdRef = useRef<string | null>(null);
 
@@ -49,9 +51,14 @@ export function NotificationsPage() {
 
     if (latest.notificationId !== latestNotificationIdRef.current) {
       latestNotificationIdRef.current = latest.notificationId;
+
+      if (!isNotificationEnabledByPreferences(latest, preferences)) {
+        return;
+      }
+
       setLiveAlert(`New alert: ${latest.title}`);
     }
-  }, [feedQuery.data]);
+  }, [feedQuery.data, preferences]);
 
   const saveMutation = useMutation({
     mutationFn: updateNotificationPreferences
@@ -61,7 +68,7 @@ export function NotificationsPage() {
     try {
       await saveMutation.mutateAsync(preferences);
       setLiveAlert("Preferences have been updated.");
-      setFeedback("Choose how you want to hear from us.");
+      setFeedback("Choose which account activity and updates you want to be notified about.");
     } catch (error) {
       setFeedback(`Unable to save preferences: ${(error as Error).message}`);
     }
@@ -72,7 +79,7 @@ export function NotificationsPage() {
       <header className="page-header">
         <div>
           <h2 className="page-title">Notifications</h2>
-          <p className="page-subtitle">Control how account alerts and service updates reach you.</p>
+          <p className="page-subtitle">Select what types of account activity and updates you want to be notified about.</p>
         </div>
       </header>
 
@@ -87,44 +94,54 @@ export function NotificationsPage() {
 
       <section className="two-column-grid">
         <article className="surface-card">
-          <h3>Delivery preferences</h3>
+          <h3>Notification topics</h3>
           <div className="toggle-list">
             <label className="toggle-item">
               <input
                 type="checkbox"
-                checked={preferences.pushEnabled}
+                checked={preferences.depositAlertsEnabled}
                 onChange={(event) =>
-                  setPreferences({ ...preferences, pushEnabled: event.target.checked })
+                  setPreferences({ ...preferences, depositAlertsEnabled: event.target.checked })
                 }
               />
-              <span>Push notifications</span>
+              <span>Deposit confirmations</span>
             </label>
             <label className="toggle-item">
               <input
                 type="checkbox"
-                checked={preferences.emailEnabled}
+                checked={preferences.withdrawalAlertsEnabled}
                 onChange={(event) =>
-                  setPreferences({ ...preferences, emailEnabled: event.target.checked })
+                  setPreferences({ ...preferences, withdrawalAlertsEnabled: event.target.checked })
                 }
               />
-              <span>Email alerts</span>
+              <span>Withdrawal confirmations</span>
             </label>
             <label className="toggle-item">
               <input
                 type="checkbox"
-                checked={preferences.smsEnabled}
+                checked={preferences.transferAlertsEnabled}
                 onChange={(event) =>
-                  setPreferences({ ...preferences, smsEnabled: event.target.checked })
+                  setPreferences({ ...preferences, transferAlertsEnabled: event.target.checked })
                 }
               />
-              <span>SMS alerts</span>
+              <span>Transfer updates</span>
             </label>
             <label className="toggle-item">
               <input
                 type="checkbox"
-                checked={preferences.marketingEnabled}
+                checked={preferences.statementAlertsEnabled}
                 onChange={(event) =>
-                  setPreferences({ ...preferences, marketingEnabled: event.target.checked })
+                  setPreferences({ ...preferences, statementAlertsEnabled: event.target.checked })
+                }
+              />
+              <span>Statement ready alerts</span>
+            </label>
+            <label className="toggle-item">
+              <input
+                type="checkbox"
+                checked={preferences.offersEnabled}
+                onChange={(event) =>
+                  setPreferences({ ...preferences, offersEnabled: event.target.checked })
                 }
               />
               <span>Product updates and offers</span>

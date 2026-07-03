@@ -4,8 +4,9 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "OpenAPI schema for notification preferences response schema payload.")
 public record NotificationPreferencesResponseSchema(
-        boolean pushEnabled,
-        boolean emailEnabled,
-        boolean smsEnabled,
-        boolean marketingEnabled) {
+        boolean depositAlertsEnabled,
+        boolean withdrawalAlertsEnabled,
+        boolean transferAlertsEnabled,
+        boolean statementAlertsEnabled,
+        boolean offersEnabled) {
 }

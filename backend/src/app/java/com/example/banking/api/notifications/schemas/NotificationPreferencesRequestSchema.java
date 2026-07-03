@@ -5,15 +5,18 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "OpenAPI schema for notification preferences request schema payload.")
 public record NotificationPreferencesRequestSchema(
-        @NotNull(message = "pushEnabled is required")
-        Boolean pushEnabled,
+        @NotNull(message = "depositAlertsEnabled is required")
+        Boolean depositAlertsEnabled,
 
-        @NotNull(message = "emailEnabled is required")
-        Boolean emailEnabled,
+        @NotNull(message = "withdrawalAlertsEnabled is required")
+        Boolean withdrawalAlertsEnabled,
 
-        @NotNull(message = "smsEnabled is required")
-        Boolean smsEnabled,
+        @NotNull(message = "transferAlertsEnabled is required")
+        Boolean transferAlertsEnabled,
 
-        @NotNull(message = "marketingEnabled is required")
-        Boolean marketingEnabled) {
+        @NotNull(message = "statementAlertsEnabled is required")
+        Boolean statementAlertsEnabled,
+
+        @NotNull(message = "offersEnabled is required")
+        Boolean offersEnabled) {
 }
